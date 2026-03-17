@@ -326,6 +326,8 @@ def test_empty_request_returns_none(worker_server):
     sock.connect(SOCKET_PATH)
     # Закрываем без отправки данных
     sock.close()
+    # Дать worker время обработать закрытие соединения (CI медленнее)
+    time.sleep(0.2)
     # Worker не падает — проверяем ping
     resp = send_request({"cmd": "ping"})
     assert resp["status"] == "ok"
