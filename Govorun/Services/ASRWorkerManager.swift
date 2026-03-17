@@ -401,6 +401,16 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         process.arguments = [serverPath]
         process.currentDirectoryURL = URL(fileURLWithPath: workerDirectory)
 
+        // venv site-packages: embedded Python не видит пакеты без PYTHONPATH
+        let venvSitePackages = NSString("~/.govorun/venv/lib/python3.13/site-packages")
+            .expandingTildeInPath
+        var env = ProcessInfo.processInfo.environment
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: venvSitePackages, isDirectory: &isDir), isDir.boolValue {
+            env["PYTHONPATH"] = venvSitePackages
+        }
+        process.environment = env
+
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
