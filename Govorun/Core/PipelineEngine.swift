@@ -1,0 +1,658 @@
+import Foundation
+
+// MARK: - Ошибки Pipeline
+
+enum PipelineError: Error, Equatable {
+    case sttFailed(String)
+    case audioCaptureFailed(String)
+    case cancelled
+
+    static func == (lhs: PipelineError, rhs: PipelineError) -> Bool {
+        switch (lhs, rhs) {
+        case (.cancelled, .cancelled):
+            return true
+        case (.sttFailed(let a), .sttFailed(let b)):
+            return a == b
+        case (.audioCaptureFailed(let a), .audioCaptureFailed(let b)):
+            return a == b
+        default:
+            return false
+        }
+    }
+}
+
+// MARK: - Результат Pipeline
+
+struct PipelineResult: Sendable {
+    let sessionId: UUID
+    let rawTranscript: String
+    let normalizedText: String
+    let textMode: TextMode
+    let normalizationPath: NormalizationPath
+    let sttLatencyMs: Int
+    let llmLatencyMs: Int
+    var insertionLatencyMs: Int
+    let totalLatencyMs: Int
+    let matchedSnippetTrigger: String?
+    let snippetFallbackUsed: Bool
+    var insertionStrategy: InsertionStrategy?
+    let audioDurationMs: Int
+    var audioFileName: String?
+
+    enum NormalizationPath: String, Sendable {
+        case trivial
+        case snippet           // standalone: content as-is, 0ms
+        case snippetPlusLLM    // embedded: placeholder → LLM → reinsertion
+        case llm
+        case llmFailed         // LLM упал → deterministicText fallback
+    }
+
+    init(
+        sessionId: UUID,
+        rawTranscript: String,
+        normalizedText: String,
+        textMode: TextMode,
+        normalizationPath: NormalizationPath,
+        sttLatencyMs: Int,
+        llmLatencyMs: Int,
+        insertionLatencyMs: Int,
+        totalLatencyMs: Int,
+        matchedSnippetTrigger: String? = nil,
+        snippetFallbackUsed: Bool = false,
+        insertionStrategy: InsertionStrategy? = nil,
+        audioDurationMs: Int = 0,
+        audioFileName: String? = nil
+    ) {
+        self.sessionId = sessionId
+        self.rawTranscript = rawTranscript
+        self.normalizedText = normalizedText
+        self.textMode = textMode
+        self.normalizationPath = normalizationPath
+        self.sttLatencyMs = sttLatencyMs
+        self.llmLatencyMs = llmLatencyMs
+        self.insertionLatencyMs = insertionLatencyMs
+        self.totalLatencyMs = totalLatencyMs
+        self.matchedSnippetTrigger = matchedSnippetTrigger
+        self.snippetFallbackUsed = snippetFallbackUsed
+        self.insertionStrategy = insertionStrategy
+        self.audioDurationMs = audioDurationMs
+        self.audioFileName = audioFileName
+    }
+}
+
+// MARK: - Snippet Match Result
+
+enum SnippetMatchKind: Sendable, Equatable {
+    case standalone           // весь транскрипт = триггер
+    case embedded             // триггер внутри фразы
+}
+
+struct SnippetMatch: Sendable {
+    let trigger: String
+    let content: String
+    let kind: SnippetMatchKind
+}
+
+// MARK: - Snippet Reinserter
+
+enum SnippetReinserter {
+
+    static func reinsert(llmOutput: String, content: String) -> String? {
+        let token = SnippetPlaceholder.token
+        let occurrences = llmOutput.components(separatedBy: token).count - 1
+
+        guard occurrences == 1 else { return nil }
+
+        guard let range = llmOutput.range(of: token) else { return nil }
+
+        if range.lowerBound != llmOutput.startIndex {
+            let charBefore = llmOutput[llmOutput.index(before: range.lowerBound)]
+            if !charBefore.isWhitespace && !charBefore.isPunctuation {
+                return nil
+            }
+        }
+
+        if range.upperBound != llmOutput.endIndex {
+            let charAfter = llmOutput[range.upperBound]
+            if !charAfter.isWhitespace && !charAfter.isPunctuation {
+                return nil
+            }
+        }
+
+        return llmOutput.replacingOccurrences(of: token, with: content)
+    }
+
+    static func mechanicalFallback(
+        rawTranscript: String,
+        trigger: String,
+        content: String
+    ) -> String {
+        let textTokens = SnippetEngine.tokenize(rawTranscript)
+        let triggerTokens = SnippetEngine.tokenize(trigger)
+        let windowSize = triggerTokens.count
+
+        if textTokens.count >= windowSize {
+            for i in 0...(textTokens.count - windowSize) {
+                let window = Array(textTokens[i..<(i + windowSize)])
+                if window == triggerTokens {
+                    let prefix = textTokens[0..<i]
+                    let suffix = textTokens[(i + windowSize)...]
+                    var parts: [String] = []
+                    if !prefix.isEmpty { parts.append(prefix.joined(separator: " ")) }
+                    parts.append("\(trigger): \(content)")
+                    if !suffix.isEmpty { parts.append(suffix.joined(separator: " ")) }
+                    let result = parts.joined(separator: " ")
+                    return result.prefix(1).uppercased() + result.dropFirst()
+                }
+            }
+        }
+
+        let capitalizedTrigger = trigger.prefix(1).uppercased() + trigger.dropFirst()
+        return "\(capitalizedTrigger): \(content)"
+    }
+}
+
+// MARK: - Протокол Snippet Matching
+
+protocol SnippetMatching: Sendable {
+    func match(_ text: String) -> SnippetMatch?
+}
+
+// MARK: - DeterministicNormalizer (расширенный, без LLM)
+
+enum DeterministicNormalizer {
+
+    // Филлеры-слова: удаляются из текста (целые слова, case-insensitive)
+    private static let fillerWords: Set<String> = [
+        "эм", "ээ", "ммм", "ну", "типа", "вот", "короче", "блин", "так"
+    ]
+
+    // Филлеры-фразы: удаляются из текста (могут быть из нескольких слов)
+    private static let fillerPhrases: [String] = [
+        "это самое", "как бы"
+    ]
+
+    // Замены слов (пусто — ок/окей оставляем как есть)
+    private static let wordReplacements: [String: String] = [:]
+
+    static func normalize(_ text: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !result.isEmpty else { return "" }
+
+        // 1. Удалить филлеры-фразы (до разбивки на слова, case-insensitive)
+        for phrase in fillerPhrases {
+            result = result.replacingOccurrences(
+                of: "\\b\(NSRegularExpression.escapedPattern(for: phrase))\\b",
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+
+        // 2. Разбить на слова, удалить филлеры-слова, применить замены
+        var words = result.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        words = words.compactMap { word in
+            let lower = word.lowercased()
+            // Слово без пунктуации для проверки
+            let stripped = lower.trimmingCharacters(in: .punctuationCharacters)
+            if fillerWords.contains(stripped) { return nil }
+            // Замены (сохраняем пунктуацию после слова)
+            if let replacement = wordReplacements[stripped] {
+                let trailing = word.drop(while: { !$0.isPunctuation })
+                // Если слово заканчивается на пунктуацию — сохранить
+                let suffix = String(word.suffix(from: word.index(word.endIndex, offsetBy: -trailing.count, limitedBy: word.startIndex) ?? word.endIndex))
+                if suffix.first?.isPunctuation != true {
+                    return replacement
+                }
+                return replacement + suffix
+            }
+            return word
+        }
+
+        // Если после удаления филлеров ничего не осталось
+        guard !words.isEmpty else { return "" }
+
+        result = words.joined(separator: " ")
+
+        // 2.5. Нормализация числительных (проценты, валюты, время, даты, порядковые, кардиналы)
+        result = NumberNormalizer.normalize(result)
+
+        // 3. Удалить двойные пробелы
+        while result.contains("  ") {
+            result = result.replacingOccurrences(of: "  ", with: " ")
+        }
+        result = result.trimmingCharacters(in: .whitespaces)
+
+        guard !result.isEmpty else { return "" }
+
+        // 4. Капитализация первой буквы
+        result = result.prefix(1).uppercased() + result.dropFirst()
+
+        // 5. Капитализация после ./?/!
+        result = capitalizeAfterSentenceEnd(result)
+
+        // 6. Добавить точку в конце если нет пунктуации
+        if let last = result.last, !last.isPunctuation {
+            result += "."
+        }
+
+        return result
+    }
+
+    /// Капитализация буквы после . ? !
+    private static func capitalizeAfterSentenceEnd(_ text: String) -> String {
+        var chars = Array(text)
+        var i = 0
+        while i < chars.count {
+            if chars[i] == "." || chars[i] == "?" || chars[i] == "!" {
+                // Пропустить пробелы после знака
+                var j = i + 1
+                while j < chars.count && chars[j] == " " { j += 1 }
+                if j < chars.count && chars[j].isLetter {
+                    chars[j] = Character(chars[j].uppercased())
+                }
+                i = j
+            } else {
+                i += 1
+            }
+        }
+        return String(chars)
+    }
+}
+
+// MARK: - LLM Response Guard
+
+enum LLMResponseGuard {
+
+    // Префиксы типичных отказов LLM safety-фильтра
+    private static let refusalPrefixes = [
+        "к сожалению",
+        "извините",
+        "я не могу",
+        "я не в состоянии",
+        "данный запрос",
+        "не могу обработать",
+        "в соответствии с правилами",
+    ]
+
+    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
+        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return false }
+
+        let lower = trimmed.lowercased()
+        let rawLower = rawTranscript.lowercased()
+
+        // Refusal detection: ответ начинается с refusal-префикса,
+        // НО raw transcript НЕ начинается с того же — значит LLM отказал, а не нормализовал
+        for prefix in refusalPrefixes {
+            if lower.hasPrefix(prefix) && !rawLower.hasPrefix(prefix) {
+                return false
+            }
+        }
+
+        // Ответ непропорционально длиннее ввода — скорее всего объяснение, а не нормализация
+        let inputWords = rawTranscript.split(whereSeparator: \.isWhitespace).count
+        let outputWords = trimmed.split(whereSeparator: \.isWhitespace).count
+        if inputWords > 0 && outputWords > inputWords * 3 && outputWords > 10 {
+            return false
+        }
+
+        return true
+    }
+}
+
+// MARK: - Trivial text check
+
+func isTrivial(_ text: String) -> Bool {
+    let words = text.split(separator: " ")
+    guard words.count <= 1 else { return false }
+
+    let correctionMarkers = [
+        "точнее", "то есть", "подожди", "в смысле",
+        "имею в виду", "или нет", "хотя нет", "а нет"
+    ]
+    let lowered = text.lowercased()
+    let hasCorrection = correctionMarkers.contains { lowered.contains($0) }
+    let hasNumbers = text.contains(where: \.isNumber)
+
+    return !hasCorrection && !hasNumbers
+}
+
+// MARK: - PipelineEngine
+
+final class PipelineEngine: @unchecked Sendable {
+
+    private let audioCapture: AudioRecording
+    private let sttClient: STTClient
+    private let llmClient: LLMClient
+    private let snippetEngine: SnippetMatching?
+
+    private let lock = NSLock()
+    private var _isCancelled = false
+    private var _isRecording = false
+
+    private var _textMode: TextMode = .universal
+    private var _hints: NormalizationHints = NormalizationHints()
+    private var _sessionId: UUID?
+
+    var textMode: TextMode {
+        get { lock.lock(); defer { lock.unlock() }; return _textMode }
+        set { lock.lock(); defer { lock.unlock() }; _textMode = newValue }
+    }
+    var hints: NormalizationHints {
+        get { lock.lock(); defer { lock.unlock() }; return _hints }
+        set { lock.lock(); defer { lock.unlock() }; _hints = newValue }
+    }
+    init(
+        audioCapture: AudioRecording,
+        sttClient: STTClient,
+        llmClient: LLMClient,
+        snippetEngine: SnippetMatching? = nil
+    ) {
+        self.audioCapture = audioCapture
+        self.sttClient = sttClient
+        self.llmClient = llmClient
+        self.snippetEngine = snippetEngine
+    }
+
+    func startRecording(sessionId: UUID) throws {
+        lock.lock()
+        _sessionId = sessionId
+        lock.unlock()
+
+        prepareForRecording()
+        try audioCapture.startRecording()
+    }
+
+    /// No-op: streaming убран, чанки не буферизуются.
+    /// Метод сохранён для совместимости с AudioCaptureBridge в AppState.
+    func handleAudioChunk(_ chunk: Data) {}
+
+    func stopRecording() async throws -> PipelineResult {
+        let stopTime = CFAbsoluteTimeGetCurrent()
+        let sessionId = snapshotSessionId()
+
+        // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
+        let (currentTextMode, currentHints) = snapshotConfig()
+
+        markRecordingStopped()
+        let audioDurationMs = Int(audioCapture.duration * 1000)
+        let audioData = audioCapture.stopRecording()
+
+        // Сохраняем аудио на диск для истории (если включено в настройках)
+        let audioFileName: String?
+        if !audioData.isEmpty && UserDefaults.standard.bool(forKey: "saveAudioHistory") {
+            audioFileName = try? AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
+        } else {
+            audioFileName = nil
+        }
+
+        func cleanupAudioOnFailure() {
+            if let audioFileName {
+                AudioHistoryStorage.deleteFile(named: audioFileName)
+            }
+        }
+
+        // STT — batch (GigaAM не поддерживает streaming)
+        let sttStart = CFAbsoluteTimeGetCurrent()
+        let sttResult: STTResult
+        do {
+            sttResult = try await sttClient.recognize(audioData: audioData, hints: [])
+        } catch {
+            cleanupAudioOnFailure()
+            throw PipelineError.sttFailed(error.localizedDescription)
+        }
+        let sttLatencyMs = Int((CFAbsoluteTimeGetCurrent() - sttStart) * 1000)
+
+        guard !currentIsCancelled() else {
+            cleanupAudioOnFailure()
+            throw PipelineError.cancelled
+        }
+
+        let rawTranscript = sttResult.text
+
+        // Пост-замены из словаря (жира → Jira) — до нормализации и сниппетов
+        let correctedTranscript = DictionaryStore.applyReplacements(
+            to: rawTranscript,
+            replacements: currentHints.personalDictionary
+        )
+
+        // Пустой транскрипт → пропускаем LLM
+        guard !correctedTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+            return PipelineResult(
+                sessionId: sessionId,
+                rawTranscript: rawTranscript,
+                normalizedText: "",
+                textMode: currentTextMode,
+                normalizationPath: .trivial,
+                sttLatencyMs: sttLatencyMs,
+                llmLatencyMs: 0,
+                insertionLatencyMs: 0,
+                totalLatencyMs: totalMs,
+                audioDurationMs: audioDurationMs,
+                audioFileName: audioFileName
+            )
+        }
+
+        // Snippet match (на исправленном тексте)
+        if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
+
+            switch snippetMatch.kind {
+            case .standalone:
+                let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+                return PipelineResult(
+                    sessionId: sessionId,
+                    rawTranscript: rawTranscript,
+                    normalizedText: snippetMatch.content,
+                    textMode: currentTextMode,
+                    normalizationPath: .snippet,
+                    sttLatencyMs: sttLatencyMs,
+                    llmLatencyMs: 0,
+                    insertionLatencyMs: 0,
+                    totalLatencyMs: totalMs,
+                    matchedSnippetTrigger: snippetMatch.trigger,
+                    snippetFallbackUsed: false,
+                    audioDurationMs: audioDurationMs,
+                    audioFileName: audioFileName
+                )
+
+            case .embedded:
+                let snippetCtx = SnippetContext(trigger: snippetMatch.trigger)
+                let hintsWithSnippet = NormalizationHints(
+                    personalDictionary: currentHints.personalDictionary,
+                    appName: currentHints.appName,
+                    textMode: currentHints.textMode,
+                    currentDate: currentHints.currentDate,
+                    snippetContext: snippetCtx
+                )
+
+                let llmStart = CFAbsoluteTimeGetCurrent()
+                let finalText: String
+                let llmLatencyMs: Int
+                var fallbackUsed = false
+
+                do {
+                    guard !currentIsCancelled() else {
+                        cleanupAudioOnFailure()
+                        throw PipelineError.cancelled
+                    }
+                    let llmOutput = try await llmClient.normalize(
+                        correctedTranscript, mode: currentTextMode, hints: hintsWithSnippet
+                    )
+                    guard !currentIsCancelled() else {
+                        cleanupAudioOnFailure()
+                        throw PipelineError.cancelled
+                    }
+                    llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1000)
+
+                    if !LLMResponseGuard.isUsable(llmOutput, rawTranscript: correctedTranscript) {
+                        fallbackUsed = true
+                        finalText = SnippetReinserter.mechanicalFallback(
+                            rawTranscript: correctedTranscript,
+                            trigger: snippetMatch.trigger, content: snippetMatch.content
+                        )
+                    } else if let reinserted = SnippetReinserter.reinsert(
+                        llmOutput: llmOutput, content: snippetMatch.content
+                    ) {
+                        finalText = reinserted
+                    } else {
+                        fallbackUsed = true
+                        finalText = SnippetReinserter.mechanicalFallback(
+                            rawTranscript: correctedTranscript,
+                            trigger: snippetMatch.trigger, content: snippetMatch.content
+                        )
+                    }
+                } catch PipelineError.cancelled {
+                    cleanupAudioOnFailure()
+                    throw PipelineError.cancelled
+                } catch {
+                    fallbackUsed = true
+                    llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1000)
+                    finalText = SnippetReinserter.mechanicalFallback(
+                        rawTranscript: correctedTranscript,
+                        trigger: snippetMatch.trigger, content: snippetMatch.content
+                    )
+                }
+
+                let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+                return PipelineResult(
+                    sessionId: sessionId,
+                    rawTranscript: rawTranscript,
+                    normalizedText: finalText,
+                    textMode: currentTextMode,
+                    normalizationPath: .snippetPlusLLM,
+                    sttLatencyMs: sttLatencyMs,
+                    llmLatencyMs: llmLatencyMs,
+                    insertionLatencyMs: 0,
+                    totalLatencyMs: totalMs,
+                    matchedSnippetTrigger: snippetMatch.trigger,
+                    snippetFallbackUsed: fallbackUsed,
+                    audioDurationMs: audioDurationMs,
+                    audioFileName: audioFileName
+                )
+            }
+        }
+
+        // DeterministicNormalizer — всегда (филлеры, капитализация, замены)
+        let deterministicText = DeterministicNormalizer.normalize(correctedTranscript)
+
+        // Trivial text → только DeterministicNormalizer, без LLM
+        if isTrivial(correctedTranscript) {
+            let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+            return PipelineResult(
+                sessionId: sessionId,
+                rawTranscript: rawTranscript,
+                normalizedText: deterministicText,
+                textMode: currentTextMode,
+                normalizationPath: .trivial,
+                sttLatencyMs: sttLatencyMs,
+                llmLatencyMs: 0,
+                insertionLatencyMs: 0,
+                totalLatencyMs: totalMs,
+                audioDurationMs: audioDurationMs,
+                audioFileName: audioFileName
+            )
+        }
+
+        // LLM нормализация (на уже очищенном тексте)
+        let llmStart = CFAbsoluteTimeGetCurrent()
+        let normalizedText: String
+        let llmLatencyMs: Int
+
+        do {
+            guard !currentIsCancelled() else {
+                cleanupAudioOnFailure()
+                throw PipelineError.cancelled
+            }
+            normalizedText = try await llmClient.normalize(deterministicText, mode: currentTextMode, hints: currentHints)
+            guard !currentIsCancelled() else {
+                cleanupAudioOnFailure()
+                throw PipelineError.cancelled
+            }
+            llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1000)
+        } catch PipelineError.cancelled {
+            cleanupAudioOnFailure()
+            throw PipelineError.cancelled
+        } catch {
+            // Graceful degradation: LLM упал → возвращаем deterministicText
+            llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1000)
+            let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+            return PipelineResult(
+                sessionId: sessionId,
+                rawTranscript: rawTranscript,
+                normalizedText: deterministicText,
+                textMode: currentTextMode,
+                normalizationPath: .llmFailed,
+                sttLatencyMs: sttLatencyMs,
+                llmLatencyMs: llmLatencyMs,
+                insertionLatencyMs: 0,
+                totalLatencyMs: totalMs,
+                audioDurationMs: audioDurationMs,
+                audioFileName: audioFileName
+            )
+        }
+
+        // Санитарный чек: LLM вернул мусор → fallback на deterministicText
+        let finalText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
+            ? normalizedText
+            : deterministicText
+
+        let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
+        return PipelineResult(
+            sessionId: sessionId,
+            rawTranscript: rawTranscript,
+            normalizedText: finalText,
+            textMode: currentTextMode,
+            normalizationPath: .llm,
+            sttLatencyMs: sttLatencyMs,
+            llmLatencyMs: llmLatencyMs,
+            insertionLatencyMs: 0,
+            totalLatencyMs: totalMs,
+            audioDurationMs: audioDurationMs,
+            audioFileName: audioFileName
+        )
+    }
+
+    func cancel() {
+        lock.lock()
+        _isCancelled = true
+        let wasRecording = _isRecording
+        _isRecording = false
+        lock.unlock()
+
+        if wasRecording {
+            _ = audioCapture.stopRecording()
+        }
+    }
+
+    private func snapshotSessionId() -> UUID {
+        lock.lock()
+        defer { lock.unlock() }
+        return _sessionId ?? UUID()
+    }
+
+    private func snapshotConfig() -> (TextMode, NormalizationHints) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (_textMode, _hints)
+    }
+
+    private func prepareForRecording() {
+        lock.lock()
+        _isCancelled = false
+        _isRecording = true
+        lock.unlock()
+    }
+
+    private func markRecordingStopped() {
+        lock.lock()
+        defer { lock.unlock() }
+        _isRecording = false
+    }
+
+    private func currentIsCancelled() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isCancelled
+    }
+}

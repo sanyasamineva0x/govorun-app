@@ -1,0 +1,5 @@
+onnx-asr==0.10.2
+onnxruntime==1.23.2
+huggingface-hub==1.7.1
+numpy==2.2.6
+silero-vad==6.2.1

@@ -1,0 +1,5 @@
+.venv/
+# venv также может быть в ~/.govorun/venv/
+__pycache__/
+*.pyc
+*.egg-info/

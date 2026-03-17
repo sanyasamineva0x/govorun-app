@@ -1,0 +1,49 @@
+# Xcode
+DerivedData/
+.derivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Build artifacts
+build/
+
+# Secrets
+.env
+*.key
+*.pem
+
+# IDE
+.idea/
+*.code-workspace
+
+# Worktrees
+.worktrees/
+
+# Python
+worker/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Xcodegen — проект генерируется из project.yml
+# Govorun.xcodeproj/ — не игнорируем, коммитим для воспроизводимости
+
+# Embedded Python.framework (63MB, downloaded separately)
+Frameworks/Python.framework/
+
+# Vendored wheels (downloaded via scripts/download-wheels.sh)
+worker/wheels/
