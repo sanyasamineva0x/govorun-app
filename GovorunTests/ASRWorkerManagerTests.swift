@@ -505,7 +505,7 @@ final class ASRWorkerManagerTests: XCTestCase {
 
 final class MockASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     var state: WorkerState = .ready
-    let socketPath: String = NSString("~/.govorun/worker.sock").expandingTildeInPath
+    let socketPath: String = "/tmp/govorun-mock-\(UUID().uuidString).sock"
     var isReady: Bool { state == .ready }
 
     private(set) var startCalled = false

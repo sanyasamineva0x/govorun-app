@@ -174,8 +174,7 @@ final class AppState: ObservableObject {
 
         if let workerManager {
             // Если worker уже запущен (вручную или от предыдущего запуска) — проверить ping
-            let socketPath = (workerManager as? ASRWorkerManager)?.socketPath
-                ?? NSString("~/.govorun/worker.sock").expandingTildeInPath
+            let socketPath = workerManager.socketPath
             if FileManager.default.fileExists(atPath: socketPath) && isWorkerAlive(socketPath: socketPath) {
                 updateWorkerState(.ready)
                 print("[Govorun] Worker alive (ping ok), пропускаю запуск")

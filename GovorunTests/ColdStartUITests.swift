@@ -215,7 +215,12 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         XCTAssertFalse(mockWorker.startCalled)
 
         appState.start()
-        try await Task.sleep(nanoseconds: 50_000_000)
+
+        // worker.start() вызывается из Task {} — ждём через yield
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockWorker.startCalled { break }
+        }
 
         XCTAssertTrue(mockWorker.startCalled)
         XCTAssertTrue(appState.isReady)
@@ -248,9 +253,12 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState(workerManager: mockWorker)
 
         appState.start()
-        try await Task.sleep(nanoseconds: 50_000_000)
 
-        // Приложение работает несмотря на ошибку worker
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockWorker.startCalled { break }
+        }
+
         XCTAssertTrue(appState.isReady)
         XCTAssertTrue(mockWorker.startCalled)
     }
@@ -300,7 +308,11 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState(workerManager: mockWorker)
 
         appState.start()
-        try await Task.sleep(nanoseconds: 50_000_000)
+
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockWorker.startCalled { break }
+        }
         XCTAssertTrue(mockWorker.startCalled)
 
         appState.stop()
