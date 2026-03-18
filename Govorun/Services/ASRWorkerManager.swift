@@ -13,7 +13,7 @@ enum WorkerState: Equatable, Sendable {
 
 // MARK: - WorkerError
 
-enum WorkerError: Error, Equatable {
+enum WorkerError: Error, Equatable, LocalizedError {
     case notRunning
     case loadingModel
     case timeout
@@ -25,6 +25,22 @@ enum WorkerError: Error, Equatable {
     case maxRetriesExceeded
     case pythonNotFound
     case setupFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notRunning: "Распознавание недоступно"
+        case .loadingModel: "Загружаю модель…"
+        case .timeout: "Попробуйте ещё раз"
+        case .oom: "Мало памяти — закройте приложения"
+        case .fileNotFound: "Ошибка распознавания"
+        case .internalError: "Ошибка распознавания"
+        case .connectionRefused: "Распознавание недоступно"
+        case .invalidResponse: "Ошибка распознавания"
+        case .maxRetriesExceeded: "Перезапустите Говорун"
+        case .pythonNotFound: "Внутренняя ошибка. Переустановите Говоруна"
+        case .setupFailed: "Не смог подготовиться…"
+        }
+    }
 }
 
 // MARK: - Protocol
@@ -42,6 +58,7 @@ protocol ASRWorkerManaging: AnyObject {
 final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
 
     let socketPath: String
+    let venvPath: String
     let maxRestartAttempts: Int
 
     /// Callback при изменении состояния (вызывается с любого потока)
@@ -63,6 +80,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     init(
         workerDirectory: String? = nil,
         socketPath: String? = nil,
+        venvPath: String? = nil,
         maxRestartAttempts: Int = 3
     ) {
         if let dir = workerDirectory {
@@ -80,6 +98,8 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         }
         self.socketPath = socketPath
             ?? NSString("~/.govorun/worker.sock").expandingTildeInPath
+        self.venvPath = venvPath
+            ?? NSString("~/.govorun/venv").expandingTildeInPath
         self.maxRestartAttempts = maxRestartAttempts
     }
 
@@ -185,8 +205,15 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     }
 
     /// Нужна ли переустановка venv
+    /// Проверяет и версию, и реальное наличие venv на диске.
+    /// UserDefaults может пережить uninstall/reinstall — venv при этом исчезает.
     func needsSetup(currentVersion: String, savedVersion: String?) -> Bool {
-        savedVersion != currentVersion
+        if savedVersion != currentVersion {
+            return true
+        }
+        // Версия совпала, но venv мог быть удалён (reinstall, ручная очистка)
+        let venvPython = (venvPath as NSString).appendingPathComponent("bin/python3")
+        return !FileManager.default.isExecutableFile(atPath: venvPython)
     }
 
     /// Установить состояние (internal для тестов)
@@ -344,8 +371,8 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             }
         }
 
-        // 2. Persistent venv в ~/.govorun/venv/
-        let govorunVenvPython = NSString("~/.govorun/venv/bin/python3").expandingTildeInPath
+        // 2. Persistent venv
+        let govorunVenvPython = (venvPath as NSString).appendingPathComponent("bin/python3")
         if FileManager.default.isExecutableFile(atPath: govorunVenvPython) {
             return govorunVenvPython
         }
@@ -406,7 +433,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         let isInsideVenv = pythonPath.contains("/venv/bin/") || pythonPath.contains("/.venv/bin/")
         if !isInsideVenv {
             var env = ProcessInfo.processInfo.environment
-            let venvLib = NSString("~/.govorun/venv/lib").expandingTildeInPath
+            let venvLib = (venvPath as NSString).appendingPathComponent("lib")
             do {
                 let versions = try FileManager.default.contentsOfDirectory(atPath: venvLib)
                 if let pyDir = versions.filter({ $0.hasPrefix("python") }).sorted().last {
