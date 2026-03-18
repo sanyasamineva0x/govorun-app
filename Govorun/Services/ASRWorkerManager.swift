@@ -187,7 +187,6 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         }
 
         try? FileManager.default.removeItem(atPath: socketPath)
-        setState(.notStarted)
     }
 
     // MARK: - Testable helpers

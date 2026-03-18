@@ -198,7 +198,6 @@ final class ASRWorkerManagerTests: XCTestCase {
     // MARK: - Защита от двойного start
 
     func test_doubleStart_stopsExistingProcess() throws {
-        // Проверяем что start() останавливает предыдущий процесс через stop()
         let socketPath = NSTemporaryDirectory() + "govorun_double_start_\(UUID()).sock"
         FileManager.default.createFile(atPath: socketPath, contents: nil)
 
@@ -207,15 +206,12 @@ final class ASRWorkerManagerTests: XCTestCase {
             socketPath: socketPath
         )
 
-        // Симулируем что worker уже работает
         manager.setState(.ready)
-
-        // stop() должен удалить socket и сбросить state
         manager.stop()
 
-        XCTAssertEqual(manager.state, .notStarted)
+        // stop() удаляет socket но НЕ меняет state — caller решает
         XCTAssertFalse(FileManager.default.fileExists(atPath: socketPath),
-                       "stop() должен удалить socket файл перед повторным запуском")
+                       "stop() должен удалить socket файл")
     }
 
     func test_resetForStart_clearsRestartCountAndManualFlag() {
@@ -306,12 +302,14 @@ final class ASRWorkerManagerTests: XCTestCase {
 
     // MARK: - stop()
 
-    func test_stop_setsNotStarted() {
+    func test_stop_doesNotChangeState() {
+        // stop() не меняет state — caller решает какой state установить.
+        // Это предотвращает race condition когда cancelWorkerLoading()
+        // ставит .error(), а stop() затирает его на .notStarted.
         let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
         manager.setState(.ready)
         manager.stop()
-        XCTAssertEqual(manager.state, .notStarted)
-        XCTAssertFalse(manager.isReady)
+        XCTAssertEqual(manager.state, .ready)
     }
 
     func test_stop_removesSocketFile() throws {
