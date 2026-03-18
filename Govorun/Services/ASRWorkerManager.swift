@@ -401,15 +401,30 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         process.arguments = [serverPath]
         process.currentDirectoryURL = URL(fileURLWithPath: workerDirectory)
 
-        // venv site-packages: embedded Python не видит пакеты без PYTHONPATH
-        let venvSitePackages = NSString("~/.govorun/venv/lib/python3.13/site-packages")
-            .expandingTildeInPath
-        var env = ProcessInfo.processInfo.environment
-        var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: venvSitePackages, isDirectory: &isDir), isDir.boolValue {
-            env["PYTHONPATH"] = venvSitePackages
+        // venv Python уже знает свои site-packages.
+        // PYTHONPATH нужен только если worker запускается НЕ из venv (embedded/системный Python).
+        let isInsideVenv = pythonPath.contains("/venv/bin/") || pythonPath.contains("/.venv/bin/")
+        if !isInsideVenv {
+            var env = ProcessInfo.processInfo.environment
+            let venvLib = NSString("~/.govorun/venv/lib").expandingTildeInPath
+            do {
+                let versions = try FileManager.default.contentsOfDirectory(atPath: venvLib)
+                if let pyDir = versions.filter({ $0.hasPrefix("python") }).sorted().last {
+                    let sitePackages = (venvLib as NSString).appendingPathComponent("\(pyDir)/site-packages")
+                    var isDir: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: sitePackages, isDirectory: &isDir), isDir.boolValue {
+                        env["PYTHONPATH"] = sitePackages
+                    } else {
+                        print("[Govorun] WARNING: site-packages не найден: \(sitePackages)")
+                    }
+                } else {
+                    print("[Govorun] WARNING: python* директория не найдена в \(venvLib)")
+                }
+            } catch {
+                print("[Govorun] WARNING: не удалось прочитать \(venvLib): \(error.localizedDescription)")
+            }
+            process.environment = env
         }
-        process.environment = env
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()

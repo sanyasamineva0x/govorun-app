@@ -47,10 +47,13 @@ struct GovorunApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
+        // Menu bar app: настройки открываются через SettingsWindowController.
+        // Settings scene с EmptyView не показывает окно, но удовлетворяет SwiftUI.
+        // LSUIElement=true в Info.plist скрывает приложение из Dock.
         Settings {
-            SettingsView()
+            EmptyView()
+                .frame(width: 0, height: 0)
         }
-        .modelContainer(AppModelContainer.shared)
     }
 }
 

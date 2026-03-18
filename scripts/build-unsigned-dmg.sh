@@ -43,6 +43,15 @@ if [ ! -d "$APP/Contents/Frameworks/Python.framework" ] && [ -d "Frameworks/Pyth
     cp -R "Frameworks/Python.framework" "$APP/Contents/Frameworks/"
 fi
 
+# Wheels для офлайн установки
+if [ -d "worker/wheels" ] && ls worker/wheels/*.whl 1>/dev/null 2>&1; then
+    echo "==> Копирую wheels в bundle..."
+    mkdir -p "$APP/Contents/Resources/worker/wheels"
+    cp worker/wheels/*.whl "$APP/Contents/Resources/worker/wheels/"
+else
+    echo "WARN: worker/wheels не найден. DMG будет требовать интернет при первом запуске." >&2
+fi
+
 # 2. Ad-hoc подпись (без Developer ID, но macOS требует подпись)
 echo "==> Ad-hoc подпись..."
 if [ -d "$APP/Contents/Frameworks/Python.framework" ]; then

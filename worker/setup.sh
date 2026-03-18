@@ -14,8 +14,21 @@ if ! command -v "$PYTHON" &> /dev/null && ! [ -x "$PYTHON" ]; then
     exit 1
 fi
 
-if [ ! -d "$VENV_DIR" ]; then
-    echo "Создаю виртуальное окружение..."
+# Пересоздать venv если Python версия не совпадает (например 3.9 → 3.13)
+EXPECTED_VER=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1)
+if [ $? -ne 0 ]; then
+    echo "ERROR: не удалось определить версию Python ($PYTHON): $EXPECTED_VER" >&2
+    exit 1
+fi
+VENV_VER=$("$VENV_DIR/bin/python3" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "none")
+
+if [ ! -d "$VENV_DIR" ] || [ "$VENV_VER" != "$EXPECTED_VER" ]; then
+    [ -d "$VENV_DIR" ] && echo "Python версия изменилась ($VENV_VER → $EXPECTED_VER), пересоздаю venv..."
+    rm -rf "$VENV_DIR"
+    if [ -d "$VENV_DIR" ]; then
+        echo "ERROR: не удалось удалить $VENV_DIR — проверьте права доступа" >&2
+        exit 1
+    fi
     "$PYTHON" -m venv "$VENV_DIR"
 fi
 

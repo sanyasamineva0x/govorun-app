@@ -70,6 +70,8 @@ def main():
 
     _orig_snapshot_download = _snap_mod.snapshot_download
 
+    import threading
+
     class _StdoutProgressTqdm:
         """Custom tqdm для вывода прогресса скачивания в stdout."""
         def __init__(self, *args, **kwargs):
@@ -90,6 +92,16 @@ def main():
         def set_description(self, *a, **kw): pass
         def __enter__(self): return self
         def __exit__(self, *a): pass
+
+        _lock = threading.Lock()
+
+        @classmethod
+        def get_lock(cls):
+            return cls._lock
+
+        @classmethod
+        def set_lock(cls, lock):
+            cls._lock = lock
 
     def _patched_snapshot_download(*args, **kwargs):
         kwargs["tqdm_class"] = _StdoutProgressTqdm
