@@ -126,7 +126,7 @@ private struct WelcomeStepView: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Зажмите ⌥ Option", systemImage: "keyboard")
+                Label("Зажмите клавишу и говорите", systemImage: "keyboard")
                 Label("Скажите что-нибудь", systemImage: "waveform")
                 Label("Отпустите — текст готов", systemImage: "doc.text")
             }
@@ -377,7 +377,7 @@ private struct TryItStepView: View {
                 .fontWeight(.bold)
 
             if isWorkerReady {
-                Text("Зажмите ⌥ Option, скажите что-нибудь и отпустите. Говорун вставит текст в активное поле.")
+                Text("Зажмите клавишу активации, скажите что-нибудь и отпустите. Говорун вставит текст в активное поле.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
 

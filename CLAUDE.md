@@ -19,7 +19,7 @@ macOS menu bar приложение для голосового ввода на 
 ```
 Swift App (menu bar)                    Python Worker
 ┌──────────────────────┐               ┌──────────────────────┐
-│ Option Key Monitor   │               │ onnx-asr             │
+│ Activation Key Monitor│               │ onnx-asr             │
 │ AudioCapture (16kHz) │──── unix ────▶│ GigaAM-v3 e2e_rnnt   │
 │ PipelineEngine       │    socket     │ Silero VAD (нарезка) │
 │ DeterministicNorm    │◀─────────────│                      │
@@ -117,7 +117,7 @@ Govorun/
 │   ├── NSWorkspaceProvider.swift
 │   └── PostInsertionProviders.swift
 ├── Core/                       # Бизнес-логика (без UI)
-│   ├── OptionKeyMonitor.swift
+│   ├── ActivationKeyMonitor.swift
 │   ├── SessionManager.swift
 │   ├── PipelineEngine.swift
 │   ├── AudioCapture.swift

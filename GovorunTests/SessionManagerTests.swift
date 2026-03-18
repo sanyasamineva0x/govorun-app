@@ -4,31 +4,45 @@ import XCTest
 // MARK: - Мок EventMonitoring
 
 final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
-    private var flagsHandlers: [(Bool) -> Void] = []
-    private var keyDownHandlers: [() -> Void] = []
+    var activationKey: ActivationKey = .default
+    private var flagsHandlers: [(CGEventFlags) -> Void] = []
+    private var keyDownHandlers: [(UInt16) -> Void] = []
+    private var keyUpHandlers: [(UInt16) -> Void] = []
     private(set) var removeMonitorCallCount = 0
     private var nextMonitorId = 0
 
-    func addGlobalFlagsChanged(_ handler: @escaping (Bool) -> Void) -> Any? {
+    func addGlobalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any? {
         flagsHandlers.append(handler)
         nextMonitorId += 1
         return nextMonitorId
     }
 
-    func addGlobalKeyDown(_ handler: @escaping () -> Void) -> Any? {
+    func addGlobalKeyDown(_ handler: @escaping (UInt16) -> Void) -> Any? {
         keyDownHandlers.append(handler)
         nextMonitorId += 1
         return nextMonitorId
     }
 
-    func addLocalFlagsChanged(_ handler: @escaping (Bool) -> Void) -> Any? {
+    func addGlobalKeyUp(_ handler: @escaping (UInt16) -> Void) -> Any? {
+        keyUpHandlers.append(handler)
+        nextMonitorId += 1
+        return nextMonitorId
+    }
+
+    func addLocalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any? {
         flagsHandlers.append(handler)
         nextMonitorId += 1
         return nextMonitorId
     }
 
-    func addLocalKeyDown(_ handler: @escaping () -> Void) -> Any? {
+    func addLocalKeyDown(_ handler: @escaping (UInt16) -> Void) -> Any? {
         keyDownHandlers.append(handler)
+        nextMonitorId += 1
+        return nextMonitorId
+    }
+
+    func addLocalKeyUp(_ handler: @escaping (UInt16) -> Void) -> Any? {
+        keyUpHandlers.append(handler)
         nextMonitorId += 1
         return nextMonitorId
     }
@@ -39,15 +53,23 @@ final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
 
     // Симуляция событий
     func simulateOptionDown() {
-        flagsHandlers.forEach { $0(true) }
+        flagsHandlers.forEach { $0(.maskAlternate) }
     }
 
     func simulateOptionUp() {
-        flagsHandlers.forEach { $0(false) }
+        flagsHandlers.forEach { $0(CGEventFlags()) }
     }
 
-    func simulateKeyDown() {
-        keyDownHandlers.forEach { $0() }
+    func simulateFlagsChanged(_ flags: CGEventFlags) {
+        flagsHandlers.forEach { $0(flags) }
+    }
+
+    func simulateKeyDown(keyCode: UInt16 = 0) {
+        keyDownHandlers.forEach { $0(keyCode) }
+    }
+
+    func simulateKeyUp(keyCode: UInt16 = 0) {
+        keyUpHandlers.forEach { $0(keyCode) }
     }
 }
 
@@ -194,115 +216,5 @@ final class SessionManagerTests: XCTestCase {
 
         sut.handleDeactivated() // idle → idle — ничего не произойдёт
         XCTAssertEqual(delegate.stateChanges, [])
-    }
-}
-
-// MARK: - OptionKeyMonitor тесты
-
-final class OptionKeyMonitorTests: XCTestCase {
-
-    // MARK: - 10. 200ms hold → activated
-
-    func test_option_hold_200ms_activates() {
-        let mockEvents = MockEventMonitoring()
-        let sut = OptionKeyMonitor(eventMonitor: mockEvents)
-
-        var activated = false
-        sut.onActivated = { activated = true }
-        sut.startMonitoring()
-
-        mockEvents.simulateOptionDown()
-
-        let expectation = expectation(description: "activated after 200ms")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            expectation.fulfill()
-        }
-        waitForExpectations(timeout: 1)
-
-        XCTAssertTrue(activated)
-    }
-
-    // MARK: - 11. Quick tap (< 200ms) → не активируется
-
-    func test_quick_option_tap_ignored() {
-        let mockEvents = MockEventMonitoring()
-        let sut = OptionKeyMonitor(eventMonitor: mockEvents)
-
-        var activated = false
-        sut.onActivated = { activated = true }
-        sut.startMonitoring()
-
-        mockEvents.simulateOptionDown()
-        // Отпускаем быстро (< 200ms)
-        mockEvents.simulateOptionUp()
-
-        let expectation = expectation(description: "wait for timer")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            expectation.fulfill()
-        }
-        waitForExpectations(timeout: 1)
-
-        XCTAssertFalse(activated)
-    }
-
-    // MARK: - 12. Option+key → cancelled
-
-    func test_option_plus_key_cancels() {
-        let mockEvents = MockEventMonitoring()
-        let sut = OptionKeyMonitor(eventMonitor: mockEvents)
-
-        var activated = false
-        var cancelled = false
-        sut.onActivated = { activated = true }
-        sut.onCancelled = { cancelled = true }
-        sut.startMonitoring()
-
-        mockEvents.simulateOptionDown()
-        // Нажимаем другую клавишу до 200ms
-        mockEvents.simulateKeyDown()
-
-        let expectation = expectation(description: "wait for timer")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            expectation.fulfill()
-        }
-        waitForExpectations(timeout: 1)
-
-        XCTAssertFalse(activated)
-        XCTAssertTrue(cancelled)
-    }
-
-    // MARK: - 13. Option release → deactivated
-
-    func test_option_release_deactivates() {
-        let mockEvents = MockEventMonitoring()
-        let sut = OptionKeyMonitor(eventMonitor: mockEvents)
-
-        var deactivated = false
-        sut.onDeactivated = { deactivated = true }
-        sut.startMonitoring()
-
-        mockEvents.simulateOptionDown()
-
-        let expectActivation = expectation(description: "wait for activation")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            expectActivation.fulfill()
-        }
-        waitForExpectations(timeout: 1)
-
-        mockEvents.simulateOptionUp()
-        XCTAssertTrue(deactivated)
-    }
-
-    // MARK: - 14. stopMonitoring удаляет все мониторы
-
-    func test_stop_monitoring_removes_monitors() {
-        let mockEvents = MockEventMonitoring()
-        let sut = OptionKeyMonitor(eventMonitor: mockEvents)
-
-        sut.startMonitoring()
-        sut.stopMonitoring()
-
-        // 4 монитора: global flags, global keyDown, local flags, local keyDown
-        XCTAssertEqual(mockEvents.removeMonitorCallCount, 4)
     }
 }

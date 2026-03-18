@@ -116,7 +116,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState()
         appState.updateWorkerState(.loadingModel)
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Запись НЕ началась
@@ -129,7 +129,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState()
         appState.updateWorkerState(.downloadingModel(progress: 45))
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
@@ -140,7 +140,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState()
         // workerState по умолчанию .notStarted
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
@@ -151,7 +151,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState()
         appState.updateWorkerState(.settingUp)
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
@@ -162,7 +162,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState()
         appState.updateWorkerState(.error("Python не найден"))
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
@@ -174,7 +174,7 @@ final class ColdStartAppStateTests: XCTestCase {
         let (appState, _, _) = makeColdStartTestAppState(mockAudio: mockAudio)
         appState.updateWorkerState(.ready)
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000) // 50ms
 
         XCTAssertEqual(appState.sessionManager.state, .recording)
@@ -187,7 +187,7 @@ final class ColdStartAppStateTests: XCTestCase {
 
         // Сначала модель грузится
         appState.updateWorkerState(.loadingModel)
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .idle)
 
@@ -196,7 +196,7 @@ final class ColdStartAppStateTests: XCTestCase {
 
         // Теперь worker готов
         appState.updateWorkerState(.ready)
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .recording)
@@ -473,7 +473,7 @@ private func makeColdStartTestAppState(
     )
 
     let appState = AppState(
-        optionKeyMonitor: OptionKeyMonitor(eventMonitor: eventMonitor),
+        activationKeyMonitor: ActivationKeyMonitor(activationKey: .default, eventMonitor: eventMonitor),
         sessionManager: SessionManager(),
         pipelineEngine: pipeline,
         textInserter: inserter,

@@ -1,0 +1,347 @@
+import XCTest
+import CoreGraphics
+@testable import Govorun
+
+// MARK: - ActivationKeyMonitor тесты
+
+@MainActor
+final class ActivationKeyMonitorTests: XCTestCase {
+
+    // MARK: - Вспомогательные методы
+
+    /// Ожидание на главной очереди с небольшим запасом
+    private func waitMain(_ seconds: TimeInterval, description: String = "ожидание") {
+        let exp = expectation(description: description)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            exp.fulfill()
+        }
+        waitForExpectations(timeout: seconds + 1)
+    }
+
+    // MARK: - Modifier: 1. Удержание 200мс активирует
+
+    func test_modifier_hold_200ms_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+
+        waitMain(0.3, description: "активация после 200мс")
+
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Modifier: 2. Быстрый тап не активирует
+
+    func test_modifier_quick_tap_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        mock.simulateFlagsChanged(CGEventFlags()) // быстро отпускаем
+
+        waitMain(0.3, description: "ожидание таймера")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Modifier: 3. Modifier + другая клавиша → cancelled
+
+    func test_modifier_plus_key_cancels() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        var cancelled = false
+        sut.onActivated = { activated = true }
+        sut.onCancelled = { cancelled = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        mock.simulateKeyDown(keyCode: 8) // ⌥+C — шорткат
+
+        waitMain(0.3, description: "ожидание")
+
+        XCTAssertFalse(activated)
+        XCTAssertTrue(cancelled)
+    }
+
+    // MARK: - Modifier: 4. Отпускание после активации → deactivated
+
+    func test_modifier_release_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        var deactivated = false
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3, description: "ожидание активации")
+
+        mock.simulateFlagsChanged(CGEventFlags()) // отпускаем
+        XCTAssertTrue(deactivated)
+    }
+
+    // MARK: - Modifier: 5. stopMonitoring удаляет все 6 мониторов
+
+    func test_modifier_stop_removes_all_monitors() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        sut.startMonitoring()
+        sut.stopMonitoring()
+
+        XCTAssertEqual(mock.removeMonitorCallCount, 6)
+    }
+
+    // MARK: - Modifier: 6. Command hold активирует
+
+    func test_modifier_command_hold_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskCommand),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand)
+        waitMain(0.3, description: "активация ⌘")
+
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Modifier: 7. Чужой модификатор игнорируется
+
+    func test_modifier_wrong_modifier_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand) // не тот модификатор
+
+        waitMain(0.3, description: "ожидание")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - KeyCode: 8. Удержание клавиши активирует
+
+    func test_keyCode_hold_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96), // F5
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        waitMain(0.3, description: "активация F5")
+
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - KeyCode: 9. Быстрый тап не активирует
+
+    func test_keyCode_quick_tap_not_activated() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        mock.simulateKeyUp(keyCode: 96)
+
+        waitMain(0.3, description: "ожидание таймера")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - KeyCode: 10. Отпускание после активации → deactivated
+
+    func test_keyCode_release_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            eventMonitor: mock
+        )
+
+        var deactivated = false
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        waitMain(0.3, description: "активация")
+
+        mock.simulateKeyUp(keyCode: 96)
+        XCTAssertTrue(deactivated)
+    }
+
+    // MARK: - KeyCode: 11. Другая клавиша игнорируется
+
+    func test_keyCode_wrong_key_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 97) // не та клавиша
+
+        waitMain(0.3, description: "ожидание")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - KeyCode: 12. Авторепит не вызывает повторную активацию
+
+    func test_keyCode_autorepeat_suppressed() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            eventMonitor: mock
+        )
+
+        var activatedCount = 0
+        sut.onActivated = { activatedCount += 1 }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        waitMain(0.3, description: "первая активация")
+
+        // Авторепит — клавиша всё ещё зажата
+        mock.simulateKeyDown(keyCode: 96)
+        mock.simulateKeyDown(keyCode: 96)
+        mock.simulateKeyDown(keyCode: 96)
+
+        XCTAssertEqual(activatedCount, 1)
+    }
+
+    // MARK: - Combo: 13. Modifier + key активирует
+
+    func test_combo_modifier_plus_key_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40), // ⌘K
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand)
+        mock.simulateKeyDown(keyCode: 40)
+
+        waitMain(0.3, description: "активация ⌘K")
+
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Combo: 14. Отпустить modifier до таймера → не активирует
+
+    func test_combo_modifier_released_before_key_not_activated() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand)
+        mock.simulateFlagsChanged(CGEventFlags()) // отпустили ⌘
+
+        waitMain(0.3, description: "ожидание")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Combo: 15. Клавиша без модификатора не активирует
+
+    func test_combo_key_without_modifier_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40),
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        // Жмём K без ⌘
+        mock.simulateKeyDown(keyCode: 40)
+
+        waitMain(0.3, description: "ожидание")
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Combo: 16. Отпускание клавиши после активации → deactivated
+
+    func test_combo_release_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40),
+            eventMonitor: mock
+        )
+
+        var deactivated = false
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand)
+        mock.simulateKeyDown(keyCode: 40)
+        waitMain(0.3, description: "активация")
+
+        mock.simulateKeyUp(keyCode: 40)
+        XCTAssertTrue(deactivated)
+    }
+}

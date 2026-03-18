@@ -177,24 +177,9 @@ private struct GeneralSettingsContent: View {
             WorkerStatusCard(workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
-            // Shortcut card
-            HStack(spacing: 16) {
-                Text("⌥")
-                    .font(.system(size: 28, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.cottonCandy)
-                    .frame(width: 44, height: 44)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Зажмите Option и говорите")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("Отпустите клавишу — текст появится в поле ввода")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .settingsCard()
-            .staggeredAppear(index: 1)
+            // Клавиша активации
+            KeyRecorderView(store: appState.settings)
+                .staggeredAppear(index: 1)
 
             // Запись
             VStack(alignment: .leading, spacing: 14) {
@@ -335,7 +320,7 @@ private struct WorkerStatusCard: View {
     private var statusDetail: some View {
         switch workerState {
         case .ready:
-            Text("Зажмите ⌥ и говорите")
+            Text("Зажмите \(appState.settings.activationKey.displayName) и говорите")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         case .downloadingModel:

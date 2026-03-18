@@ -16,6 +16,7 @@ final class SettingsStore: ObservableObject {
         static let launchAtLogin = "launchAtLogin"
         static let saveAudioHistory = "saveAudioHistory"
         static let onboardingCompleted = "onboardingCompleted"
+        static let activationKey = "activationKey"
     }
 
     // MARK: - Init
@@ -92,6 +93,26 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    var activationKey: ActivationKey {
+        get {
+            guard let jsonString = defaults.string(forKey: Keys.activationKey),
+                  let data = jsonString.data(using: .utf8),
+                  let key = try? JSONDecoder().decode(ActivationKey.self, from: data) else {
+                return .default
+            }
+            return key
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let jsonString = String(data: data, encoding: .utf8) {
+                defaults.set(jsonString, forKey: Keys.activationKey)
+                objectWillChange.send()
+            } else {
+                print("[Govorun] ActivationKey: не удалось сохранить \(newValue)")
+            }
+        }
+    }
+
     // MARK: - Reset
 
     func resetToDefaults() {
@@ -99,6 +120,7 @@ final class SettingsStore: ObservableObject {
         defaults.removeObject(forKey: Keys.recordingMode)
         defaults.removeObject(forKey: Keys.soundEnabled)
         defaults.removeObject(forKey: Keys.saveAudioHistory)
+        defaults.removeObject(forKey: Keys.activationKey)
         // launchAtLogin управляется через SMAppService, не UserDefaults
         registerDefaults()
         objectWillChange.send()

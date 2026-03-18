@@ -1,4 +1,5 @@
 import Cocoa
+import Combine
 import SwiftData
 
 // MARK: - AppState: Composition Root
@@ -6,7 +7,7 @@ import SwiftData
 @MainActor
 final class AppState: ObservableObject {
 
-    let optionKeyMonitor: OptionKeyMonitor
+    private(set) var activationKeyMonitor: ActivationKeyMonitor
     let sessionManager: SessionManager
     let pipelineEngine: PipelineEngine
     let textInserter: TextInserterEngine
@@ -17,12 +18,22 @@ final class AppState: ObservableObject {
     let snippetEngine: SnippetEngine
     let analytics: AnalyticsEmitting
     let postInsertionMonitor: PostInsertionMonitoring
+    let settings: SettingsStore
 
     /// Python worker — управляет жизненным циклом процесса
     private let workerManager: ASRWorkerManaging?
 
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
+
+    /// EventMonitoring (для recreateMonitor)
+    private let eventMonitor: EventMonitoring?
+    /// Текущая клавиша активации
+    private var currentActivationKey: ActivationKey
+    /// Отложенная клавиша (ждёт idle)
+    private var pendingActivationKey: ActivationKey?
+    /// Подписка на изменения SettingsStore
+    private var settingsCancellable: AnyCancellable?
 
     /// sessionId текущей диктовки (для привязки событий к сессии)
     private var currentSessionId: UUID?
@@ -76,6 +87,12 @@ final class AppState: ObservableObject {
         }
         self.snippetEngine = snippetEngine
 
+        let settings = SettingsStore()
+        self.settings = settings
+        eventMonitor.activationKey = settings.activationKey
+        self.eventMonitor = eventMonitor
+        self.currentActivationKey = settings.activationKey
+
         self.audioCapture = audio
         self.pipelineEngine = PipelineEngine(
             audioCapture: audio,
@@ -88,7 +105,10 @@ final class AppState: ObservableObject {
             clipboard: clipboard
         )
         self.sessionManager = SessionManager()
-        self.optionKeyMonitor = OptionKeyMonitor(eventMonitor: eventMonitor)
+        self.activationKeyMonitor = ActivationKeyMonitor(
+            activationKey: settings.activationKey,
+            eventMonitor: eventMonitor
+        )
         self.bottomBar = BottomBarController()
         self.audioCaptureDelegate = AudioCaptureBridge()
         self.sessionManagerDelegate = SessionManagerBridge()
@@ -107,16 +127,17 @@ final class AppState: ObservableObject {
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
 
-        wireOptionKeyMonitor()
+        wireActivationKeyMonitor()
         wireSessionManager()
         wireAudioCapture()
         wireSnippetNotifications()
         wireWorkerManager()
+        wireSettingsChange()
     }
 
     /// Тестовый init с инжектированными зависимостями
     init(
-        optionKeyMonitor: OptionKeyMonitor,
+        activationKeyMonitor: ActivationKeyMonitor,
         sessionManager: SessionManager,
         pipelineEngine: PipelineEngine,
         textInserter: TextInserterEngine,
@@ -128,10 +149,12 @@ final class AppState: ObservableObject {
         analytics: AnalyticsEmitting = NoOpAnalyticsService(),
         postInsertionMonitor: PostInsertionMonitoring? = nil,
         workerManager: ASRWorkerManaging? = nil,
-        initialWorkerState: WorkerState = .ready
+        initialWorkerState: WorkerState = .ready,
+        settings: SettingsStore = SettingsStore(),
+        eventMonitor: EventMonitoring? = nil
     ) {
         self.workerManager = workerManager
-        self.optionKeyMonitor = optionKeyMonitor
+        self.activationKeyMonitor = activationKeyMonitor
         self.sessionManager = sessionManager
         self.pipelineEngine = pipelineEngine
         self.textInserter = textInserter
@@ -151,13 +174,17 @@ final class AppState: ObservableObject {
             focusedTextReader: SystemFocusedTextReader(),
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
+        self.settings = settings
+        self.eventMonitor = eventMonitor
+        self.currentActivationKey = settings.activationKey
 
         self.workerState = initialWorkerState
 
-        wireOptionKeyMonitor()
+        wireActivationKeyMonitor()
         wireSessionManager()
         wireAudioCapture()
         wireSnippetNotifications()
+        wireSettingsChange()
     }
 
     // MARK: - Worker State
@@ -169,7 +196,7 @@ final class AppState: ObservableObject {
     // MARK: - Start / Stop
 
     func start() {
-        optionKeyMonitor.startMonitoring()
+        activationKeyMonitor.startMonitoring()
         isReady = true
 
         if let workerManager {
@@ -201,7 +228,7 @@ final class AppState: ObservableObject {
     }
 
     func stop() {
-        optionKeyMonitor.stopMonitoring()
+        activationKeyMonitor.stopMonitoring()
         stopEscMonitor()
         postInsertionMonitor.stopMonitoring()
         workerManager?.stop()
@@ -285,28 +312,48 @@ final class AppState: ObservableObject {
 
     // MARK: - Wiring
 
-    private func wireOptionKeyMonitor() {
-        // Task wrapper для @MainActor compatibility:
-        // OptionKeyMonitor callbacks — обычные closures, не @MainActor.
-        // handleActivated/Deactivated/Cancelled — @MainActor (AppState).
-        // NSEvent monitors доставляют на main thread, Task выполнится немедленно.
-        optionKeyMonitor.onActivated = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.handleActivated()
-            }
+    private func wireActivationKeyMonitor() {
+        activationKeyMonitor.onActivated = { [weak self] in
+            Task { @MainActor [weak self] in self?.handleActivated() }
         }
+        activationKeyMonitor.onDeactivated = { [weak self] in
+            Task { @MainActor [weak self] in self?.handleDeactivated() }
+        }
+        activationKeyMonitor.onCancelled = { [weak self] in
+            Task { @MainActor [weak self] in self?.handleCancelled() }
+        }
+    }
 
-        optionKeyMonitor.onDeactivated = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.handleDeactivated()
-            }
+    private func wireSettingsChange() {
+        settingsCancellable = settings.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleSettingsChanged() }
         }
+    }
 
-        optionKeyMonitor.onCancelled = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.handleCancelled()
-            }
+    private func handleSettingsChanged() {
+        let newKey = settings.activationKey
+        guard newKey != currentActivationKey else { return }
+        if sessionManager.state == .idle {
+            recreateMonitor(newKey)
+        } else {
+            pendingActivationKey = newKey
         }
+    }
+
+    private func recreateMonitor(_ key: ActivationKey) {
+        guard let eventMonitor else { return }
+        activationKeyMonitor.stopMonitoring()
+        eventMonitor.activationKey = key
+        activationKeyMonitor = ActivationKeyMonitor(activationKey: key, eventMonitor: eventMonitor)
+        wireActivationKeyMonitor()
+        activationKeyMonitor.startMonitoring()
+        currentActivationKey = key
+        pendingActivationKey = nil
+    }
+
+    fileprivate func applyPendingActivationKey() {
+        guard let pending = pendingActivationKey else { return }
+        recreateMonitor(pending)
     }
 
     /// Проверить что worker жив через ping по unix socket
@@ -673,6 +720,9 @@ private final class SessionManagerBridge: SessionManagerDelegate {
         switch state {
         case .processing:
             appState?.startEscMonitor()
+        case .idle:
+            appState?.stopEscMonitor()
+            appState?.applyPendingActivationKey()
         default:
             appState?.stopEscMonitor()
         }

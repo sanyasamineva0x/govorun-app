@@ -68,7 +68,7 @@ private func makeTestAppState(
     )
 
     let appState = AppState(
-        optionKeyMonitor: OptionKeyMonitor(eventMonitor: eventMonitor),
+        activationKeyMonitor: ActivationKeyMonitor(activationKey: .default, eventMonitor: eventMonitor),
         sessionManager: SessionManager(),
         pipelineEngine: pipeline,
         textInserter: inserter,
@@ -110,7 +110,7 @@ final class IntegrationTests: XCTestCase {
         )
 
         // ⌥ зажат 200ms+ → onActivated
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         // Task wrapper: sleep чтобы @MainActor Task выполнился
         try await Task.sleep(nanoseconds: 50_000_000) // 50ms
 
@@ -118,7 +118,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertTrue(mockAudio.startCallCount > 0)
 
         // ⌥ отпущен → onDeactivated → pipeline runs
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Ждём завершения async pipeline
@@ -138,14 +138,14 @@ final class IntegrationTests: XCTestCase {
         let (appState, _, _) = makeTestAppState(mockAudio: mockAudio)
 
         // Активация
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
 
         XCTAssertEqual(appState.sessionManager.state, .recording)
         XCTAssertTrue(mockAudio.startCallCount > 0)
 
         // Esc / другая клавиша → cancel
-        appState.optionKeyMonitor.onCancelled?()
+        appState.activationKeyMonitor.onCancelled?()
         await Task.yield()
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
@@ -166,13 +166,13 @@ final class IntegrationTests: XCTestCase {
         )
 
         // Активация → запись
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
 
         XCTAssertEqual(appState.sessionManager.state, .recording)
 
         // Деактивация → обработка начинается
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         XCTAssertEqual(appState.sessionManager.state, .processing)
@@ -208,10 +208,10 @@ final class IntegrationTests: XCTestCase {
             clipboard: mockClipboard
         )
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
 
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -246,9 +246,9 @@ final class IntegrationTests: XCTestCase {
             accessibility: mockAccessibility
         )
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -273,9 +273,9 @@ final class IntegrationTests: XCTestCase {
             sttClient: mockSTT
         )
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -330,9 +330,9 @@ final class IntegrationTests: XCTestCase {
             clipboard: mockClipboard
         )
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -381,10 +381,10 @@ final class DictionaryWiringTests: XCTestCase {
             modelContainer: container
         )
 
-        appState.optionKeyMonitor.onActivated?()
+        appState.activationKeyMonitor.onActivated?()
         await Task.yield()
 
-        appState.optionKeyMonitor.onDeactivated?()
+        appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
         try await Task.sleep(nanoseconds: 200_000_000)

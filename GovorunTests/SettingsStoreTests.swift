@@ -118,4 +118,32 @@ final class SettingsStoreTests: XCTestCase {
         store.resetToDefaults()
         XCTAssertTrue(store.onboardingCompleted)
     }
+
+    // MARK: - 7. ActivationKey
+
+    func test_activationKey_default_is_option() {
+        XCTAssertEqual(store.activationKey, .modifier(.maskAlternate))
+    }
+
+    func test_activationKey_set_and_get() {
+        store.activationKey = .keyCode(96)
+        XCTAssertEqual(store.activationKey, .keyCode(96))
+    }
+
+    func test_activationKey_persists() {
+        store.activationKey = .combo(modifiers: .maskCommand, keyCode: 40)
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.activationKey, .combo(modifiers: .maskCommand, keyCode: 40))
+    }
+
+    func test_activationKey_invalid_json_fallback() {
+        defaults.set("not valid json", forKey: "activationKey")
+        XCTAssertEqual(store.activationKey, .modifier(.maskAlternate))
+    }
+
+    func test_activationKey_reset_to_defaults() {
+        store.activationKey = .keyCode(96)
+        store.resetToDefaults()
+        XCTAssertEqual(store.activationKey, .modifier(.maskAlternate))
+    }
 }
