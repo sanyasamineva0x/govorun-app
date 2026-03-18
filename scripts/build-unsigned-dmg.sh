@@ -43,6 +43,14 @@ if [ ! -d "$APP/Contents/Frameworks/Python.framework" ] && [ -d "Frameworks/Pyth
     cp -R "Frameworks/Python.framework" "$APP/Contents/Frameworks/"
 fi
 
+# Worker файлы — гарантированно копируем (objectVersion 56 может не скопировать)
+echo "==> Копирую worker файлы в bundle..."
+mkdir -p "$APP/Contents/Resources/worker"
+for f in server.py setup.sh requirements.txt VERSION; do
+    cp "worker/$f" "$APP/Contents/Resources/worker/"
+done
+chmod +x "$APP/Contents/Resources/worker/setup.sh"
+
 # Wheels для офлайн установки
 if [ -d "worker/wheels" ] && ls worker/wheels/*.whl 1>/dev/null 2>&1; then
     echo "==> Копирую wheels в bundle..."
