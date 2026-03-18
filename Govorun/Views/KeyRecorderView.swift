@@ -70,6 +70,7 @@ struct KeyRecorderView: View {
     @ObservedObject var store: SettingsStore
 
     @State private var isRecording = false
+    @State private var isHovered = false
     @State private var pendingModifier: CGEventFlags?
     @State private var previewText: String?
     @State private var monitors: [Any] = []
@@ -81,6 +82,11 @@ struct KeyRecorderView: View {
             content
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
         .onDisappear {
             stopRecording()
         }
@@ -99,25 +105,32 @@ struct KeyRecorderView: View {
 
     private var normalContent: some View {
         HStack(spacing: 12) {
-            // Иконка текущей клавиши
             Text(store.activationKey.displayName)
                 .font(.system(size: 18, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color.cottonCandy)
                 .frame(width: 40, height: 40)
-                .background(Color.cottonCandy.opacity(0.1))
+                .background(Color.cottonCandy.opacity(isHovered ? 0.2 : 0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Зажмите \(store.activationKey.displayName) и говорите")
                     .font(.body)
-                Text("Нажмите чтобы изменить")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 4) {
+                    Image(systemName: "pencil")
+                        .font(.caption2)
+                    Text("Нажмите, чтобы изменить")
+                        .font(.caption)
+                }
+                .foregroundStyle(isHovered ? .secondary : .tertiary)
             }
 
             Spacer()
         }
         .settingsCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.cottonCandy.opacity(isHovered ? 0.3 : 0), lineWidth: 1)
+        )
     }
 
     private var recordingContent: some View {
