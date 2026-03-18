@@ -350,13 +350,30 @@ final class ASRWorkerManagerTests: XCTestCase {
 
     func test_needsSetup_versionMismatch_returnsTrue() {
         let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
-        // Saved version "0", current "1" — нужен setup
         XCTAssertTrue(manager.needsSetup(currentVersion: "1", savedVersion: "0"))
     }
 
-    func test_needsSetup_versionMatch_returnsFalse() {
-        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+    func test_needsSetup_versionMatch_venvExists_returnsFalse() throws {
+        // Создать фейковый venv с python3
+        let venvDir = NSTemporaryDirectory() + "govorun_venv_test_\(UUID())"
+        let binDir = (venvDir as NSString).appendingPathComponent("bin")
+        try FileManager.default.createDirectory(atPath: binDir, withIntermediateDirectories: true)
+        let python3 = (binDir as NSString).appendingPathComponent("python3")
+        FileManager.default.createFile(atPath: python3, contents: Data("#!/bin/sh".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: python3)
+        defer { try? FileManager.default.removeItem(atPath: venvDir) }
+
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test", venvPath: venvDir)
         XCTAssertFalse(manager.needsSetup(currentVersion: "1", savedVersion: "1"))
+    }
+
+    func test_needsSetup_versionMatch_venvMissing_returnsTrue() {
+        // Версия совпадает, но venv удалён (reinstall, ручная очистка)
+        let manager = ASRWorkerManager(
+            workerDirectory: "/tmp/test",
+            venvPath: "/tmp/govorun_nonexistent_venv"
+        )
+        XCTAssertTrue(manager.needsSetup(currentVersion: "1", savedVersion: "1"))
     }
 
     func test_needsSetup_noSavedVersion_returnsTrue() {
@@ -440,19 +457,29 @@ final class ASRWorkerManagerTests: XCTestCase {
         )
     }
 
-    func test_start_versionMatch_skipsSetup() async {
+    func test_start_versionMatch_skipsSetup() async throws {
         let dir = NSTemporaryDirectory() + "govorun_ver_test_\(UUID())"
-        try! FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
 
-        try! "1".write(
+        try "1".write(
             toFile: (dir as NSString).appendingPathComponent("VERSION"),
             atomically: true, encoding: .utf8
         )
 
+        // Создать фейковый venv чтобы needsSetup вернул false
+        let venvDir = NSTemporaryDirectory() + "govorun_venv_test_\(UUID())"
+        let binDir = (venvDir as NSString).appendingPathComponent("bin")
+        try FileManager.default.createDirectory(atPath: binDir, withIntermediateDirectories: true)
+        let python3 = (binDir as NSString).appendingPathComponent("python3")
+        FileManager.default.createFile(atPath: python3, contents: Data("#!/bin/sh".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: python3)
+        defer { try? FileManager.default.removeItem(atPath: venvDir) }
+
         let manager = ASRWorkerManager(
             workerDirectory: dir,
-            socketPath: NSTemporaryDirectory() + "govorun_\(UUID()).sock"
+            socketPath: NSTemporaryDirectory() + "govorun_\(UUID()).sock",
+            venvPath: venvDir
         )
 
         // Сохранённая версия совпадает

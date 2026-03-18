@@ -116,30 +116,7 @@ enum ErrorMessages {
     }
 
     private static func workerMessage(_ error: WorkerError) -> String {
-        switch error {
-        case .notRunning:
-            return "Распознавание недоступно"
-        case .loadingModel:
-            return "Загружаю модель…"
-        case .timeout:
-            return "Попробуйте ещё раз"
-        case .oom:
-            return "Мало памяти — закройте приложения"
-        case .fileNotFound:
-            return "Ошибка распознавания"
-        case .internalError:
-            return "Ошибка распознавания"
-        case .connectionRefused:
-            return "Распознавание недоступно"
-        case .invalidResponse:
-            return "Ошибка распознавания"
-        case .maxRetriesExceeded:
-            return "Перезапустите Говорун"
-        case .pythonNotFound:
-            return "Внутренняя ошибка. Переустановите Говоруна"
-        case .setupFailed:
-            return "Не смог подготовиться…"
-        }
+        error.localizedDescription
     }
 
     private static func insertionMessage(_ error: TextInsertionError) -> String {
