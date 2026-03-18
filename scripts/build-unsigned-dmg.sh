@@ -36,12 +36,15 @@ if [ -z "$ARCHIVED_APP" ] || [ ! -d "$ARCHIVED_APP" ]; then
 fi
 cp -R "$ARCHIVED_APP" "$APP"
 
-# Python.framework может не скопироваться при ad-hoc сборке — копируем вручную
-if [ ! -d "$APP/Contents/Frameworks/Python.framework" ] && [ -d "Frameworks/Python.framework" ]; then
-    echo "==> Копирую Python.framework в bundle..."
-    mkdir -p "$APP/Contents/Frameworks"
-    cp -R "Frameworks/Python.framework" "$APP/Contents/Frameworks/"
+# Гарантированное копирование Python.framework (xcodebuild с objectVersion 56 может пропустить)
+if [ ! -d "Frameworks/Python.framework" ]; then
+    echo "ERROR: Frameworks/Python.framework не найден. Запустите: bash scripts/fetch-python-framework.sh" >&2
+    exit 1
 fi
+echo "==> Копирую Python.framework в bundle..."
+rm -rf "$APP/Contents/Frameworks/Python.framework"
+mkdir -p "$APP/Contents/Frameworks"
+cp -R "Frameworks/Python.framework" "$APP/Contents/Frameworks/"
 
 # Worker файлы — гарантированно копируем (objectVersion 56 может не скопировать)
 echo "==> Копирую worker файлы в bundle..."

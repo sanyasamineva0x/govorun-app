@@ -6,7 +6,9 @@ set -euo pipefail
 
 PYTHON_VERSION="3.13.12"
 PKG_URL="https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-macos11.pkg"
-FRAMEWORK_DIR="Frameworks/Python.framework"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+FRAMEWORK_DIR="$PROJECT_DIR/Frameworks/Python.framework"
 
 if [ -d "$FRAMEWORK_DIR" ]; then
     echo "Python.framework уже существует в $FRAMEWORK_DIR"
@@ -121,8 +123,7 @@ echo "==> Проверка..."
 "$PYFW/bin/python3" --version
 
 echo "==> Копирую в $FRAMEWORK_DIR..."
-cd "$OLDPWD"
-mkdir -p Frameworks
+mkdir -p "$PROJECT_DIR/Frameworks"
 cp -R "$TMPDIR/framework" "$FRAMEWORK_DIR"
 
 SIZE=$(du -sh "$FRAMEWORK_DIR" | cut -f1)
