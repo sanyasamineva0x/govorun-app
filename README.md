@@ -2,13 +2,14 @@
 
 macOS menu bar приложение для голосового ввода на русском языке. Полностью офлайн.
 
-Зажал **Option (⌥)** → сказал → отпустил → чистый текст в активном поле.
+Зажал клавишу → сказал → отпустил → чистый текст в активном поле.
 
 ## Возможности
 
 - Полностью офлайн — данные не покидают ваш Mac
 - GigaAM-v3 (ONNX) — распознавание речи с пунктуацией
 - Silero VAD — нарезка длинных записей на сегменты
+- Настраиваемая клавиша активации — ⌥, любая клавиша, или комбинация (⌘K, ⇧F5, ...)
 - Сниппеты — "мой имейл" → подставляет email
 - Словарь замен — "жира" → "Jira"
 - Нормализация чисел — "двадцать пять процентов" → "25%"
@@ -34,7 +35,7 @@ git clone https://github.com/sanyasamineva0x/govorun-app.git
 cd govorun-app
 
 # 2. Скачать Python.framework (63MB, нужен один раз)
-bash scripts/download-python-framework.sh
+bash scripts/fetch-python-framework.sh
 
 # 3. Сгенерировать Xcode проект
 brew install xcodegen
@@ -50,10 +51,12 @@ open Govorun.xcodeproj
 ## Как пользоваться
 
 1. Запустите Говоруна — иконка появится в menu bar
-2. Зажмите **Option (⌥)** на 200мс — начнётся запись
+2. Зажмите клавишу активации (по умолчанию **⌥**) на 200мс — начнётся запись
 3. Говорите
-4. Отпустите **Option** — текст вставится в активное поле
+4. Отпустите клавишу — текст вставится в активное поле
 5. **Esc** — отмена
+
+Клавишу можно сменить в настройках — нажмите на карточку с текущей клавишей.
 
 ## Производительность
 
@@ -74,7 +77,7 @@ open Govorun.xcodeproj
 | **CPU (idle)** | 0% |
 | **CPU (inference)** | 3–4 ядра на время распознавания |
 | **App bundle** | 67 MB (с Python.framework) |
-| **DMG** | 32 MB |
+| **DMG** | 148 MB (с wheels) |
 | **Модель** | 892 MB (скачивается один раз) |
 
 ## Архитектура
@@ -82,16 +85,21 @@ open Govorun.xcodeproj
 ```
 Swift App (menu bar)                    Python Worker
 ┌──────────────────────┐               ┌──────────────────────┐
-│ Option Key Monitor   │               │ onnx-asr             │
+│ Activation Key Monitor│               │ onnx-asr             │
 │ AudioCapture (16kHz) │──── unix ────▶│ GigaAM-v3 e2e_rnnt   │
 │ PipelineEngine       │    socket     │ Silero VAD           │
 │ DeterministicNorm    │◀─────────────│                      │
-│ NumberNormalizer     │               └──────────────────────┘
+│ DictionaryStore      │               └──────────────────────┘
+│ SnippetEngine        │
+│ NumberNormalizer     │
+│ AppContextEngine     │
 │ TextInserter (AX)    │
+│ BottomBar UI         │
+│ Settings / History   │
 └──────────────────────┘
 ```
 
-- **Swift App** — UI, аудио, вставка текста
+- **Swift App** — UI, аудио, вставка текста, настраиваемая клавиша активации
 - **Python Worker** — ASR через unix socket (JSON протокол)
 - **IPC**: `{"wav_path": "/tmp/govorun_xxx.wav"}` → `{"text": "распознанный текст"}`
 
@@ -111,7 +119,7 @@ Swift App (menu bar)                    Python Worker
 - Python 3.13 (embedded framework)
 - onnx-asr, ONNX Runtime, Silero VAD
 - SwiftData (история, словарь, сниппеты)
-- XCTest (680+ тестов)
+- XCTest (739 тестов)
 
 ## Разработка
 

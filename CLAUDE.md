@@ -1,7 +1,7 @@
 # Говорун
 
 macOS menu bar приложение для голосового ввода на русском языке. Полностью офлайн.
-Зажал ⌥ → сказал → отпустил → чистый текст в активном поле.
+Зажал клавишу → сказал → отпустил → чистый текст в активном поле.
 
 ## Стек
 
@@ -12,7 +12,7 @@ macOS menu bar приложение для голосового ввода на 
 - onnx-asr (GigaAM-v3 e2e_rnnt, ONNX Runtime)
 - Silero VAD (нарезка длинного аудио)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (680+ тестов)
+- XCTest (739 тестов)
 
 ## Архитектура
 
@@ -42,7 +42,7 @@ Swift App (menu bar)                    Python Worker
 ## Pipeline
 
 ```
-⌥ down → AudioCapture (16kHz PCM mono) → ⌥ up →
+Activation key down → AudioCapture (16kHz PCM mono) → Activation key up →
 → сохранить WAV в tmp →
 → LocalSTTClient → unix socket → Python worker →
 → Silero VAD → нарезка → GigaAM e2e_rnnt → склейка →
@@ -139,6 +139,7 @@ Govorun/
 │   ├── LLMClient.swift
 │   └── AnalyticsService.swift
 ├── Models/                     # Value types
+│   ├── ActivationKey.swift    # Enum: modifier/keyCode/combo + Codable + displayName
 │   ├── TextMode.swift
 │   ├── DictionaryEntry.swift
 │   ├── Snippet.swift
@@ -152,6 +153,7 @@ Govorun/
 │   ├── AudioHistoryStorage.swift
 │   └── MetricsAggregator.swift
 ├── Views/                      # SwiftUI
+│   ├── KeyRecorderView.swift  # UI recorder для выбора клавиши активации
 │   ├── SettingsView.swift
 │   ├── SettingsTheme.swift
 │   ├── HistoryView.swift
@@ -162,7 +164,7 @@ Govorun/
 └── Resources/
     ├── Assets.xcassets
     └── Sounds/
-GovorunTests/                   # 680+ тестов
+GovorunTests/                   # 739 тестов
 worker/                         # Python ASR worker
 ├── server.py
 ├── requirements.txt
