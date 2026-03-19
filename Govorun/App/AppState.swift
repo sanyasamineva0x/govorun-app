@@ -19,6 +19,7 @@ final class AppState: ObservableObject {
     let analytics: AnalyticsEmitting
     let postInsertionMonitor: PostInsertionMonitoring
     let settings: SettingsStore
+    let updaterService: UpdaterService?
 
     /// Python worker — управляет жизненным циклом процесса
     private let workerManager: ASRWorkerManaging?
@@ -126,6 +127,7 @@ final class AppState: ObservableObject {
             focusedTextReader: SystemFocusedTextReader(),
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
+        self.updaterService = UpdaterService()
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -151,7 +153,8 @@ final class AppState: ObservableObject {
         workerManager: ASRWorkerManaging? = nil,
         initialWorkerState: WorkerState = .ready,
         settings: SettingsStore = SettingsStore(),
-        eventMonitor: EventMonitoring? = nil
+        eventMonitor: EventMonitoring? = nil,
+        updaterService: UpdaterService? = nil
     ) {
         self.workerManager = workerManager
         self.activationKeyMonitor = activationKeyMonitor
@@ -177,6 +180,7 @@ final class AppState: ObservableObject {
         self.settings = settings
         self.eventMonitor = eventMonitor
         self.currentActivationKey = settings.activationKey
+        self.updaterService = updaterService
 
         self.workerState = initialWorkerState
 

@@ -12,5 +12,11 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Говорун использует микрофон для голосового ввода текста</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/sanyasamineva0x/govorun-app/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>5CA1augvUYfLvo4JFzOFm1mau3AGOp7Lt1rpfIPAeiM=</string>
+	<key>SUAutomaticallyCheckForUpdates</key>
+	<true/>
 </dict>
 </plist>

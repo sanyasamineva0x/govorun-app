@@ -45,6 +45,7 @@ struct SettingsView: View {
 
 private struct SettingsSidebar: View {
     @Binding var selection: SettingsSection
+    @EnvironmentObject private var appState: AppState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -89,13 +90,25 @@ private struct SettingsSidebar: View {
 
             Spacer()
 
-            // Версия
-            if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-                Text("v\(version)")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
-                    .padding(.bottom, 14)
+            // Версия + обновление
+            VStack(spacing: 6) {
+                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                    Text("v\(version)")
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                }
+
+                if let updater = appState.updaterService, updater.updateAvailable {
+                    Button("Обновить") {
+                        updater.checkForUpdates()
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.skyAqua)
+                    .buttonStyle(.plain)
+                    .disabled(!updater.canCheckForUpdates)
+                }
             }
+            .padding(.bottom, 14)
         }
         .frame(maxHeight: .infinity)
         .background(
