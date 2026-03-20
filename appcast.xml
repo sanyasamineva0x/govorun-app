@@ -8,7 +8,7 @@
     <item>
       <title>v0.1.7</title>
       <pubDate>Thu, 20 Mar 2026 00:00:00 +0000</pubDate>
-      <sparkle:version>1</sparkle:version>
+      <sparkle:version>7</sparkle:version>
       <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
@@ -29,8 +29,8 @@
       <enclosure
         url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.1.7/Govorun.dmg"
         type="application/octet-stream"
-        sparkle:edSignature="P09GKiqTk+Wq+dS+eZNL2+Jjo5vTWPhaSlAp4oCrmjHAdQK2WaALJGetpRqIq9g2YOjh8k7A6BUkIPSqmaUBBg=="
-        length="158246069"
+        sparkle:edSignature="VtBPe2VhHHD9DER+u/JkE0O7yCCAFUJLgt+01oDtC3x/rPrHKlIwXttR0zENmDb9ew+dqYYvRY907g8CLkEwDg=="
+        length="158246070"
       />
     </item>
 
