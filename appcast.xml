@@ -6,6 +6,28 @@
     <language>ru</language>
 
     <item>
+      <title>v0.1.8</title>
+      <pubDate>Fri, 21 Mar 2026 00:00:00 +0000</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>0.1.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h3>Новое</h3>
+        <ul>
+          <li>Фирменный онбординг в стиле приложения</li>
+          <li>Иконка Говоруна в menu bar</li>
+          <li>UX-тексты в живом тоне</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.1.8/Govorun.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="oW1fQ6g2IBmnx+7/t91lxOOTZ7rKdYk0sp50L65gbFT6ncRpQzCLdFb1gpwzpQXefWsmVNz1Ts+3TgIWFkgOCg=="
+        length="157376337"
+      />
+    </item>
+
+    <item>
       <title>v0.1.7</title>
       <pubDate>Thu, 20 Mar 2026 00:00:00 +0000</pubDate>
       <sparkle:version>7</sparkle:version>
