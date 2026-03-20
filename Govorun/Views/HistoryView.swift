@@ -14,8 +14,8 @@ struct HistoryView: View {
             if items.isEmpty {
                 BrandedEmptyState(
                     icon: "clock.arrow.circlepath",
-                    title: "История пуста",
-                    subtitle: "Результаты голосового ввода\nпоявятся здесь"
+                    title: "Истории пока нет",
+                    subtitle: "Ваши записи появятся здесь"
                 )
             } else {
                 HStack {
@@ -58,7 +58,7 @@ struct HistoryView: View {
                 clearHistory()
             }
         } message: {
-            Text("Все записи и аудиофайлы будут удалены безвозвратно")
+            Text("Ваши записи будут удалены навсегда")
         }
     }
 

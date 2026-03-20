@@ -53,21 +53,11 @@ private struct SettingsSidebar: View {
             VStack(spacing: 4) {
                 Spacer().frame(height: 28)
 
-                // Монограмма
-                Text("Г")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.cottonCandy)
+                // Логотип
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
                     .frame(width: 44, height: 44)
-                    .background(Color.cottonCandy.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                Text("Говорун")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-
-                Text("голосовой ввод")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, 16)
@@ -199,8 +189,8 @@ private struct GeneralSettingsContent: View {
                 SectionHeader(title: "Поведение", icon: "slider.horizontal.3")
 
                 SettingsToggleRow(
-                    title: "Звуки при записи",
-                    description: "Сигнал начала и окончания записи",
+                    title: "Звуки",
+                    description: "Звуковой сигнал начала и конца записи",
                     icon: "speaker.wave.2",
                     isOn: $store.soundEnabled
                 )
@@ -208,8 +198,8 @@ private struct GeneralSettingsContent: View {
                 Divider()
 
                 SettingsToggleRow(
-                    title: "Запуск при входе в систему",
-                    description: "Говорун запустится автоматически",
+                    title: "Автозапуск",
+                    description: "Запуск Говоруна при включении компьютера",
                     icon: "power",
                     iconColor: .oceanMist,
                     isOn: $store.launchAtLogin
@@ -218,8 +208,8 @@ private struct GeneralSettingsContent: View {
                 Divider()
 
                 SettingsToggleRow(
-                    title: "Сохранять аудиозаписи",
-                    description: "Записи хранятся локально для истории прослушивания",
+                    title: "История записей",
+                    description: "Хранить аудио на компьютере",
                     icon: "waveform",
                     iconColor: .orange,
                     isOn: $store.saveAudioHistory
@@ -342,7 +332,7 @@ private struct WorkerStatusCard: View {
                 .foregroundStyle(.secondary)
         case .error:
             VStack(alignment: .leading, spacing: 4) {
-                Text("Мы попробуем исправить это автоматически")
+                Text("Попробую исправить")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {

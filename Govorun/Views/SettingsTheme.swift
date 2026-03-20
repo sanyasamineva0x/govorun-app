@@ -43,7 +43,7 @@ enum SettingsSection: String, Identifiable {
         switch self {
         case .general: "Основные настройки Говоруна"
         case .appModes: "Настройка режимов для конкретных приложений"
-        case .dictionary: "Слова и термины для точного распознавания"
+        case .dictionary: "Слова для точного распознавания"
         case .snippets: "Голосовые команды для быстрой вставки текста"
         case .history: "История ваших записей"
         }

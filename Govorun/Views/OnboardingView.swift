@@ -157,7 +157,7 @@ private struct WelcomeStepView: View {
                 .staggeredAppear(index: 0)
 
             VStack(spacing: 8) {
-                Text("Говорун")
+                Text("Привет, это Говорун!")
                     .font(.system(size: 28, weight: .bold))
                     .staggeredAppear(index: 1)
                 Text("Голосовой ввод на русском")
@@ -195,7 +195,7 @@ private struct MicrophoneStepView: View {
                 Text("Доступ к микрофону")
                     .font(.system(size: 22, weight: .bold))
                     .staggeredAppear(index: 1)
-                Text("Голос обрабатывается локально и никуда не отправляется")
+                Text("Я превращаю ваш голос в готовый текст")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -263,7 +263,7 @@ private struct AccessibilityStepView: View {
                 Text("Вставка текста")
                     .font(.system(size: 22, weight: .bold))
                     .staggeredAppear(index: 1)
-                Text("Говорун вставляет текст напрямую в поле ввода.\nБез этого — через буфер обмена.")
+                Text("Я вставлю текст прямо в поле ввода.\nБез этого разрешения придётся использовать буфер обмена.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -319,7 +319,7 @@ private struct ModelStepView: View {
                 Text("ИИ-модель")
                     .font(.system(size: 22, weight: .bold))
                     .staggeredAppear(index: 1)
-                Text("Модель работает на вашем Mac\nи не отправляет данные в интернет")
+                Text("Для работы нужна ИИ-модель (~900 МБ).\nОна работает локально и не отправляет данные в интернет")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -433,7 +433,7 @@ private struct TryItStepView: View {
 
                 Group {
                     if isWorkerReady {
-                        Text("Зажмите клавишу, скажите что-нибудь и отпустите")
+                        Text("Зажмите клавишу и скажите что-нибудь. Я вставлю текст в поле ввода.")
                     } else {
                         Text("Скачайте модель в настройках на вкладке «Основные»")
                     }

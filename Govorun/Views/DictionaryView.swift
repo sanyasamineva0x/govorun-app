@@ -39,10 +39,10 @@ struct DictionaryView: View {
                 BrandedEmptyState(
                     icon: "character.book.closed",
                     title: entries.isEmpty
-                        ? "Словарь пуст"
+                        ? "Словарь пока пуст"
                         : "Ничего не найдено",
                     subtitle: entries.isEmpty
-                        ? "Добавьте слова, которые распознаются неправильно"
+                        ? "Добавьте слова, которые я слышу неправильно"
                         : nil,
                     actionTitle: entries.isEmpty ? "Добавить слово" : nil,
                     action: entries.isEmpty ? { showingAddSheet = true } : nil
