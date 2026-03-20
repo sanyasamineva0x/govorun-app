@@ -11,6 +11,7 @@ macOS menu bar приложение для голосового ввода на 
 - Python 3.13 worker (unix socket IPC, embedded Python.framework)
 - onnx-asr (GigaAM-v3 e2e_rnnt, ONNX Runtime)
 - Silero VAD (нарезка длинного аудио)
+- Sparkle 2 (автообновление с EdDSA подписью)
 - SwiftData (история, словарь, сниппеты)
 - XCTest (739 тестов)
 
@@ -28,6 +29,7 @@ Swift App (menu bar)                    Python Worker
 │ NumberNormalizer     │
 │ AppContextEngine     │
 │ TextInserter (AX)    │
+│ UpdaterService       │
 │ BottomBar UI         │
 │ Settings / History   │
 └──────────────────────┘
@@ -78,7 +80,7 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 - Язык кода: Swift + Python. Комментарии — минимальные, на русском
 - Коммиты на русском: `feat: добавить X`, `fix: исправить Y`
 - TDD: тест (red) → код (green) → рефактор
-- Все сервисы через протоколы (STTClient, LLMClient, TextInserting)
+- Все сервисы через протоколы (STTClient, LLMClient, UpdateChecking, TextInserting)
 - Моки в тестах, никогда реальный Python worker или модели
 - Ошибки типизированы: `enum XxxError: Error { ... }`
 - async/await, не completion handlers
@@ -96,6 +98,24 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 - Не коммитить в main напрямую
 - Одна живая ветка за раз
 - Auto-delete branch on merge
+
+## Релиз-процесс
+
+При каждом новом релизе:
+
+1. Bump `MARKETING_VERSION` в `project.yml`
+2. `xcodegen generate` + fix objectVersion 56
+3. `bash scripts/build-unsigned-dmg.sh`
+4. Подписать DMG: `sign_update build/Govorun.dmg` (Sparkle EdDSA)
+5. `gh release create vX.Y.Z build/Govorun.dmg`
+6. Добавить `<item>` в `appcast.xml` с edSignature и length из п.4
+7. Коммит + push appcast.xml
+8. Обновить Cask: version + sha256 в `homebrew-govorun/Casks/govorun.rb`
+
+`sign_update` находится в DerivedData:
+```
+find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifacts/*"
+```
 
 ## Структура
 
@@ -137,6 +157,7 @@ Govorun/
 │   ├── ModelManager.swift
 │   ├── STTClient.swift
 │   ├── LLMClient.swift
+│   ├── UpdaterService.swift   # Sparkle 2 автообновление (UpdateChecking протокол)
 │   └── AnalyticsService.swift
 ├── Models/                     # Value types
 │   ├── ActivationKey.swift    # Enum: modifier/keyCode/combo + Codable + displayName
@@ -174,6 +195,7 @@ worker/                         # Python ASR worker
 scripts/                        # Сборка и дистрибуция
 Frameworks/
 └── Python.framework/           # Embedded Python 3.13
+appcast.xml                     # Sparkle feed (обновлять при каждом релизе)
 ```
 
 ## Команды
@@ -189,6 +211,9 @@ xcodebuild test -scheme Govorun -destination 'platform=macOS'
 
 # Python worker
 cd worker && python3 -m pytest test_server.py -v
+
+# Подписать DMG для Sparkle
+$(find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifacts/*") build/Govorun.dmg
 ```
 
 ## Модели
