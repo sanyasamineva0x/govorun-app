@@ -38,11 +38,33 @@ struct OnboardingView: View {
         }
     }
 
+    private var progress: Double {
+        Double(step.rawValue) / Double(OnboardingStep.allCases.count - 1)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            ProgressView(value: Double(step.rawValue), total: Double(OnboardingStep.allCases.count - 1))
-                .padding(.horizontal)
-                .padding(.top, 12)
+            // Прогресс-бар в фирменном стиле
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.alabasterGrey.opacity(0.15))
+                        .frame(height: 3)
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.cottonCandy, Color.cottonCandy.opacity(0.6)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * progress, height: 3)
+                        .animation(.easeInOut(duration: 0.4), value: progress)
+                }
+            }
+            .frame(height: 3)
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
 
             Spacer()
 
@@ -61,26 +83,43 @@ struct OnboardingView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            ))
 
             Spacer()
 
+            // Навигация
             HStack {
                 if step != .welcome {
-                    Button("Назад") { previousStep() }
-                        .keyboardShortcut(.cancelAction)
+                    Button(action: previousStep) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.caption)
+                            Text("Назад")
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 Spacer()
 
                 if step != .tryIt {
-                    Button("Далее") { nextStep() }
-                        .keyboardShortcut(.defaultAction)
-                        .disabled(!canAdvance)
+                    BrandedButton(
+                        title: "Далее",
+                        style: canAdvance ? .primary : .secondary,
+                        action: nextStep
+                    )
+                    .disabled(!canAdvance)
+                    .opacity(canAdvance ? 1 : 0.5)
                 }
             }
-            .padding()
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
         }
-        .frame(width: 480, height: 460)
+        .frame(width: 480, height: 480)
     }
 
     private func nextStep() {
@@ -88,18 +127,17 @@ struct OnboardingView: View {
         guard let idx = allCases.firstIndex(of: step),
               allCases.index(after: idx) < allCases.endIndex else { return }
         var nextIdx = allCases.index(after: idx)
-        // Пропустить шаг «Модель» если worker уже готов (модель скачана ранее)
         if allCases[nextIdx] == .model && appState.workerState == .ready {
             nextIdx = allCases.index(after: nextIdx)
             guard nextIdx < allCases.endIndex else { return }
         }
-        withAnimation { step = allCases[nextIdx] }
+        withAnimation(.easeInOut(duration: 0.3)) { step = allCases[nextIdx] }
     }
 
     private func previousStep() {
         let allCases = OnboardingStep.allCases
         guard let idx = allCases.firstIndex(of: step), idx > allCases.startIndex else { return }
-        withAnimation { step = allCases[allCases.index(before: idx)] }
+        withAnimation(.easeInOut(duration: 0.3)) { step = allCases[allCases.index(before: idx)] }
     }
 
     private func completeOnboarding() {
@@ -112,28 +150,31 @@ struct OnboardingView: View {
 
 private struct WelcomeStepView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.accentColor)
+        VStack(spacing: 20) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 80, height: 80)
+                .staggeredAppear(index: 0)
 
-            Text("Добро пожаловать в Говорун")
-                .font(.title)
-                .fontWeight(.bold)
-
-            Text("Голосовой ввод на русском языке для macOS")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Зажмите клавишу и говорите", systemImage: "keyboard")
-                Label("Скажите что-нибудь", systemImage: "waveform")
-                Label("Отпустите — текст готов", systemImage: "doc.text")
+            VStack(spacing: 8) {
+                Text("Говорун")
+                    .font(.system(size: 28, weight: .bold))
+                    .staggeredAppear(index: 1)
+                Text("Голосовой ввод на русском")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .staggeredAppear(index: 2)
             }
-            .font(.body)
-            .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 12) {
+                OnboardingFeatureRow(icon: "keyboard", text: "Зажмите клавишу и говорите")
+                OnboardingFeatureRow(icon: "waveform", text: "Распознавание прямо на Mac")
+                OnboardingFeatureRow(icon: "lock.shield", text: "Полностью офлайн — данные не покидают компьютер")
+            }
+            .settingsCard()
+            .staggeredAppear(index: 3)
         }
-        .padding()
+        .padding(.horizontal, 32)
     }
 }
 
@@ -144,33 +185,37 @@ private struct MicrophoneStepView: View {
     @State private var permissionChecked = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "mic.badge.plus")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.accentColor)
+        VStack(spacing: 20) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+                .staggeredAppear(index: 0)
 
-            Text("Доступ к микрофону")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text("Говорун превращает ваш голос в готовый к отправке текст. Все данные остаются на вашем компьютере.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-
-            if permissionChecked {
-                if permissionGranted {
-                    Label("Доступ разрешён", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                } else {
-                    Label("Зайти не получится. Сначала откройте Настройки системы.", systemImage: "xmark.circle.fill")
-                        .foregroundStyle(.red)
-                }
-            } else {
-                Button("Разрешить доступ") { requestMicrophoneAccess() }
-                    .controlSize(.large)
+            VStack(spacing: 8) {
+                Text("Доступ к микрофону")
+                    .font(.system(size: 22, weight: .bold))
+                    .staggeredAppear(index: 1)
+                Text("Голос обрабатывается локально и никуда не отправляется")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .staggeredAppear(index: 2)
             }
+
+            Group {
+                if permissionChecked {
+                    if permissionGranted {
+                        OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .oceanMist)
+                    } else {
+                        OnboardingStatusBadge(text: "Откройте Настройки системы → Микрофон", icon: "xmark.circle.fill", color: .red)
+                    }
+                } else {
+                    BrandedButton(title: "Разрешить доступ", style: .primary, action: requestMicrophoneAccess)
+                }
+            }
+            .staggeredAppear(index: 3)
         }
-        .padding()
+        .padding(.horizontal, 32)
         .onAppear { checkMicrophonePermission() }
     }
 
@@ -208,33 +253,37 @@ private struct AccessibilityStepView: View {
     )
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Image(systemName: "hand.raised.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 44))
+                .foregroundStyle(Color.cottonCandy)
+                .staggeredAppear(index: 0)
 
-            Text("Разрешение на вставку текста")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text("Говорун вставляет текст напрямую в поле ввода. Без этого разрешения текст копируется через ⌘V.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-
-            if accessibilityGranted {
-                Label("Доступ разрешён", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-            } else {
-                Label("Ожидание разрешения…", systemImage: "clock")
-                    .foregroundStyle(.orange)
+            VStack(spacing: 8) {
+                Text("Вставка текста")
+                    .font(.system(size: 22, weight: .bold))
+                    .staggeredAppear(index: 1)
+                Text("Говорун вставляет текст напрямую в поле ввода.\nБез этого — через буфер обмена.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .staggeredAppear(index: 2)
             }
 
-            Button("Открыть настройки системы") {
-                openAccessibilitySettings()
+            VStack(spacing: 12) {
+                if accessibilityGranted {
+                    OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .oceanMist)
+                } else {
+                    OnboardingStatusBadge(text: "Ожидание разрешения…", icon: "clock", color: .orange)
+                }
+
+                BrandedButton(title: "Открыть настройки системы", style: .secondary) {
+                    openAccessibilitySettings()
+                }
             }
-            .controlSize(.large)
+            .staggeredAppear(index: 3)
         }
-        .padding()
+        .padding(.horizontal, 32)
         .onAppear {
             accessibilityGranted = AXIsProcessTrusted()
         }
@@ -260,30 +309,34 @@ private struct ModelStepView: View {
     private var networkMonitor: NetworkMonitor { appState.networkMonitor }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Image(systemName: "brain")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 44))
+                .foregroundStyle(Color.cottonCandy)
+                .staggeredAppear(index: 0)
 
-            Text("Модель распознавания")
-                .font(.title2)
-                .fontWeight(.bold)
+            VStack(spacing: 8) {
+                Text("ИИ-модель")
+                    .font(.system(size: 22, weight: .bold))
+                    .staggeredAppear(index: 1)
+                Text("Модель работает на вашем Mac\nи не отправляет данные в интернет")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .staggeredAppear(index: 2)
+            }
 
-            Text("Для работы Говоруна скачайте ИИ-модель (~900 МБ). Она работает на вашем компьютере и не отправляет данные в интернет.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-
-            Group {
+            VStack(spacing: 12) {
                 switch workerState {
                 case .ready:
-                    Label("Модель готова", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    OnboardingStatusBadge(text: "Модель готова", icon: "checkmark.circle.fill", color: .oceanMist)
 
                 case .downloadingModel(let progress):
                     VStack(spacing: 8) {
                         ProgressView(value: Double(progress), total: 100)
                             .progressViewStyle(.linear)
-                            .frame(width: 200)
+                            .tint(Color.cottonCandy)
+                            .frame(width: 240)
                         Text("Качаю модель… \(progress)%")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -292,69 +345,69 @@ private struct ModelStepView: View {
                             downloadStarted = false
                         }
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
+                        .buttonStyle(.plain)
                     }
 
-                case .loadingModel:
+                case .loadingModel, .settingUp:
                     VStack(spacing: 8) {
                         ProgressView()
-                        Text("Загружаю модель…")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                case .settingUp:
-                    VStack(spacing: 8) {
-                        ProgressView()
-                        Text("Подготовка…")
+                            .tint(Color.cottonCandy)
+                        Text(workerState == .settingUp ? "Подготовка…" : "Загружаю модель…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                 case .error(let msg):
-                    VStack(spacing: 8) {
-                        Label(ErrorMessages.humanReadable(msg), systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                        HStack(spacing: 8) {
-                            Button("Повторить") {
+                    VStack(spacing: 10) {
+                        OnboardingStatusBadge(
+                            text: ErrorMessages.humanReadable(msg),
+                            icon: "exclamationmark.triangle.fill",
+                            color: .red
+                        )
+                        HStack(spacing: 12) {
+                            BrandedButton(title: "Повторить", style: .primary) {
                                 appState.retryWorkerLoading()
                             }
-                            .controlSize(.small)
-                            Button("Отменить") {
+                            BrandedButton(title: "Отмена", style: .secondary) {
                                 appState.cancelWorkerLoading()
                                 downloadStarted = false
                             }
-                            .controlSize(.small)
-                            .foregroundStyle(.secondary)
                         }
                     }
 
                 case .notStarted:
-                    if !networkMonitor.isCurrentlyConnected {
-                        Label("Подключитесь к интернету, чтобы скачать модель", systemImage: "wifi.slash")
-                            .foregroundStyle(.orange)
+                    VStack(spacing: 10) {
+                        if !networkMonitor.isCurrentlyConnected {
+                            OnboardingStatusBadge(
+                                text: "Нет интернета",
+                                icon: "wifi.slash",
+                                color: .orange
+                            )
+                        }
+                        BrandedButton(title: "Скачать (~900 МБ)", style: .primary) {
+                            downloadStarted = true
+                            appState.retryWorkerLoading()
+                        }
+                        .disabled(!networkMonitor.isCurrentlyConnected)
+                        .opacity(networkMonitor.isCurrentlyConnected ? 1 : 0.5)
                     }
-
-                    Button("Скачать и установить") {
-                        downloadStarted = true
-                        appState.retryWorkerLoading()
-                    }
-                    .controlSize(.large)
-                    .disabled(!networkMonitor.isCurrentlyConnected)
                 }
             }
+            .settingsCard()
+            .staggeredAppear(index: 3)
 
-            // Пропустить — для пользователей без интернета или с проблемами
             if workerState != .ready {
                 Button("Настроить позже") {
                     appState.cancelWorkerLoading()
                     modelSkipped = true
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
             }
         }
-        .padding()
+        .padding(.horizontal, 32)
     }
 }
 
@@ -367,33 +420,63 @@ private struct TryItStepView: View {
     private var isWorkerReady: Bool { appState.workerState == .ready }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Image(systemName: isWorkerReady ? "sparkles" : "arrow.down.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(isWorkerReady ? Color.accentColor : .orange)
+                .font(.system(size: 44))
+                .foregroundStyle(isWorkerReady ? Color.cottonCandy : .orange)
+                .staggeredAppear(index: 0)
 
-            Text(isWorkerReady ? "Всё готово!" : "Почти готово!")
-                .font(.title2)
-                .fontWeight(.bold)
+            VStack(spacing: 8) {
+                Text(isWorkerReady ? "Всё готово!" : "Почти готово!")
+                    .font(.system(size: 22, weight: .bold))
+                    .staggeredAppear(index: 1)
 
-            if isWorkerReady {
-                Text("Зажмите клавишу активации, скажите что-нибудь и отпустите. Говорун вставит текст в активное поле.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-
-                Text("Попробуйте прямо сейчас в любом приложении")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Для распознавания речи нужна модель. Скачайте её в настройках на вкладке «Основные».")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
+                Group {
+                    if isWorkerReady {
+                        Text("Зажмите клавишу, скажите что-нибудь и отпустите")
+                    } else {
+                        Text("Скачайте модель в настройках на вкладке «Основные»")
+                    }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .staggeredAppear(index: 2)
             }
 
-            Button("Готово") { onComplete() }
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
+            BrandedButton(title: "Готово", style: .primary, action: onComplete)
+                .staggeredAppear(index: 3)
         }
-        .padding()
+        .padding(.horizontal, 32)
+    }
+}
+
+// MARK: - Переиспользуемые компоненты онбординга
+
+private struct OnboardingFeatureRow: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(Color.cottonCandy.opacity(0.8))
+                .frame(width: 24, height: 24)
+            Text(text)
+                .font(.callout)
+        }
+    }
+}
+
+private struct OnboardingStatusBadge: View {
+    let text: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        Label(text, systemImage: icon)
+            .font(.callout)
+            .foregroundStyle(color)
     }
 }

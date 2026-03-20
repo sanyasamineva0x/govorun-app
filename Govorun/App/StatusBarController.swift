@@ -137,13 +137,31 @@ final class StatusBarController: NSObject {
     }
 
     private func setMenuBarIcon(_ symbolName: String, on button: NSStatusBarButton) {
-        let image = NSImage(
-            systemSymbolName: symbolName,
-            accessibilityDescription: "Говорун"
-        )
-        image?.size = NSSize(width: 18, height: 18)
-        image?.isTemplate = true
-        button.image = image
+        // Для idle состояния — иконка приложения, для остальных — SF Symbols
+        if symbolName == "mic.fill" {
+            setAppIcon(on: button)
+        } else {
+            let image = NSImage(
+                systemSymbolName: symbolName,
+                accessibilityDescription: "Говорун"
+            )
+            image?.size = NSSize(width: 18, height: 18)
+            image?.isTemplate = true
+            button.image = image
+        }
+    }
+
+    private func setAppIcon(on button: NSStatusBarButton) {
+        guard let appIcon = NSImage(named: "AppIcon") else {
+            // Fallback на mic.fill если иконка не найдена
+            let image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Говорун")
+            image?.size = NSSize(width: 18, height: 18)
+            image?.isTemplate = true
+            button.image = image
+            return
+        }
+        appIcon.size = NSSize(width: 18, height: 18)
+        button.image = appIcon
     }
 
     private func statusInfo(for state: SessionState) -> (String, String) {
