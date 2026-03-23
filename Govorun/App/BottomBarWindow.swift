@@ -68,42 +68,57 @@ final class BottomBarController: ObservableObject {
     // MARK: - Public API
 
     func show() {
-        state = .recording(audioLevel: 0)
+        withAnimation(PillMotion.stateSpring) {
+            state = .recording(audioLevel: 0)
+        }
         ensurePanel()
         showPanel()
     }
 
     func showRecording(audioLevel: Float) {
-        state = .recording(audioLevel: audioLevel)
+        // Shell breathing: тяжёлый spring сглаживает сырой metering
+        withAnimation(PillMotion.shellSpring) {
+            state = .recording(audioLevel: audioLevel)
+        }
     }
 
     func showProcessing() {
-        state = .processing
+        withAnimation(PillMotion.stateSpring) {
+            state = .processing
+        }
     }
 
     func showModelLoading() {
-        state = .modelLoading
+        withAnimation(PillMotion.stateSpring) {
+            state = .modelLoading
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: BottomBarMetrics.modelLoadingAutoDismissDelay)
     }
 
     func showModelDownloading(progress: Int) {
-        state = .modelDownloading(progress: progress)
+        withAnimation(PillMotion.stateSpring) {
+            state = .modelDownloading(progress: progress)
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: 5.0)
     }
 
     func showAccessibilityHint() {
-        state = .accessibilityHint
+        withAnimation(PillMotion.stateSpring) {
+            state = .accessibilityHint
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: 4.0)
     }
 
     func showError(_ message: String) {
-        state = .error(message)
+        withAnimation(PillMotion.stateSpring) {
+            state = .error(message)
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: BottomBarMetrics.errorAutoDismissDelay)

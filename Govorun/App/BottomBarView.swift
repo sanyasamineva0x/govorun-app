@@ -1,5 +1,35 @@
 import SwiftUI
 
+// MARK: - Motion choreography
+// Все motion-константы в одном месте для тюнинга.
+// Shell = внешняя оболочка pill. Bars = контент внутри.
+
+enum PillMotion {
+    // Shell breathing во время recording — тяжёлый, бeз bounce.
+    // Сырой audioLevel приходит ~60fps; shell сглаживает его как тяжёлая масса.
+    static let shellSpring = Animation.spring(duration: 0.35, bounce: 0.0)
+
+    // State transitions (recording→processing, processing→hidden, etc.)
+    // Уверенный, с лёгким settle.
+    static let stateSpring = Animation.spring(duration: 0.5, bounce: 0.08)
+
+    // Organic shape
+    static let maxAmplitude: CGFloat = 1.5   // ±1.5pt — subtle, not jelly
+    static let maxScale: CGFloat = 0.02      // 1.02x max — barely perceptible breathing
+    static let frequency: Double = 3.0
+
+    // Processing pulse — медленнее и мягче, чем ticker
+    static let pulseInterval: TimeInterval = 0.45
+    static let pulseCurve = Animation.easeInOut(duration: 0.4)
+
+    // Bar spring — лёгкий, отзывчивый (контент живее shell)
+    static let barSpring = Animation.spring(duration: 0.12, bounce: 0.2)
+
+    // Glow — сдержанный
+    static let glowOpacityScale: Double = 0.3
+    static let glowRadiusScale: CGFloat = 2.5
+}
+
 // MARK: - BottomBarView
 
 struct BottomBarView: View {
@@ -22,7 +52,7 @@ struct BottomBarView: View {
         }
     }
 
-    // MARK: - macOS 26+: liquid pill с organic shape, morphing, breathing
+    // MARK: - macOS 26+: liquid pill
 
     private var liquidBody: some View {
         TimelineView(.animation(paused: !isRecording)) { timeline in
@@ -44,43 +74,36 @@ struct BottomBarView: View {
         let shape = OrganicPillShape(
             amplitude: wobbleAmplitude,
             phase: phase,
-            frequency: 3.0
+            frequency: PillMotion.frequency
         )
 
         ZStack {
-            stateTint
-                .clipShape(shape)
-                .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
-
+            // Tint и content — единая геометрия, единый объект
+            stateTint.clipShape(shape)
             stateContent
         }
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(shape)
         .scaleEffect(scaleFactor)
-        // Shell breathing: spring на audioLevel для плавности между metering updates
-        .animation(.spring(duration: 0.12, bounce: 0.15), value: audioLevel)
-        // State transitions: width + scale + amplitude при смене состояния
-        .animation(.spring(duration: 0.4, bounce: 0.1), value: controller.state.tintKey)
+        // Нет stacked .animation — вся анимация приходит из withAnimation в контроллере.
+        // shellSpring для metering updates, stateSpring для state transitions.
 #if compiler(>=6.2)
         .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
 #endif
     }
 
-    // MARK: - macOS 14-15: статичная capsule без timeline
+    // MARK: - macOS 14-15: статичная capsule
 
     private var legacyBody: some View {
         ZStack {
-            stateTint
-                .clipShape(Capsule())
-                .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
-
+            stateTint.clipShape(Capsule())
             stateContent
         }
         .frame(width: BottomBarMetrics.pillWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(Capsule())
     }
 
-    // MARK: - Контент (общий для обоих путей)
+    // MARK: - Контент
 
     @ViewBuilder
     private var stateContent: some View {
@@ -116,18 +139,16 @@ struct BottomBarView: View {
         return 0
     }
 
-    // Амплитуда колебаний контура
     private var wobbleAmplitude: CGFloat {
-        CGFloat(audioLevel) * 3.0
+        CGFloat(audioLevel) * PillMotion.maxAmplitude
     }
 
-    // Пульсация размера: 0.03 по спеке
     private var scaleFactor: CGFloat {
-        1.0 + CGFloat(audioLevel) * 0.03
+        1.0 + CGFloat(audioLevel) * PillMotion.maxScale
     }
 
-    // Morphing ширины
     private var currentWidth: CGFloat {
+        guard supportsLiquid else { return BottomBarMetrics.pillWidth }
         switch controller.state {
         case .processing: return 180
         case .error: return 280
@@ -189,7 +210,7 @@ struct RecordingView: View {
     }
 }
 
-// MARK: - Waveform bar (плавный, с тёплым glow)
+// MARK: - Waveform bar
 
 struct WaveformBar: View {
     let audioLevel: Float
@@ -205,10 +226,8 @@ struct WaveformBar: View {
                     .opacity(glowOpacity),
                 radius: glowRadius
             )
-            .animation(
-                .spring(duration: 0.12, bounce: 0.2),
-                value: audioLevel
-            )
+            // Bars живее shell — быстрый spring, отзывчивый к аудио
+            .animation(PillMotion.barSpring, value: audioLevel)
     }
 
     private var barHeight: CGFloat {
@@ -224,20 +243,23 @@ struct WaveformBar: View {
     }
 
     private var glowOpacity: Double {
-        Double(max(0, audioLevel)) * 0.5
+        Double(max(0, audioLevel)) * PillMotion.glowOpacityScale
     }
 
     private var glowRadius: CGFloat {
-        CGFloat(max(0, audioLevel)) * 3.5
+        CGFloat(max(0, audioLevel)) * PillMotion.glowRadiusScale
     }
 }
 
-// MARK: - Processing: пульсирующие бары
+// MARK: - Processing: мягкий пульс
 
 struct ProcessingView: View {
     private let barCount = 4
     @State private var activeIndex = 0
-    private let timer = Timer.publish(every: 0.35, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(
+        every: PillMotion.pulseInterval,
+        on: .main, in: .common
+    ).autoconnect()
 
     var body: some View {
         HStack(spacing: 3) {
@@ -248,13 +270,10 @@ struct ProcessingView: View {
                     .opacity(barOpacity(for: index))
                     .shadow(
                         color: Color(nsColor: BrandColors.skyAqua)
-                            .opacity(index == activeIndex ? 0.4 : 0),
-                        radius: 3
+                            .opacity(index == activeIndex ? 0.3 : 0),
+                        radius: 2
                     )
-                    .animation(
-                        .easeInOut(duration: 0.3),
-                        value: activeIndex
-                    )
+                    .animation(PillMotion.pulseCurve, value: activeIndex)
             }
         }
         .frame(height: 14)
@@ -264,20 +283,20 @@ struct ProcessingView: View {
     }
 
     private func barHeight(for index: Int) -> CGFloat {
-        if index == activeIndex { return 14 }
+        if index == activeIndex { return 12 }
         let distance = min(
             abs(index - activeIndex),
             barCount - abs(index - activeIndex)
         )
-        return distance == 1 ? 9 : 5
+        return distance == 1 ? 8 : 5
     }
 
     private func barOpacity(for index: Int) -> Double {
-        index == activeIndex ? 1.0 : 0.35
+        index == activeIndex ? 0.85 : 0.4
     }
 }
 
-// MARK: - Появление контента (общий модификатор)
+// MARK: - Появление контента
 
 struct PillContentAppearModifier: ViewModifier {
     @State private var appeared = false
@@ -295,7 +314,7 @@ struct PillContentAppearModifier: ViewModifier {
     }
 }
 
-// MARK: - Model Loading: информационный
+// MARK: - Model Loading
 
 struct ModelLoadingView: View {
     var body: some View {
@@ -303,7 +322,6 @@ struct ModelLoadingView: View {
             ProgressView()
                 .scaleEffect(0.65)
                 .tint(Color(nsColor: BrandColors.skyAqua))
-
             Text("Загружаю модель…")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -313,7 +331,7 @@ struct ModelLoadingView: View {
     }
 }
 
-// MARK: - Model Downloading: прогресс скачивания
+// MARK: - Model Downloading
 
 struct ModelDownloadingView: View {
     let progress: Int
@@ -323,7 +341,6 @@ struct ModelDownloadingView: View {
             ProgressView()
                 .scaleEffect(0.65)
                 .tint(Color(nsColor: BrandColors.skyAqua))
-
             Text("Качаю модель… \(progress)%")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -333,7 +350,7 @@ struct ModelDownloadingView: View {
     }
 }
 
-// MARK: - Accessibility Hint: мягкое напоминание
+// MARK: - Accessibility Hint
 
 struct AccessibilityHintView: View {
     var body: some View {
@@ -341,7 +358,6 @@ struct AccessibilityHintView: View {
             Image(systemName: "hand.raised.fill")
                 .foregroundStyle(Color(nsColor: BrandColors.oceanMist))
                 .font(.system(size: 12, weight: .medium))
-
             Text("Включите Accessibility для точной вставки")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -351,7 +367,7 @@ struct AccessibilityHintView: View {
     }
 }
 
-// MARK: - Error: мягкий, фирменный
+// MARK: - Error
 
 struct ErrorView: View {
     let message: String
@@ -361,7 +377,6 @@ struct ErrorView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Color(nsColor: BrandColors.cottonCandy))
                 .font(.system(size: 12, weight: .medium))
-
             Text(message)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -376,7 +391,6 @@ struct ErrorView: View {
 
 /// Органическая форма pill с мягкими колебаниями контура.
 /// Контур: quad Bézier (прямые участки) + cubic Bézier (полукруги) с синусоидальными perturbations.
-/// Полукруги строятся через Bézier (не arc) для бесшовного соединения.
 /// При amplitude ≈ 0 — плавная деградация в capsule (нет threshold snap).
 struct OrganicPillShape: Shape {
     var amplitude: CGFloat
@@ -384,20 +398,18 @@ struct OrganicPillShape: Shape {
     var frequency: Double
 
     // Только amplitude анимируется SwiftUI.
-    // Phase управляется TimelineView (frozen при паузе) — не через animatableData.
+    // Phase управляется TimelineView (frozen при паузе).
     var animatableData: CGFloat {
         get { amplitude }
         set { amplitude = newValue }
     }
 
-    // Фиксированные seed offsets для каждой control point
     private static let seeds: [Double] = [
         0.0, 1.7, 3.2, 0.8, 2.4, 4.1, 1.3, 5.0,
         2.9, 0.5, 3.7, 1.1, 4.6, 2.0, 5.5, 3.4,
         0.3, 4.2, 1.9, 5.8, 2.7, 0.9, 3.6, 4.8,
     ]
 
-    // Множитель аппроксимации дуги кубическим Bézier: (4/3)*tan(π/8)
     private static let arcK: CGFloat = 0.5522847498
 
     func path(in rect: CGRect) -> Path {
@@ -409,13 +421,10 @@ struct OrganicPillShape: Shape {
         }
 
         let r = h / 2
-
         var path = Path()
 
-        // Верхняя линия (слева направо)
         let topSegments = 6
         let topStep = (w - 2 * r) / CGFloat(topSegments)
-
         let topStart = CGPoint(x: r, y: perturb(0, base: 0))
         path.move(to: topStart)
 
@@ -427,12 +436,11 @@ struct OrganicPillShape: Shape {
             path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
         }
 
-        // Правый полукруг (cubic Bézier)
         let rTopY = perturb(topSegments, base: 0)
         let rBotY = h + perturb(12, base: 0)
         let rMidX = w - r + r + perturb(14, base: 0) * 0.3
         let cx = CGPoint(x: w - r, y: h / 2)
-        let k = OrganicPillShape.arcK
+        let k = Self.arcK
 
         path.addCurve(
             to: CGPoint(x: cx.x + r, y: cx.y),
@@ -445,7 +453,6 @@ struct OrganicPillShape: Shape {
             control2: CGPoint(x: w - r + k * perturb(16, base: r), y: rBotY)
         )
 
-        // Нижняя линия (справа налево)
         for i in 1...topSegments {
             let x = w - r - topStep * CGFloat(i)
             let y = h + perturb(i + 12, base: 0)
@@ -454,7 +461,6 @@ struct OrganicPillShape: Shape {
             path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
         }
 
-        // Левый полукруг (cubic Bézier)
         let lBotY = h + perturb(topSegments + 12, base: 0)
         let lTopY = perturb(0, base: 0)
         let lMidX = r - r - perturb(20, base: 0) * 0.3
@@ -476,7 +482,7 @@ struct OrganicPillShape: Shape {
     }
 
     private func perturb(_ index: Int, base: CGFloat) -> CGFloat {
-        let seed = OrganicPillShape.seeds[index % OrganicPillShape.seeds.count]
+        let seed = Self.seeds[index % Self.seeds.count]
         return base + amplitude * CGFloat(sin(frequency * Double(index) + phase * 2.0 + seed))
     }
 }
@@ -493,7 +499,6 @@ struct LiquidGlassPillModifier: ViewModifier {
                 content
                     .glassEffect(.clear, in: .capsule)
                     .glassEffectID("pill", in: namespace)
-                    .clipShape(Capsule())
             }
         } else {
             content

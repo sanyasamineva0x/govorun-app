@@ -187,17 +187,28 @@ final class BottomBarMetricsTests: XCTestCase {
         let errorWidth: CGFloat = 280
         XCTAssertLessThanOrEqual(errorWidth, BottomBarMetrics.maxPillWidth)
 
-        // Максимальный scaled error width помещается (280 × 1.03 = 288.4)
-        let maxScale: CGFloat = 1.0 + 0.03
-        let maxScaledWidth = errorWidth * maxScale
+        // Максимальный scaled error width помещается
+        let maxScaledWidth = errorWidth * (1.0 + PillMotion.maxScale)
         XCTAssertLessThanOrEqual(maxScaledWidth, BottomBarMetrics.maxPillWidth)
     }
 
     func test_vertical_headroom_for_scale() {
-        // Scale 1.03 на pillHeight даёт <2pt overflow — приемлемо
-        let maxScaledHeight = BottomBarMetrics.pillHeight * (1.0 + 0.03)
+        let maxScaledHeight = BottomBarMetrics.pillHeight * (1.0 + PillMotion.maxScale)
         let overflow = maxScaledHeight - BottomBarMetrics.pillHeight
         XCTAssertLessThan(overflow, 2.0)
+    }
+
+    func test_motion_constants_are_sane() {
+        // Amplitude subtle, not jelly
+        XCTAssertLessThanOrEqual(PillMotion.maxAmplitude, 2.0)
+        XCTAssertGreaterThan(PillMotion.maxAmplitude, 0)
+
+        // Scale barely perceptible
+        XCTAssertLessThanOrEqual(PillMotion.maxScale, 0.03)
+        XCTAssertGreaterThan(PillMotion.maxScale, 0)
+
+        // Processing pulse slower than recording bar spring
+        XCTAssertGreaterThan(PillMotion.pulseInterval, 0.3)
     }
 }
 
