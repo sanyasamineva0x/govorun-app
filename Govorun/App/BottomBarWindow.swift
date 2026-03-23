@@ -209,8 +209,8 @@ final class BottomBarWindow: NSPanel {
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
 
+#if compiler(>=6.2)
         if #available(macOS 26, *) {
-            // Liquid Glass — нативное стекло с преломлением
             let glass = NSGlassEffectView()
             glass.frame = contentView.bounds
             glass.autoresizingMask = [.width, .height]
@@ -221,20 +221,11 @@ final class BottomBarWindow: NSPanel {
 
             contentView.addSubview(glass)
         } else {
-            // Fallback — NSVisualEffectView для macOS 14-15
-            let visualEffect = NSVisualEffectView(frame: contentView.bounds)
-            visualEffect.material = .hudWindow
-            visualEffect.state = .active
-            visualEffect.blendingMode = .behindWindow
-            visualEffect.autoresizingMask = [.width, .height]
-            visualEffect.wantsLayer = true
-            visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
-            visualEffect.layer?.masksToBounds = true
-
-            hostingView.frame = visualEffect.bounds
-            visualEffect.addSubview(hostingView)
-            contentView.addSubview(visualEffect)
+            addLegacyBackground(hostingView: hostingView, to: contentView)
         }
+#else
+        addLegacyBackground(hostingView: hostingView, to: contentView)
+#endif
 
         contentView.wantsLayer = true
         contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
@@ -247,6 +238,21 @@ final class BottomBarWindow: NSPanel {
         let x = screenFrame.midX - BottomBarMetrics.pillWidth / 2
         let y = screenFrame.origin.y + BottomBarMetrics.bottomOffset
         setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    private func addLegacyBackground(hostingView: NSHostingView<BottomBarView>, to contentView: NSView) {
+        let visualEffect = NSVisualEffectView(frame: contentView.bounds)
+        visualEffect.material = .hudWindow
+        visualEffect.state = .active
+        visualEffect.blendingMode = .behindWindow
+        visualEffect.autoresizingMask = [.width, .height]
+        visualEffect.wantsLayer = true
+        visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+        visualEffect.layer?.masksToBounds = true
+
+        hostingView.frame = visualEffect.bounds
+        visualEffect.addSubview(hostingView)
+        contentView.addSubview(visualEffect)
     }
 
     // NSPanel не перехватывает фокус

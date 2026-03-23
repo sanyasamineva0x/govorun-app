@@ -100,21 +100,29 @@ struct SectionPageHeader: View {
 
 struct SettingsCardModifier: ViewModifier {
     func body(content: Content) -> some View {
+#if compiler(>=6.2)
         if #available(macOS 26, *) {
             content
                 .padding(16)
                 .glassEffect(.regular, in: .rect(cornerRadius: 10))
         } else {
-            content
-                .padding(16)
-                .background(.background.opacity(0.8))
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
-                )
+            legacyCard(content: content)
         }
+#else
+        legacyCard(content: content)
+#endif
+    }
+
+    private func legacyCard(content: Content) -> some View {
+        content
+            .padding(16)
+            .background(.background.opacity(0.8))
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
+            )
     }
 }
 
@@ -130,29 +138,30 @@ struct StatusCardModifier: ViewModifier {
     let accentColor: Color
 
     func body(content: Content) -> some View {
+        let inner = HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(accentColor)
+                .frame(width: 3)
+                .padding(.vertical, 12)
+
+            content
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+#if compiler(>=6.2)
         if #available(macOS 26, *) {
-            HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(accentColor)
-                    .frame(width: 3)
-                    .padding(.vertical, 12)
-
-                content
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .glassEffect(.regular, in: .rect(cornerRadius: 10))
+            inner.glassEffect(.regular, in: .rect(cornerRadius: 10))
         } else {
-            HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(accentColor)
-                    .frame(width: 3)
-                    .padding(.vertical, 12)
+            legacyStatusCard(inner: inner)
+        }
+#else
+        legacyStatusCard(inner: inner)
+#endif
+    }
 
-                content
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+    private func legacyStatusCard<V: View>(inner: V) -> some View {
+        inner
             .background(.background.opacity(0.8))
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -160,7 +169,6 @@ struct StatusCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
             )
-        }
     }
 }
 
@@ -248,25 +256,33 @@ struct BrandedButton: View {
 
     var body: some View {
         Button(action: action) {
-            if #available(macOS 26, *) {
-                Text(title)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 7)
-                    .background(style == .primary ? Color.cottonCandy : Color.clear)
-                    .glassEffect(style == .primary ? .regular.tint(Color.cottonCandy) : .regular, in: .capsule)
-            } else {
-                Text(title)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 7)
-                    .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
-                    .clipShape(Capsule())
-            }
+            buttonLabel
         }
         .buttonStyle(.plain)
+    }
+
+    private var buttonLabel: some View {
+        let label = Text(title)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 7)
+
+#if compiler(>=6.2)
+        if #available(macOS 26, *) {
+            return label
+                .background(style == .primary ? Color.cottonCandy : Color.clear)
+                .glassEffect(style == .primary ? .regular.tint(Color.cottonCandy) : .regular, in: .capsule)
+        } else {
+            return label
+                .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
+                .clipShape(Capsule())
+        }
+#else
+        return label
+            .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
+            .clipShape(Capsule())
+#endif
     }
 }
 
