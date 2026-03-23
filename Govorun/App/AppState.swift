@@ -518,6 +518,7 @@ final class AppState: ObservableObject {
         let dictionary = loadDictionaryHints()
 
         pipelineEngine.textMode = context.textMode
+        pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.hints = NormalizationHints(
             personalDictionary: dictionary.llmReplacements,
             appName: context.appName,
@@ -575,7 +576,7 @@ final class AppState: ObservableObject {
                 let elapsed = ContinuousClock.now - processingStart
                 let minDisplay = Duration.milliseconds(Int(BottomBarMetrics.minProcessingDisplay * 1000))
                 if elapsed < minDisplay {
-                    try? await Task.sleep(for: minDisplay - elapsed)
+                    try await Task.sleep(for: minDisplay - elapsed)
                 }
 
                 guard !result.normalizedText.isEmpty else {
@@ -650,6 +651,9 @@ final class AppState: ObservableObject {
                 )
             } catch PipelineError.cancelled {
                 // dictationCancelled уже emit'ится в handleCancelled()
+                bottomBar.dismiss()
+            } catch is CancellationError {
+                // Esc во время minProcessingDisplay задержки
                 bottomBar.dismiss()
             } catch {
                 let errorType = ErrorClassifier.classify(error)

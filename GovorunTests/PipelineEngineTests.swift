@@ -804,6 +804,103 @@ final class DeterministicNormalizerTests: XCTestCase {
             "Привет, мир."
         )
     }
+
+    // MARK: - Terminal period policy
+
+    func test_period_on_plain_text() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет", terminalPeriodEnabled: true),
+            "Привет."
+        )
+    }
+
+    func test_period_on_existing_period() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет.", terminalPeriodEnabled: true),
+            "Привет."
+        )
+    }
+
+    func test_no_period_plain_text() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет", terminalPeriodEnabled: false),
+            "Привет"
+        )
+    }
+
+    func test_no_period_strips_existing() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет.", terminalPeriodEnabled: false),
+            "Привет"
+        )
+    }
+
+    func test_no_period_strips_multiple_dots() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет...", terminalPeriodEnabled: false),
+            "Привет"
+        )
+    }
+
+    func test_no_period_strips_after_percent() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("двадцать пять процентов.", terminalPeriodEnabled: false),
+            "25%"
+        )
+    }
+
+    func test_no_period_preserves_exclamation() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("да!", terminalPeriodEnabled: false),
+            "Да!"
+        )
+    }
+
+    func test_no_period_preserves_question() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("что делаешь?", terminalPeriodEnabled: false),
+            "Что делаешь?"
+        )
+    }
+
+    func test_no_period_preserves_ellipsis_char() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("тест\u{2026}", terminalPeriodEnabled: false),
+            "Тест\u{2026}"
+        )
+    }
+
+    func test_no_period_empty_text() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("", terminalPeriodEnabled: false),
+            ""
+        )
+    }
+
+    func test_no_period_multisentence_strips_only_trailing() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("привет. пока", terminalPeriodEnabled: false),
+            "Привет. Пока"
+        )
+    }
+
+    // MARK: - stripTrailingPeriods (post-LLM)
+
+    func test_stripTrailingPeriods_removes_single_period() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Привет."), "Привет")
+    }
+
+    func test_stripTrailingPeriods_preserves_question() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Как дела?"), "Как дела?")
+    }
+
+    func test_stripTrailingPeriods_preserves_exclamation() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Да!"), "Да!")
+    }
+
+    func test_stripTrailingPeriods_noop_without_period() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Привет"), "Привет")
+    }
 }
 
 // MARK: - LLMResponseGuard тесты

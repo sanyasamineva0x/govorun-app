@@ -175,7 +175,7 @@ enum DeterministicNormalizer {
     // Замены слов (пусто — ок/окей оставляем как есть)
     private static let wordReplacements: [String: String] = [:]
 
-    static func normalize(_ text: String) -> String {
+    static func normalize(_ text: String, terminalPeriodEnabled: Bool = true) -> String {
         var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !result.isEmpty else { return "" }
 
@@ -230,9 +230,13 @@ enum DeterministicNormalizer {
         // 5. Капитализация после ./?/!
         result = capitalizeAfterSentenceEnd(result)
 
-        // 6. Добавить точку в конце если нет пунктуации
-        if let last = result.last, !last.isPunctuation {
-            result += "."
+        // 6. Terminal period policy (единый source of truth)
+        if terminalPeriodEnabled {
+            if let last = result.last, !last.isPunctuation {
+                result += "."
+            }
+        } else {
+            result = stripTrailingPeriods(result)
         }
 
         return result
@@ -256,6 +260,15 @@ enum DeterministicNormalizer {
             }
         }
         return String(chars)
+    }
+
+    /// Убирает trailing обычные точки (`.`). Не трогает `?`, `!`, `…` (U+2026).
+    static func stripTrailingPeriods(_ text: String) -> String {
+        var result = text
+        while result.hasSuffix(".") {
+            result = String(result.dropLast())
+        }
+        return result.trimmingCharacters(in: .whitespaces)
     }
 }
 
@@ -332,6 +345,7 @@ final class PipelineEngine: @unchecked Sendable {
 
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = NormalizationHints()
+    private var _terminalPeriodEnabled: Bool = true
     private var _sessionId: UUID?
 
     var textMode: TextMode {
@@ -341,6 +355,10 @@ final class PipelineEngine: @unchecked Sendable {
     var hints: NormalizationHints {
         get { lock.lock(); defer { lock.unlock() }; return _hints }
         set { lock.lock(); defer { lock.unlock() }; _hints = newValue }
+    }
+    var terminalPeriodEnabled: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _terminalPeriodEnabled }
+        set { lock.lock(); defer { lock.unlock() }; _terminalPeriodEnabled = newValue }
     }
     init(
         audioCapture: AudioRecording,
@@ -534,7 +552,7 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // DeterministicNormalizer — всегда (филлеры, капитализация, замены)
-        let deterministicText = DeterministicNormalizer.normalize(correctedTranscript)
+        let deterministicText = DeterministicNormalizer.normalize(correctedTranscript, terminalPeriodEnabled: terminalPeriodEnabled)
 
         // Trivial text → только DeterministicNormalizer, без LLM
         if isTrivial(correctedTranscript) {
@@ -593,9 +611,14 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // Санитарный чек: LLM вернул мусор → fallback на deterministicText
-        let finalText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
+        let guardedText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
             ? normalizedText
             : deterministicText
+
+        // Terminal period policy — LLM часто возвращает текст с точкой
+        let finalText = terminalPeriodEnabled
+            ? guardedText
+            : DeterministicNormalizer.stripTrailingPeriods(guardedText)
 
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
         return PipelineResult(

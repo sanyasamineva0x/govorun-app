@@ -17,6 +17,7 @@ final class SettingsStore: ObservableObject {
         static let saveAudioHistory = "saveAudioHistory"
         static let onboardingCompleted = "onboardingCompleted"
         static let activationKey = "activationKey"
+        static let terminalPeriodEnabled = "terminalPeriodEnabled"
     }
 
     // MARK: - Init
@@ -33,6 +34,7 @@ final class SettingsStore: ObservableObject {
             Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: true,
+            Keys.terminalPeriodEnabled: true,
         ])
     }
 
@@ -110,6 +112,14 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    var terminalPeriodEnabled: Bool {
+        get { defaults.bool(forKey: Keys.terminalPeriodEnabled) }
+        set {
+            defaults.set(newValue, forKey: Keys.terminalPeriodEnabled)
+            objectWillChange.send()
+        }
+    }
+
     var activationKey: ActivationKey {
         get {
             guard let jsonString = defaults.string(forKey: Keys.activationKey),
@@ -138,6 +148,7 @@ final class SettingsStore: ObservableObject {
         defaults.removeObject(forKey: Keys.soundEnabled)
         defaults.removeObject(forKey: Keys.saveAudioHistory)
         defaults.removeObject(forKey: Keys.activationKey)
+        defaults.removeObject(forKey: Keys.terminalPeriodEnabled)
         // launchAtLogin управляется через SMAppService, не UserDefaults
         registerDefaults()
         objectWillChange.send()
