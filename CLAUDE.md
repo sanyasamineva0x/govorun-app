@@ -13,7 +13,68 @@ macOS menu bar приложение для голосового ввода на 
 - Silero VAD (нарезка длинного аудио)
 - Sparkle 2 (автообновление с EdDSA подписью)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (739 тестов)
+- XCTest (761 тестов)
+
+## Сборка и запуск тестовой версии
+
+**ВАЖНО: приложение не запускается через ⌘R в Xcode без подготовки.**
+
+Для запуска нужны Python.framework и wheels — они в .gitignore и не в репо.
+
+### Первая сборка (после клонирования)
+
+```bash
+# 1. Скачать Python.framework (63 МБ, один раз)
+bash scripts/fetch-python-framework.sh
+
+# 2. Скачать wheels для офлайн pip install (124 МБ, один раз)
+bash scripts/download-wheels.sh
+
+# 3. Сгенерировать Xcode проект
+xcodegen generate
+
+# 4. Теперь можно ⌘R в Xcode или собрать DMG
+```
+
+### Собрать DMG и запустить
+
+```bash
+# Собрать DMG (включает Python.framework + wheels + worker)
+bash scripts/build-unsigned-dmg.sh
+
+# Установить и запустить
+pkill -f Govorun 2>/dev/null; sleep 1
+rm -rf /Applications/Govorun.app
+hdiutil attach build/Govorun.dmg -nobrowse
+MOUNT=$(hdiutil info | grep "Говорун" | awk '{print $NF}')
+cp -R "$MOUNT/Govorun.app" /Applications/
+hdiutil detach "$MOUNT" 2>/dev/null
+xattr -cr /Applications/Govorun.app
+open /Applications/Govorun.app
+```
+
+### Однострочник (rebuild + install + launch)
+
+```bash
+pkill -f Govorun 2>/dev/null; sleep 1; bash scripts/build-unsigned-dmg.sh 2>&1 | grep '(готов)' && rm -rf /Applications/Govorun.app && hdiutil attach build/Govorun.dmg -nobrowse 2>/dev/null && MOUNT=$(hdiutil info | grep "Говорун" | awk '{print $NF}') && cp -R "$MOUNT/Govorun.app" /Applications/ && hdiutil detach "$MOUNT" 2>/dev/null && xattr -cr /Applications/Govorun.app && open /Applications/Govorun.app
+```
+
+### После переустановки — Accessibility
+
+macOS сбрасывает Accessibility permission при каждой переустановке (code signature меняется).
+Если текст не вставляется напрямую:
+
+1. Закрыть Говоруна
+2. Системные настройки → Конфиденциальность → Универсальный доступ
+3. Удалить Говоруна из списка (−)
+4. Запустить Говоруна
+5. Включить тогл
+
+### Почему не работает ⌘R в Xcode
+
+`build-unsigned-dmg.sh` вручную копирует Python.framework, worker файлы и wheels в app bundle.
+Xcode Copy Files phase может их не скопировать (зависит от objectVersion pbxproj).
+**DMG — единственный надёжный способ тестирования.**
 
 ## Архитектура
 
@@ -67,29 +128,23 @@ Socket path: `~/.govorun/worker.sock`
 Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 ```
 
-Один request за connection. Worker stateless.
-
-Детали:
-- recv loop (не один `recv(4096)`) — читаем до EOF
-- Client sends `shutdown(SHUT_WR)` после отправки request
-- `DOWNLOADING N%` в stdout — прогресс скачивания модели (ASRWorkerManager парсит)
-- Path traversal protection: `realpath()` + проверка allowed prefixes
+Один request за connection. Worker stateless. Таймаут: 300 секунд (фиксированный).
 
 ## Конвенции
 
 - Язык кода: Swift + Python. Комментарии — минимальные, на русском
 - Коммиты на русском: `feat: добавить X`, `fix: исправить Y`
+- **Нет Co-Authored-By** — публичный репо, без признаков AI
 - TDD: тест (red) → код (green) → рефактор
 - Все сервисы через протоколы (STTClient, LLMClient, UpdateChecking, TextInserting)
 - Моки в тестах, никогда реальный Python worker или модели
-- Ошибки типизированы: `enum XxxError: Error { ... }`
+- Ошибки типизированы: `enum XxxError: Error, LocalizedError { ... }`
 - async/await, не completion handlers
 - @MainActor только для UI-кода
 - Нет force unwrap (!) в production коде
 - Zero API credentials — всё локально
 - AnalyticsEvent в отдельном store (analytics.store)
-- launchAtLogin через SMAppService
-- soundEnabled читается из UserDefaults на каждый play()
+- Liquid Glass API за `#if compiler(>=6.2)` + `#available(macOS 26, *)`
 
 ## Git-процесс
 
@@ -103,18 +158,23 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 
 При каждом новом релизе:
 
-1. Bump `MARKETING_VERSION` в `project.yml`
-2. `xcodegen generate` + fix objectVersion 56
+1. Bump `MARKETING_VERSION` и `CURRENT_PROJECT_VERSION` в `project.yml`
+2. `xcodegen generate` (objectVersion теперь 77, Xcode 26 native)
 3. `bash scripts/build-unsigned-dmg.sh`
 4. Подписать DMG: `sign_update build/Govorun.dmg` (Sparkle EdDSA)
 5. `gh release create vX.Y.Z build/Govorun.dmg`
-6. Добавить `<item>` в `appcast.xml` с edSignature и length из п.4
-7. Коммит + push appcast.xml
+6. Добавить `<item>` в `appcast.xml` с edSignature и length из п.4 (новый item сверху)
+7. Коммит + push (appcast.xml + project.yml + pbxproj)
 8. Обновить Cask: version + sha256 в `homebrew-govorun/Casks/govorun.rb`
 
 `sign_update` находится в DerivedData:
-```
+```bash
 find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifacts/*"
+```
+
+Homebrew tap clone:
+```bash
+git clone https://github.com/sanyasamineva0x/homebrew-govorun.git /tmp/homebrew-govorun
 ```
 
 ## Структура
@@ -122,26 +182,25 @@ find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifact
 ```
 Govorun/
 ├── GovorunApp.swift
-├── Info.plist
+├── Info.plist                     # CFBundleVersion, Sparkle config, SUScheduledCheckInterval
 ├── Govorun.entitlements
-├── App/                        # UI + event handling
-│   ├── AppState.swift          # Composition root
-│   ├── StatusBarController.swift
-│   ├── BottomBarWindow.swift
-│   ├── BottomBarView.swift
+├── App/
+│   ├── AppState.swift             # Composition root, wiring, pendingActivationKey/RecordingMode
+│   ├── StatusBarController.swift  # Menu bar icon (AppIcon в idle, SF Symbols при записи)
+│   ├── BottomBarWindow.swift      # NSPanel pill (NSVisualEffectView legacy, glass на macOS 26)
+│   ├── BottomBarView.swift        # SwiftUI pill content, OrganicPillShape, glass morphing
 │   ├── SettingsWindowController.swift
 │   ├── OnboardingWindowController.swift
 │   ├── AXTextInserter.swift
 │   ├── SystemSoundPlayer.swift
-│   ├── NSEventMonitoring.swift
-│   ├── NSWorkspaceProvider.swift
+│   ├── NSEventMonitoring.swift    # CGEventTap + fallback, onTapReset для toggle
 │   └── PostInsertionProviders.swift
-├── Core/                       # Бизнес-логика (без UI)
-│   ├── ActivationKeyMonitor.swift
+├── Core/
+│   ├── ActivationKeyMonitor.swift # modifier/keyCode/combo + push-to-talk/toggle
 │   ├── SessionManager.swift
 │   ├── PipelineEngine.swift
 │   ├── AudioCapture.swift
-│   ├── TextInserter.swift
+│   ├── TextInserter.swift         # 3-strategy waterfall (AX → composition → clipboard)
 │   ├── AppContextEngine.swift
 │   ├── SnippetEngine.swift
 │   ├── SoundManager.swift
@@ -151,69 +210,84 @@ Govorun/
 │   ├── PostInsertionMonitor.swift
 │   ├── NumberNormalizer.swift
 │   └── NetworkMonitor.swift
-├── Services/                   # IPC, внешние сервисы
-│   ├── ASRWorkerManager.swift
-│   ├── LocalSTTClient.swift
+├── Services/
+│   ├── ASRWorkerManager.swift     # venvPath injectable, needsSetup checks disk
+│   ├── LocalSTTClient.swift       # 300s fixed timeout, precondition, setsockopt check
 │   ├── ModelManager.swift
 │   ├── STTClient.swift
-│   ├── LLMClient.swift
-│   ├── UpdaterService.swift   # Sparkle 2 автообновление (UpdateChecking протокол)
+│   ├── LLMClient.swift            # PlaceholderLLMClient (Phase 5)
+│   ├── UpdaterService.swift       # Sparkle 2, UpdateChecking protocol, @MainActor
 │   └── AnalyticsService.swift
-├── Models/                     # Value types
-│   ├── ActivationKey.swift    # Enum: modifier/keyCode/combo + Codable + displayName
+├── Models/
+│   ├── ActivationKey.swift        # Sendable, Codable, displayName
+│   ├── RecordingMode.swift        # pushToTalk / toggle, migration от "hold"
 │   ├── TextMode.swift
 │   ├── DictionaryEntry.swift
 │   ├── Snippet.swift
 │   ├── HistoryItem.swift
 │   └── AnalyticsEvent.swift
-├── Storage/                    # Persistence
+├── Storage/
+│   ├── SettingsStore.swift        # activationKey (JSON), recordingMode, logging на fallback
 │   ├── DictionaryStore.swift
 │   ├── SnippetStore.swift
 │   ├── HistoryStore.swift
-│   ├── SettingsStore.swift
 │   ├── AudioHistoryStorage.swift
 │   └── MetricsAggregator.swift
-├── Views/                      # SwiftUI
-│   ├── KeyRecorderView.swift  # UI recorder для выбора клавиши активации
-│   ├── SettingsView.swift
-│   ├── SettingsTheme.swift
+├── Views/
+│   ├── KeyRecorderView.swift      # UI recorder + hover + pencil icon
+│   ├── SettingsView.swift         # Picker режима работы в секции Поведение
+│   ├── SettingsTheme.swift        # settingsCard(), BrandedButton, colorScheme-aware stroke
 │   ├── HistoryView.swift
 │   ├── DictionaryView.swift
 │   ├── SnippetListView.swift
-│   ├── OnboardingView.swift
+│   ├── OnboardingView.swift       # Фирменный стиль, BrandedButton, staggeredAppear
 │   └── AppModeSettingsView.swift
 └── Resources/
-    ├── Assets.xcassets
+    ├── Assets.xcassets            # AppIcon (bird + waveform)
     └── Sounds/
-GovorunTests/                   # 739 тестов
-worker/                         # Python ASR worker
+GovorunTests/                      # 761 тестов
+worker/                            # Python ASR worker
 ├── server.py
 ├── requirements.txt
 ├── setup.sh
 ├── test_server.py
 └── VERSION
-scripts/                        # Сборка и дистрибуция
+scripts/
+├── build-unsigned-dmg.sh          # Гарантированно копирует framework + worker + wheels
+├── build-dmg.sh                   # Signed + notarized (нужен Developer ID)
+├── fetch-python-framework.sh      # Скачивает Python 3.13, fix install_name_tool
+└── download-wheels.sh             # Скачивает wheels для офлайн pip install
 Frameworks/
-└── Python.framework/           # Embedded Python 3.13
-appcast.xml                     # Sparkle feed (обновлять при каждом релизе)
+└── Python.framework/              # В .gitignore! Скачать через fetch-python-framework.sh
+appcast.xml                        # Sparkle feed (обновлять при каждом релизе)
+docs/
+├── recording-mode-spec.md
+├── liquid-pill-spec.md
+└── liquid-glass-plan.md
 ```
 
 ## Команды
 
 ```bash
-# Xcode
-⌘R              # Запуск
-⌘U              # Тесты
-⌘⇧K            # Clean Build
-
-# CLI
+# Тесты (CLI)
 xcodebuild test -scheme Govorun -destination 'platform=macOS'
 
-# Python worker
+# Python worker тесты
 cd worker && python3 -m pytest test_server.py -v
+
+# Собрать и запустить тестовую версию (однострочник)
+pkill -f Govorun 2>/dev/null; sleep 1; bash scripts/build-unsigned-dmg.sh 2>&1 | grep '(готов)' && rm -rf /Applications/Govorun.app && hdiutil attach build/Govorun.dmg -nobrowse 2>/dev/null && MOUNT=$(hdiutil info | grep "Говорун" | awk '{print $NF}') && cp -R "$MOUNT/Govorun.app" /Applications/ && hdiutil detach "$MOUNT" 2>/dev/null && xattr -cr /Applications/Govorun.app && open /Applications/Govorun.app
+
+# Перезапустить установленную версию
+pkill -f Govorun 2>/dev/null; sleep 1; open /Applications/Govorun.app
 
 # Подписать DMG для Sparkle
 $(find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifacts/*") build/Govorun.dmg
+
+# Чистая установка через Cask
+brew uninstall --cask govorun 2>/dev/null; rm -rf ~/.govorun; defaults delete com.govorun.app 2>/dev/null
+cd /opt/homebrew/Library/Taps/sanyasamineva0x/homebrew-govorun && git pull
+brew install --cask govorun
 ```
 
 ## Модели
@@ -224,3 +298,12 @@ $(find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -path "*/artifa
 | Silero VAD (ONNX) | ~2 MB | ~50 MB | Нарезка аудио |
 
 Кэш: `~/.cache/huggingface/hub/`
+
+## Известные особенности
+
+- **Accessibility сбрасывается при reinstall** — macOS привязывает permission к code signature. При Cask reinstall нужно переключить тогл в настройках Универсального доступа.
+- **Sparkle обновления сохраняют Accessibility** — replace in place, signature та же.
+- **Python.framework и wheels в .gitignore** — скачивать через scripts/.
+- **Flaky тест** `test_stop_then_start_relaunches_worker` — race condition на CI, не блокер.
+- **Xcode 26** — objectVersion 77 native, не нужен perl hack.
+- **Xcode 15.4** — нужен `perl -pi -e 's/objectVersion = 77/objectVersion = 56/'` после xcodegen.
