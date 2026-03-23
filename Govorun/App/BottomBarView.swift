@@ -6,46 +6,74 @@ struct BottomBarView: View {
     @ObservedObject var controller: BottomBarController
 
     var body: some View {
-        ZStack {
-            // State-specific tint overlay
-            stateTint
-                .clipShape(Capsule())
-                .animation(.easeInOut(duration: 0.4), value: controller.state.tintKey)
+        TimelineView(.animation) { timeline in
+            let phase = timeline.date.timeIntervalSinceReferenceDate
 
-            // Content
-            Group {
-                switch controller.state {
-                case .hidden:
-                    EmptyView()
+            ZStack {
+                // State-specific tint overlay
+                stateTint
+                    .clipShape(OrganicPillShape(
+                        amplitude: CGFloat(audioLevel) * 1.5,
+                        phase: phase,
+                        frequency: 3.0
+                    ))
+                    .animation(.easeInOut(duration: 0.4), value: controller.state.tintKey)
 
-                case .recording(let audioLevel):
-                    RecordingView(audioLevel: audioLevel)
+                // Content
+                Group {
+                    switch controller.state {
+                    case .hidden:
+                        EmptyView()
 
-                case .processing:
-                    ProcessingView()
+                    case .recording(let audioLevel):
+                        RecordingView(audioLevel: audioLevel)
 
-                case .modelLoading:
-                    ModelLoadingView()
+                    case .processing:
+                        ProcessingView()
 
-                case .modelDownloading(let progress):
-                    ModelDownloadingView(progress: progress)
+                    case .modelLoading:
+                        ModelLoadingView()
 
-                case .accessibilityHint:
-                    AccessibilityHintView()
+                    case .modelDownloading(let progress):
+                        ModelDownloadingView(progress: progress)
 
-                case .error(let message):
-                    ErrorView(message: message)
+                    case .accessibilityHint:
+                        AccessibilityHintView()
+
+                    case .error(let message):
+                        ErrorView(message: message)
+                    }
                 }
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
             }
-            .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
-        }
-        .frame(
-            width: BottomBarMetrics.pillWidth,
-            height: BottomBarMetrics.pillHeight
-        )
+            .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
+            .scaleEffect(scaleFactor)
+            .animation(.spring(duration: 0.12, bounce: 0.2), value: audioLevel)
+            .animation(.spring(duration: 0.4, bounce: 0.2), value: currentWidth)
 #if compiler(>=6.2)
-        .modifier(GlassPillModifier())
+            .modifier(LiquidGlassPillModifier())
 #endif
+        }
+    }
+
+    // Текущий audio level (0 для не-recording состояний)
+    private var audioLevel: Float {
+        if case .recording(let level) = controller.state { return level }
+        return 0
+    }
+
+    // #2: scale breathing
+    private var scaleFactor: CGFloat {
+        1.0 + CGFloat(audioLevel) * 0.03
+    }
+
+    // #3: ширина pill зависит от состояния (morphing)
+    private var currentWidth: CGFloat {
+        switch controller.state {
+        case .processing: return 180
+        case .error: return 280
+        default: return BottomBarMetrics.pillWidth
+        }
     }
 
     @ViewBuilder
@@ -301,13 +329,109 @@ struct ErrorView: View {
     }
 }
 
+// MARK: - OrganicPillShape
+
+/// Органическая форма pill с мягкими колебаниями контура.
+/// При amplitude == 0 вырождается в обычную capsule.
+struct OrganicPillShape: Shape {
+    var amplitude: CGFloat
+    var phase: Double
+    var frequency: Double
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(amplitude, CGFloat(phase)) }
+        set {
+            amplitude = newValue.first
+            phase = Double(newValue.second)
+        }
+    }
+
+    // Фиксированные seed offsets для каждой control point
+    private static let seeds: [Double] = [
+        0.0, 1.7, 3.2, 0.8, 2.4, 4.1, 1.3, 5.0,
+        2.9, 0.5, 3.7, 1.1, 4.6, 2.0, 5.5, 3.4,
+        0.3, 4.2, 1.9, 5.8, 2.7, 0.9, 3.6, 4.8,
+    ]
+
+    func path(in rect: CGRect) -> Path {
+        guard amplitude > 0.01 else {
+            return Path(roundedRect: rect, cornerRadius: rect.height / 2)
+        }
+
+        let w = rect.width
+        let h = rect.height
+        let r = h / 2 // радиус полукруга
+
+        var path = Path()
+
+        // Верхняя линия (слева направо)
+        let topSegments = 6
+        let topStep = (w - 2 * r) / CGFloat(topSegments)
+        let startTop = CGPoint(x: r, y: perturbY(0, baseY: 0, rect: rect))
+        path.move(to: startTop)
+
+        for i in 1...topSegments {
+            let x = r + topStep * CGFloat(i)
+            let y = perturbY(i, baseY: 0, rect: rect)
+            let cpX = r + topStep * (CGFloat(i) - 0.5)
+            let cpY = perturbY(i + topSegments, baseY: 0, rect: rect)
+            path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
+        }
+
+        // Правый полукруг
+        let rightCenter = CGPoint(x: w - r, y: h / 2)
+        path.addArc(
+            center: rightCenter,
+            radius: r + perturbR(12),
+            startAngle: .degrees(-90),
+            endAngle: .degrees(90),
+            clockwise: false
+        )
+
+        // Нижняя линия (справа налево)
+        for i in 1...topSegments {
+            let x = w - r - topStep * CGFloat(i)
+            let y = perturbY(i + 12, baseY: h, rect: rect)
+            let cpX = w - r - topStep * (CGFloat(i) - 0.5)
+            let cpY = perturbY(i + 18, baseY: h, rect: rect)
+            path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
+        }
+
+        // Левый полукруг
+        let leftCenter = CGPoint(x: r, y: h / 2)
+        path.addArc(
+            center: leftCenter,
+            radius: r + perturbR(0),
+            startAngle: .degrees(90),
+            endAngle: .degrees(-90),
+            clockwise: false
+        )
+
+        path.closeSubpath()
+        return path
+    }
+
+    private func perturbY(_ index: Int, baseY: CGFloat, rect: CGRect) -> CGFloat {
+        let seed = OrganicPillShape.seeds[index % OrganicPillShape.seeds.count]
+        let offset = amplitude * CGFloat(sin(frequency * Double(index) + phase * 2.0 + seed))
+        return baseY + offset
+    }
+
+    private func perturbR(_ index: Int) -> CGFloat {
+        let seed = OrganicPillShape.seeds[index % OrganicPillShape.seeds.count]
+        return amplitude * 0.3 * CGFloat(sin(phase * 1.5 + seed))
+    }
+}
+
 // MARK: - Liquid Glass pill modifier
 
 #if compiler(>=6.2)
-struct GlassPillModifier: ViewModifier {
+struct LiquidGlassPillModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
-            content.glassEffect(.clear, in: .capsule)
+            GlassEffectContainer {
+                content.glassEffect(.clear, in: .capsule)
+            }
         } else {
             content
         }
