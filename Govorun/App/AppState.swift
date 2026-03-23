@@ -33,6 +33,10 @@ final class AppState: ObservableObject {
     private var currentActivationKey: ActivationKey
     /// Отложенная клавиша (ждёт idle)
     private var pendingActivationKey: ActivationKey?
+    /// Текущий режим записи
+    private var currentRecordingMode: RecordingMode
+    /// Отложенный режим записи (ждёт idle)
+    private var pendingRecordingMode: RecordingMode?
     /// Подписка на изменения SettingsStore
     private var settingsCancellable: AnyCancellable?
 
@@ -58,6 +62,7 @@ final class AppState: ObservableObject {
     private let sessionManagerDelegate: SessionManagerBridge
     private var escMonitors: [Any] = []
     private var snippetsObserver: NSObjectProtocol?
+    private var sleepObserver: NSObjectProtocol?
     /// Показывался ли хинт Accessibility в этой сессии (не спамим)
     private var accessibilityHintShown = false
 
@@ -91,8 +96,10 @@ final class AppState: ObservableObject {
         let settings = SettingsStore()
         self.settings = settings
         eventMonitor.activationKey = settings.activationKey
+        eventMonitor.recordingMode = settings.recordingMode
         self.eventMonitor = eventMonitor
         self.currentActivationKey = settings.activationKey
+        self.currentRecordingMode = settings.recordingMode
 
         self.audioCapture = audio
         self.pipelineEngine = PipelineEngine(
@@ -108,6 +115,7 @@ final class AppState: ObservableObject {
         self.sessionManager = SessionManager()
         self.activationKeyMonitor = ActivationKeyMonitor(
             activationKey: settings.activationKey,
+            recordingMode: settings.recordingMode,
             eventMonitor: eventMonitor
         )
         self.bottomBar = BottomBarController()
@@ -135,6 +143,7 @@ final class AppState: ObservableObject {
         wireSnippetNotifications()
         wireWorkerManager()
         wireSettingsChange()
+        wireSleepNotification()
     }
 
     /// Тестовый init с инжектированными зависимостями
@@ -180,6 +189,7 @@ final class AppState: ObservableObject {
         self.settings = settings
         self.eventMonitor = eventMonitor
         self.currentActivationKey = settings.activationKey
+        self.currentRecordingMode = settings.recordingMode
         self.updaterService = updaterService
 
         self.workerState = initialWorkerState
@@ -240,6 +250,10 @@ final class AppState: ObservableObject {
             NotificationCenter.default.removeObserver(snippetsObserver)
         }
         snippetsObserver = nil
+        if let sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
+        }
+        sleepObserver = nil
         isReady = false
     }
 
@@ -266,7 +280,8 @@ final class AppState: ObservableObject {
     // MARK: - Cancel (для Esc во время processing)
 
     func cancelProcessing() {
-        guard sessionManager.state == .processing else { return }
+        let state = sessionManager.state
+        guard state == .processing || state == .recording else { return }
         handleCancelled()
     }
 
@@ -326,6 +341,12 @@ final class AppState: ObservableObject {
         activationKeyMonitor.onCancelled = { [weak self] in
             Task { @MainActor [weak self] in self?.handleCancelled() }
         }
+        // CGEventTap reset во время toggle записи → деактивация
+        if let nsMonitor = eventMonitor as? NSEventMonitoring {
+            nsMonitor.onTapReset = { [weak self] in
+                Task { @MainActor [weak self] in self?.handleCancelled() }
+            }
+        }
     }
 
     private func wireSettingsChange() {
@@ -336,28 +357,43 @@ final class AppState: ObservableObject {
 
     private func handleSettingsChanged() {
         let newKey = settings.activationKey
-        guard newKey != currentActivationKey else { return }
+        let newMode = settings.recordingMode
+        let keyChanged = newKey != currentActivationKey
+        let modeChanged = newMode != currentRecordingMode
+
+        guard keyChanged || modeChanged else { return }
+
         if sessionManager.state == .idle {
-            recreateMonitor(newKey)
+            recreateMonitor(key: newKey, mode: newMode)
         } else {
-            pendingActivationKey = newKey
+            if keyChanged { pendingActivationKey = newKey }
+            if modeChanged { pendingRecordingMode = newMode }
         }
     }
 
-    private func recreateMonitor(_ key: ActivationKey) {
+    private func recreateMonitor(key: ActivationKey, mode: RecordingMode) {
         guard let eventMonitor else { return }
         activationKeyMonitor.stopMonitoring()
         eventMonitor.activationKey = key
-        activationKeyMonitor = ActivationKeyMonitor(activationKey: key, eventMonitor: eventMonitor)
+        eventMonitor.recordingMode = mode
+        activationKeyMonitor = ActivationKeyMonitor(
+            activationKey: key,
+            recordingMode: mode,
+            eventMonitor: eventMonitor
+        )
         wireActivationKeyMonitor()
         activationKeyMonitor.startMonitoring()
         currentActivationKey = key
+        currentRecordingMode = mode
         pendingActivationKey = nil
+        pendingRecordingMode = nil
     }
 
-    fileprivate func applyPendingActivationKey() {
-        guard let pending = pendingActivationKey else { return }
-        recreateMonitor(pending)
+    fileprivate func applyPendingSettings() {
+        let key = pendingActivationKey ?? currentActivationKey
+        let mode = pendingRecordingMode ?? currentRecordingMode
+        guard pendingActivationKey != nil || pendingRecordingMode != nil else { return }
+        recreateMonitor(key: key, mode: mode)
     }
 
     /// Проверить что worker жив через ping по unix socket
@@ -433,6 +469,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func wireSleepNotification() {
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Деактивировать запись при уходе в сон (оба режима)
+                if self.sessionManager.state == .recording {
+                    self.handleCancelled()
+                }
+            }
+        }
+    }
+
     // MARK: - Handlers
 
     private func handleActivated() {
@@ -495,6 +547,8 @@ final class AppState: ObservableObject {
     }
 
     private func handleDeactivated() {
+        // Guard: если активация была отклонена (worker не готов), session не в recording
+        guard sessionManager.state == .recording else { return }
         sessionManager.handleDeactivated()
         bottomBar.showProcessing()
         soundPlayer.play(.recordingFinished)
@@ -724,9 +778,14 @@ private final class SessionManagerBridge: SessionManagerDelegate {
         switch state {
         case .processing:
             appState?.startEscMonitor()
+        case .recording:
+            // Toggle mode: Esc должен отменять запись
+            if appState?.settings.recordingMode == .toggle {
+                appState?.startEscMonitor()
+            }
         case .idle:
             appState?.stopEscMonitor()
-            appState?.applyPendingActivationKey()
+            appState?.applyPendingSettings()
         default:
             appState?.stopEscMonitor()
         }

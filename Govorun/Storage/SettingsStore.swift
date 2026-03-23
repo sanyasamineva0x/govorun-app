@@ -24,15 +24,23 @@ final class SettingsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         registerDefaults()
+        migrateRecordingMode()
     }
 
     private func registerDefaults() {
         defaults.register(defaults: [
             Keys.defaultTextMode: "universal",
-            Keys.recordingMode: "hold",
+            Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: true,
         ])
+    }
+
+    /// Миграция: v0.1.8 хранил recordingMode как "hold", теперь enum "pushToTalk"
+    private func migrateRecordingMode() {
+        if defaults.string(forKey: Keys.recordingMode) == "hold" {
+            defaults.set(RecordingMode.pushToTalk.rawValue, forKey: Keys.recordingMode)
+        }
     }
 
     // MARK: - Properties
@@ -45,10 +53,19 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    var recordingMode: String {
-        get { defaults.string(forKey: Keys.recordingMode) ?? "hold" }
+    var recordingMode: RecordingMode {
+        get {
+            guard let raw = defaults.string(forKey: Keys.recordingMode) else {
+                return .default
+            }
+            guard let mode = RecordingMode(rawValue: raw) else {
+                print("[Govorun] RecordingMode: неизвестное значение '\(raw)', используем pushToTalk")
+                return .default
+            }
+            return mode
+        }
         set {
-            defaults.set(newValue, forKey: Keys.recordingMode)
+            defaults.set(newValue.rawValue, forKey: Keys.recordingMode)
             objectWillChange.send()
         }
     }
