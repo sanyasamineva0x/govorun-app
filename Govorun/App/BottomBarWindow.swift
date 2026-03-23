@@ -201,31 +201,41 @@ final class BottomBarWindow: NSPanel {
         isMovableByWindowBackground = false
         hidesOnDeactivate = false
 
-        // NSVisualEffectView как фон
         guard let contentView else { return }
-        let visualEffect = NSVisualEffectView(frame: contentView.bounds)
-        visualEffect.material = .hudWindow
-        visualEffect.state = .active
-        visualEffect.blendingMode = .behindWindow
-        visualEffect.autoresizingMask = [.width, .height]
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
-        visualEffect.layer?.masksToBounds = true
 
-        // SwiftUI view
         let barView = BottomBarView(controller: controller)
         let hostingView = NSHostingView(rootView: barView)
-        hostingView.frame = visualEffect.bounds
         hostingView.autoresizingMask = [.width, .height]
-
-        // Фон hosting view прозрачный
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
 
-        visualEffect.addSubview(hostingView)
-        contentView.addSubview(visualEffect)
+        if #available(macOS 26, *) {
+            // Liquid Glass — нативное стекло с преломлением
+            let glass = NSGlassEffectView()
+            glass.frame = contentView.bounds
+            glass.autoresizingMask = [.width, .height]
+            glass.cornerRadius = BottomBarMetrics.pillHeight / 2
 
-        // Скруглённые углы окна
+            hostingView.frame = glass.bounds
+            glass.contentView = hostingView
+
+            contentView.addSubview(glass)
+        } else {
+            // Fallback — NSVisualEffectView для macOS 14-15
+            let visualEffect = NSVisualEffectView(frame: contentView.bounds)
+            visualEffect.material = .hudWindow
+            visualEffect.state = .active
+            visualEffect.blendingMode = .behindWindow
+            visualEffect.autoresizingMask = [.width, .height]
+            visualEffect.wantsLayer = true
+            visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+            visualEffect.layer?.masksToBounds = true
+
+            hostingView.frame = visualEffect.bounds
+            visualEffect.addSubview(hostingView)
+            contentView.addSubview(visualEffect)
+        }
+
         contentView.wantsLayer = true
         contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
         contentView.layer?.masksToBounds = true

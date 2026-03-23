@@ -100,15 +100,21 @@ struct SectionPageHeader: View {
 
 struct SettingsCardModifier: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(.background.opacity(0.8))
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
-            )
+        if #available(macOS 26, *) {
+            content
+                .padding(16)
+                .glassEffect(.regular, in: .rect(cornerRadius: 10))
+        } else {
+            content
+                .padding(16)
+                .background(.background.opacity(0.8))
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
+                )
+        }
     }
 }
 
@@ -124,23 +130,37 @@ struct StatusCardModifier: ViewModifier {
     let accentColor: Color
 
     func body(content: Content) -> some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(accentColor)
-                .frame(width: 3)
-                .padding(.vertical, 12)
+        if #available(macOS 26, *) {
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(accentColor)
+                    .frame(width: 3)
+                    .padding(.vertical, 12)
 
-            content
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                content
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .glassEffect(.regular, in: .rect(cornerRadius: 10))
+        } else {
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(accentColor)
+                    .frame(width: 3)
+                    .padding(.vertical, 12)
+
+                content
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(.background.opacity(0.8))
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
+            )
         }
-        .background(.background.opacity(0.8))
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
-        )
     }
 }
 
@@ -228,13 +248,23 @@ struct BrandedButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 7)
-                .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
-                .clipShape(Capsule())
+            if #available(macOS 26, *) {
+                Text(title)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 7)
+                    .background(style == .primary ? Color.cottonCandy : Color.clear)
+                    .glassEffect(style == .primary ? .regular.tint(Color.cottonCandy) : .regular, in: .capsule)
+            } else {
+                Text(title)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 7)
+                    .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
+                    .clipShape(Capsule())
+            }
         }
         .buttonStyle(.plain)
     }
