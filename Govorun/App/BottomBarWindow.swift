@@ -38,12 +38,17 @@ enum BrandColors {
 
 enum BottomBarMetrics {
     static let pillWidth: CGFloat = 260
+    /// Максимальная ширина pill (error=280 + запас на контур OrganicPillShape)
+    static let maxPillWidth: CGFloat = 300
     static let pillHeight: CGFloat = 44
     static let bottomOffset: CGFloat = 12
     static let showDuration: TimeInterval = 0.18
     static let dismissDuration: TimeInterval = 0.12
     static let errorAutoDismissDelay: TimeInterval = 3.0
     static let modelLoadingAutoDismissDelay: TimeInterval = 3.0
+    /// Единственный источник правды для минимального показа processing.
+    /// AppState.handleDeactivated() использует это значение.
+    static let minProcessingDisplay: TimeInterval = 0.6
     static let barCount: Int = 12
     static let barWidth: CGFloat = 2
     static let barSpacing: CGFloat = 2.5
@@ -63,47 +68,64 @@ final class BottomBarController: ObservableObject {
     // MARK: - Public API
 
     func show() {
-        state = .recording(audioLevel: 0)
+        withAnimation(PillMotion.stateSpring) {
+            state = .recording(audioLevel: 0)
+        }
         ensurePanel()
         showPanel()
     }
 
     func showRecording(audioLevel: Float) {
-        state = .recording(audioLevel: audioLevel)
+        // Shell breathing: тяжёлый spring сглаживает сырой metering
+        withAnimation(PillMotion.shellSpring) {
+            state = .recording(audioLevel: audioLevel)
+        }
     }
 
     func showProcessing() {
-        state = .processing
+        withAnimation(PillMotion.stateSpring) {
+            state = .processing
+        }
     }
 
     func showModelLoading() {
-        state = .modelLoading
+        withAnimation(PillMotion.stateSpring) {
+            state = .modelLoading
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: BottomBarMetrics.modelLoadingAutoDismissDelay)
     }
 
     func showModelDownloading(progress: Int) {
-        state = .modelDownloading(progress: progress)
+        withAnimation(PillMotion.stateSpring) {
+            state = .modelDownloading(progress: progress)
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: 5.0)
     }
 
     func showAccessibilityHint() {
-        state = .accessibilityHint
+        withAnimation(PillMotion.stateSpring) {
+            state = .accessibilityHint
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: 4.0)
     }
 
     func showError(_ message: String) {
-        state = .error(message)
+        withAnimation(PillMotion.stateSpring) {
+            state = .error(message)
+        }
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: BottomBarMetrics.errorAutoDismissDelay)
     }
 
+    // Минимальный показ processing гарантируется AppState (minProcessingDisplay).
+    // Контроллер не дублирует — dismiss мгновенный.
     func dismiss() {
         cancelAutoDismiss()
         hidePanel { [weak self] in
@@ -123,7 +145,6 @@ final class BottomBarController: ObservableObject {
         guard let panel else { return }
         panel.positionAtBottom()
 
-        // Начальная позиция ниже на 12pt
         var startFrame = panel.frame
         startFrame.origin.y -= 12
         panel.setFrame(startFrame, display: false)
@@ -158,7 +179,7 @@ final class BottomBarController: ObservableObject {
         })
     }
 
-    // MARK: - Auto-dismiss
+    // MARK: - Таймеры
 
     private func scheduleAutoDismiss(after delay: TimeInterval) {
         cancelAutoDismiss()
@@ -182,11 +203,25 @@ final class BottomBarController: ObservableObject {
 
 final class BottomBarWindow: NSPanel {
 
+    private let windowWidth: CGFloat
+
     init(controller: BottomBarController) {
+        let width: CGFloat
+#if compiler(>=6.2)
+        if #available(macOS 26, *) {
+            width = BottomBarMetrics.maxPillWidth
+        } else {
+            width = BottomBarMetrics.pillWidth
+        }
+#else
+        width = BottomBarMetrics.pillWidth
+#endif
+        windowWidth = width
+
         super.init(
             contentRect: NSRect(
                 x: 0, y: 0,
-                width: BottomBarMetrics.pillWidth,
+                width: width,
                 height: BottomBarMetrics.pillHeight
             ),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -234,7 +269,7 @@ final class BottomBarWindow: NSPanel {
     func positionAtBottom() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.midX - BottomBarMetrics.pillWidth / 2
+        let x = screenFrame.midX - windowWidth / 2
         let y = screenFrame.origin.y + BottomBarMetrics.bottomOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
@@ -254,7 +289,6 @@ final class BottomBarWindow: NSPanel {
         contentView.addSubview(visualEffect)
     }
 
-    // NSPanel не перехватывает фокус
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }

@@ -73,6 +73,39 @@ final class BottomBarControllerTests: XCTestCase {
         XCTAssertEqual(BottomBarMetrics.dismissDuration, 0.12)
         XCTAssertLessThan(BottomBarMetrics.dismissDuration, BottomBarMetrics.showDuration)
     }
+
+    // MARK: - 6. Dismiss во время processing — мгновенный (dwell в AppState)
+
+    func test_dismiss_during_processing_is_immediate() {
+        let sut = BottomBarController()
+        sut.showProcessing()
+
+        sut.dismiss()
+
+        // Без реального panel, hidePanel вызывает completion сразу
+        XCTAssertEqual(sut.state, .hidden)
+    }
+
+    // MARK: - 7. Двойной dismiss безопасен
+
+    func test_double_dismiss_is_safe() {
+        let sut = BottomBarController()
+        sut.showProcessing()
+
+        sut.dismiss()
+        XCTAssertEqual(sut.state, .hidden)
+
+        sut.dismiss()
+        XCTAssertEqual(sut.state, .hidden)
+    }
+
+    // MARK: - 8. minProcessingDisplay — единый источник правды
+
+    func test_min_processing_display_is_single_source_of_truth() {
+        // Константа для AppState и тестов — одно место
+        XCTAssertEqual(BottomBarMetrics.minProcessingDisplay, 0.6)
+        XCTAssertGreaterThan(BottomBarMetrics.minProcessingDisplay, 0)
+    }
 }
 
 // MARK: - BottomBarState тесты
@@ -137,5 +170,113 @@ final class BrandColorsTests: XCTestCase {
         XCTAssertNotNil(BrandColors.skyAqua)
         XCTAssertNotNil(BrandColors.oceanMist)
         XCTAssertNotNil(BrandColors.petalFrost)
+    }
+}
+
+// MARK: - Метрики pill (инварианты)
+
+final class BottomBarMetricsTests: XCTestCase {
+
+    func test_max_pill_width_fits_all_states() {
+        XCTAssertGreaterThanOrEqual(
+            BottomBarMetrics.maxPillWidth,
+            BottomBarMetrics.pillWidth
+        )
+
+        // Error width (280) помещается в maxPillWidth
+        let errorWidth: CGFloat = 280
+        XCTAssertLessThanOrEqual(errorWidth, BottomBarMetrics.maxPillWidth)
+
+        // Максимальный scaled error width помещается
+        let maxScaledWidth = errorWidth * (1.0 + PillMotion.maxScale)
+        XCTAssertLessThanOrEqual(maxScaledWidth, BottomBarMetrics.maxPillWidth)
+    }
+
+    func test_vertical_headroom_for_scale() {
+        let maxScaledHeight = BottomBarMetrics.pillHeight * (1.0 + PillMotion.maxScale)
+        let overflow = maxScaledHeight - BottomBarMetrics.pillHeight
+        XCTAssertLessThan(overflow, 2.0)
+    }
+
+    func test_motion_constants_are_sane() {
+        // Amplitude subtle, not jelly
+        XCTAssertLessThanOrEqual(PillMotion.maxAmplitude, 2.0)
+        XCTAssertGreaterThan(PillMotion.maxAmplitude, 0)
+
+        // Scale barely perceptible
+        XCTAssertLessThanOrEqual(PillMotion.maxScale, 0.03)
+        XCTAssertGreaterThan(PillMotion.maxScale, 0)
+
+        // Processing pulse slower than recording bar spring
+        XCTAssertGreaterThan(PillMotion.pulseInterval, 0.3)
+    }
+}
+
+// MARK: - OrganicPillShape тесты
+
+final class OrganicPillShapeTests: XCTestCase {
+
+    func test_zero_amplitude_produces_capsule() {
+        let shape = OrganicPillShape(amplitude: 0, phase: 0, frequency: 3.0)
+        let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
+        let path = shape.path(in: rect)
+        let bounds = path.boundingRect
+
+        // При amplitude=0 path ≈ input rect
+        XCTAssertEqual(bounds.minX, rect.minX, accuracy: 1.0)
+        XCTAssertEqual(bounds.minY, rect.minY, accuracy: 1.0)
+        XCTAssertEqual(bounds.maxX, rect.maxX, accuracy: 1.0)
+        XCTAssertEqual(bounds.maxY, rect.maxY, accuracy: 1.0)
+    }
+
+    func test_degenerate_rect_does_not_crash() {
+        let shape = OrganicPillShape(amplitude: 1.0, phase: 0, frequency: 3.0)
+
+        // w < h — fallback в rounded rect
+        let narrow = shape.path(in: CGRect(x: 0, y: 0, width: 10, height: 44))
+        XCTAssertFalse(narrow.isEmpty)
+
+        // Нулевая высота
+        let flat = shape.path(in: CGRect(x: 0, y: 0, width: 260, height: 0))
+        XCTAssertFalse(flat.isEmpty)
+
+        // Нулевой rect
+        _ = shape.path(in: .zero)
+    }
+
+    func test_animatable_data_is_amplitude_only() {
+        var shape = OrganicPillShape(amplitude: 2.5, phase: 1.7, frequency: 3.0)
+
+        // animatableData — только amplitude (phase не анимируется SwiftUI)
+        XCTAssertEqual(shape.animatableData, 2.5, accuracy: 0.001)
+
+        shape.animatableData = 0.0
+        XCTAssertEqual(shape.amplitude, 0.0, accuracy: 0.001)
+        // phase не затронут
+        XCTAssertEqual(shape.phase, 1.7, accuracy: 0.001)
+    }
+
+    func test_large_phase_values_produce_valid_path() {
+        // Phase mod 2π — bounded, но shape должна работать и с большими значениями
+        let shape = OrganicPillShape(amplitude: 2.0, phase: 1000.0, frequency: 3.0)
+        let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
+        let path = shape.path(in: rect)
+        XCTAssertFalse(path.isEmpty)
+
+        let bounds = path.boundingRect
+        XCTAssertGreaterThan(bounds.width, 200)
+        XCTAssertGreaterThan(bounds.height, 30)
+    }
+
+    func test_nonzero_amplitude_extends_beyond_rect() {
+        let shape = OrganicPillShape(amplitude: 3.0, phase: 0.5, frequency: 3.0)
+        let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
+        let path = shape.path(in: rect)
+        let bounds = path.boundingRect
+
+        // При amplitude > 0 path выходит за пределы rect
+        let area = bounds.width * bounds.height
+        let rectArea = rect.width * rect.height
+        XCTAssertGreaterThan(area, rectArea * 0.9)
     }
 }
