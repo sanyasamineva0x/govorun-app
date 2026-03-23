@@ -55,8 +55,11 @@ final class SettingsStore: ObservableObject {
 
     var recordingMode: RecordingMode {
         get {
-            guard let raw = defaults.string(forKey: Keys.recordingMode),
-                  let mode = RecordingMode(rawValue: raw) else {
+            guard let raw = defaults.string(forKey: Keys.recordingMode) else {
+                return .default
+            }
+            guard let mode = RecordingMode(rawValue: raw) else {
+                print("[Govorun] RecordingMode: неизвестное значение '\(raw)', используем pushToTalk")
                 return .default
             }
             return mode

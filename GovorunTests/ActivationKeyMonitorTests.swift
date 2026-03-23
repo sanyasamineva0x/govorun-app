@@ -557,4 +557,95 @@ final class ActivationKeyMonitorTests: XCTestCase {
         XCTAssertFalse(activated)
         XCTAssertTrue(cancelled)
     }
+
+    // MARK: - Toggle: 26. Rapid cycle (activate → deactivate → re-activate)
+
+    func test_toggle_modifier_rapid_cycle_reactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activatedCount = 0
+        var deactivatedCount = 0
+        sut.onActivated = { activatedCount += 1 }
+        sut.onDeactivated = { deactivatedCount += 1 }
+        sut.startMonitoring()
+
+        // Первый цикл: tap on
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3)
+        mock.simulateFlagsChanged(CGEventFlags(rawValue: 0)) // release → activate
+        XCTAssertEqual(activatedCount, 1)
+
+        // Первый цикл: tap off
+        mock.simulateFlagsChanged(.maskAlternate)
+        mock.simulateFlagsChanged(CGEventFlags(rawValue: 0)) // release → deactivate
+        XCTAssertEqual(deactivatedCount, 1)
+
+        // Второй цикл: tap on
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3)
+        mock.simulateFlagsChanged(CGEventFlags(rawValue: 0)) // release → re-activate
+        XCTAssertEqual(activatedCount, 2)
+    }
+
+    // MARK: - Toggle: 27. stopMonitoring while armed
+
+    func test_toggle_stopMonitoring_while_armed_resets() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        // Arm (press + wait 200ms)
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3)
+
+        // Stop while armed — не должен активироваться при restart
+        sut.stopMonitoring()
+        sut.startMonitoring()
+
+        // Release — не должен активировать (state сброшен)
+        mock.simulateFlagsChanged(CGEventFlags(rawValue: 0))
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Toggle: 28. Modifier shortcut during active toggle recording
+
+    func test_toggle_modifier_shortcut_during_recording_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        var cancelled = false
+        var deactivated = false
+        sut.onActivated = { activated = true }
+        sut.onCancelled = { cancelled = true }
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        // Activate toggle recording
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3)
+        mock.simulateFlagsChanged(CGEventFlags(rawValue: 0)) // release → activate
+        XCTAssertTrue(activated)
+
+        // Press ⌥+C while recording — should NOT cancel
+        mock.simulateKeyDown(keyCode: 8)
+        XCTAssertFalse(cancelled)
+        XCTAssertFalse(deactivated)
+    }
 }

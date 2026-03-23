@@ -280,7 +280,8 @@ final class AppState: ObservableObject {
     // MARK: - Cancel (для Esc во время processing)
 
     func cancelProcessing() {
-        guard sessionManager.state == .processing else { return }
+        let state = sessionManager.state
+        guard state == .processing || state == .recording else { return }
         handleCancelled()
     }
 
@@ -339,6 +340,12 @@ final class AppState: ObservableObject {
         }
         activationKeyMonitor.onCancelled = { [weak self] in
             Task { @MainActor [weak self] in self?.handleCancelled() }
+        }
+        // CGEventTap reset во время toggle записи → деактивация
+        if let nsMonitor = eventMonitor as? NSEventMonitoring {
+            nsMonitor.onTapReset = { [weak self] in
+                Task { @MainActor [weak self] in self?.handleCancelled() }
+            }
         }
     }
 
@@ -470,10 +477,9 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                // Toggle mode: деактивировать запись при уходе в сон
-                if self.settings.recordingMode == .toggle,
-                   self.sessionManager.state == .recording {
-                    self.handleDeactivated()
+                // Деактивировать запись при уходе в сон (оба режима)
+                if self.sessionManager.state == .recording {
+                    self.handleCancelled()
                 }
             }
         }
@@ -541,6 +547,8 @@ final class AppState: ObservableObject {
     }
 
     private func handleDeactivated() {
+        // Guard: если активация была отклонена (worker не готов), session не в recording
+        guard sessionManager.state == .recording else { return }
         sessionManager.handleDeactivated()
         bottomBar.showProcessing()
         soundPlayer.play(.recordingFinished)
@@ -770,6 +778,11 @@ private final class SessionManagerBridge: SessionManagerDelegate {
         switch state {
         case .processing:
             appState?.startEscMonitor()
+        case .recording:
+            // Toggle mode: Esc должен отменять запись
+            if appState?.settings.recordingMode == .toggle {
+                appState?.startEscMonitor()
+            }
         case .idle:
             appState?.stopEscMonitor()
             appState?.applyPendingSettings()

@@ -11,6 +11,8 @@ final class NSEventMonitoring: EventMonitoring {
     /// до регистрации keyDown/keyUp, поэтому вызываем через замыкания
     var onKeyDown: ((UInt16) -> Void)?
     var onKeyUp: ((UInt16) -> Void)?
+    /// Вызывается при сбросе tap'а системой во время toggle записи
+    var onTapReset: (() -> Void)?
 
     func addGlobalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any? {
         let tap = ActivationEventTap(
@@ -18,7 +20,8 @@ final class NSEventMonitoring: EventMonitoring {
             recordingMode: recordingMode,
             flagsHandler: handler,
             keyDownHandler: { [weak self] code in self?.onKeyDown?(code) },
-            keyUpHandler: { [weak self] code in self?.onKeyUp?(code) }
+            keyUpHandler: { [weak self] code in self?.onKeyUp?(code) },
+            onTapReset: { [weak self] in self?.onTapReset?() }
         )
         guard tap.start() else {
             print("[Govorun] CGEventTap не создан — нет Accessibility permission, fallback на NSEvent")
@@ -111,14 +114,16 @@ final class ActivationEventTap {
         recordingMode: RecordingMode = .pushToTalk,
         flagsHandler: @escaping (CGEventFlags) -> Void,
         keyDownHandler: @escaping (UInt16) -> Void,
-        keyUpHandler: @escaping (UInt16) -> Void
+        keyUpHandler: @escaping (UInt16) -> Void,
+        onTapReset: @escaping () -> Void = {}
     ) {
         self.context = ActivationTapContext(
             activationKey: activationKey,
             recordingMode: recordingMode,
             flagsHandler: flagsHandler,
             keyDownHandler: keyDownHandler,
-            keyUpHandler: keyUpHandler
+            keyUpHandler: keyUpHandler,
+            onTapReset: onTapReset
         )
     }
 
@@ -185,6 +190,8 @@ private final class ActivationTapContext {
     let flagsHandler: (CGEventFlags) -> Void
     let keyDownHandler: (UInt16) -> Void
     let keyUpHandler: (UInt16) -> Void
+    /// Вызывается при сбросе tap'а системой — сигнал деактивации для toggle mode
+    let onTapReset: () -> Void
     var machPort: CFMachPort?
 
     /// Подавленное down-событие (ожидает решения: replay или eat)
@@ -203,13 +210,15 @@ private final class ActivationTapContext {
         recordingMode: RecordingMode = .pushToTalk,
         flagsHandler: @escaping (CGEventFlags) -> Void,
         keyDownHandler: @escaping (UInt16) -> Void,
-        keyUpHandler: @escaping (UInt16) -> Void
+        keyUpHandler: @escaping (UInt16) -> Void,
+        onTapReset: @escaping () -> Void = {}
     ) {
         self.activationKey = activationKey
         self.recordingMode = recordingMode
         self.flagsHandler = flagsHandler
         self.keyDownHandler = keyDownHandler
         self.keyUpHandler = keyUpHandler
+        self.onTapReset = onTapReset
     }
 
     func startTimer() {
@@ -253,6 +262,7 @@ private func activationTapCallback(
 
     // Система отключила tap -> сбрасываем состояние и переактивируем
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        let wasToggleRecording = context.toggleRecording
         context.cancelTimer()
         context.replayPendingDown()
         context.activated = false
@@ -260,6 +270,10 @@ private func activationTapCallback(
         context.comboModifiersHeld = false
         if let port = context.machPort {
             CGEvent.tapEnable(tap: port, enable: true)
+        }
+        if wasToggleRecording {
+            print("[Govorun] CGEventTap отключён системой во время toggle записи — принудительная деактивация")
+            context.onTapReset()
         }
         return Unmanaged.passUnretained(event)
     }
