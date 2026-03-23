@@ -6,6 +6,34 @@
     <language>ru</language>
 
     <item>
+      <title>v0.1.9</title>
+      <pubDate>Sun, 23 Mar 2026 00:00:00 +0000</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.1.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h3>Новое</h3>
+        <ul>
+          <li>Режим работы: Push to Talk / Toggle</li>
+          <li>Liquid Glass на pill (macOS 26)</li>
+          <li>Фиксированный таймаут 300с — длинные записи не падают</li>
+        </ul>
+        <h3>Исправлено</h3>
+        <ul>
+          <li>Esc отменяет toggle запись</li>
+          <li>CGEventTap reset корректно деактивирует toggle</li>
+          <li>Нет phantom processing pill при отклонённой активации</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.1.9/Govorun.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cQVSaK09cCCOg5KmB+hxBq+BDR5szsrRly+xwyoMVMcWa3Paah8JBeE7T5qf+Rt60/FGfHKRUcbIKLBppyRdAg=="
+        length="158240484"
+      />
+    </item>
+
+    <item>
       <title>v0.1.8</title>
       <pubDate>Fri, 21 Mar 2026 00:00:00 +0000</pubDate>
       <sparkle:version>8</sparkle:version>
