@@ -165,7 +165,8 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 5. `gh release create vX.Y.Z build/Govorun.dmg`
 6. Добавить `<item>` в `appcast.xml` с edSignature и length из п.4 (новый item сверху)
 7. Коммит + push (appcast.xml + project.yml + pbxproj)
-8. Обновить Cask: version + sha256 в `homebrew-govorun/Casks/govorun.rb`
+8. Обновить Cask: version + sha256 в `homebrew-govorun/Casks/govorun.rb`, коммит + push
+9. `brew update` — проверить что `brew info --cask govorun` показывает новую версию
 
 `sign_update` находится в DerivedData:
 ```bash
