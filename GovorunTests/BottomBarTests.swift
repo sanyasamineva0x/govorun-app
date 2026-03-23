@@ -74,96 +74,37 @@ final class BottomBarControllerTests: XCTestCase {
         XCTAssertLessThan(BottomBarMetrics.dismissDuration, BottomBarMetrics.showDuration)
     }
 
-    // MARK: - 6. Processing min-duration: dismiss откладывается < 0.5s
+    // MARK: - 6. Dismiss во время processing — мгновенный (dwell в AppState)
 
-    func test_dismiss_during_processing_defers_when_under_min_duration() {
+    func test_dismiss_during_processing_is_immediate() {
         let sut = BottomBarController()
         sut.showProcessing()
 
         sut.dismiss()
 
-        // Должен быть отложен — state ещё .processing
-        XCTAssertEqual(sut.state, .processing)
-
-        let exp = expectation(description: "deferred dismiss")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            XCTAssertEqual(sut.state, .hidden)
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 2.0)
+        // Без реального panel, hidePanel вызывает completion сразу
+        XCTAssertEqual(sut.state, .hidden)
     }
 
-    // MARK: - 7. Processing min-duration: dismiss мгновенный >= 0.5s
+    // MARK: - 7. Двойной dismiss безопасен
 
-    func test_dismiss_during_processing_immediate_after_min_duration() {
-        let sut = BottomBarController()
-        sut.showProcessing()
-
-        let exp = expectation(description: "after min duration")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            sut.dismiss()
-            // Без реального panel, hidePanel вызывает completion сразу
-            XCTAssertEqual(sut.state, .hidden)
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 2.0)
-    }
-
-    // MARK: - 8. show() отменяет отложенный dismiss (race condition fix)
-
-    func test_show_cancels_delayed_dismiss() {
-        let sut = BottomBarController()
-        sut.showProcessing()
-        sut.dismiss()
-
-        XCTAssertEqual(sut.state, .processing)
-
-        // Новая запись отменяет отложенный dismiss
-        sut.show()
-        XCTAssertEqual(sut.state, .recording(audioLevel: 0))
-
-        // После задержки state НЕ должен стать .hidden
-        let exp = expectation(description: "delayed dismiss cancelled")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            XCTAssertTrue(sut.state.isVisible)
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 2.0)
-    }
-
-    // MARK: - 9. Двойной dismiss безопасен
-
-    func test_double_dismiss_during_processing_is_safe() {
+    func test_double_dismiss_is_safe() {
         let sut = BottomBarController()
         sut.showProcessing()
 
         sut.dismiss()
-        XCTAssertEqual(sut.state, .processing)
+        XCTAssertEqual(sut.state, .hidden)
 
-        // Второй dismiss отменяет первый и проходит сразу
         sut.dismiss()
         XCTAssertEqual(sut.state, .hidden)
     }
 
-    // MARK: - 10. showError отменяет отложенный dismiss
+    // MARK: - 8. minProcessingDisplay — единый источник правды
 
-    func test_show_error_cancels_delayed_dismiss() {
-        let sut = BottomBarController()
-        sut.showProcessing()
-        sut.dismiss()
-
-        XCTAssertEqual(sut.state, .processing)
-
-        sut.showError("Ошибка")
-        XCTAssertEqual(sut.state, .error("Ошибка"))
-
-        let exp = expectation(description: "delayed dismiss cancelled by error")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            // Стейл delayed dismiss не должен был сработать
-            XCTAssertEqual(sut.state, .error("Ошибка"))
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 2.0)
+    func test_min_processing_display_is_single_source_of_truth() {
+        // Константа для AppState и тестов — одно место
+        XCTAssertEqual(BottomBarMetrics.minProcessingDisplay, 0.6)
+        XCTAssertGreaterThan(BottomBarMetrics.minProcessingDisplay, 0)
     }
 }
 

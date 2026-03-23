@@ -4,22 +4,43 @@ import SwiftUI
 
 struct BottomBarView: View {
     @ObservedObject var controller: BottomBarController
+    @State private var frozenPhase: Double = 0
 #if compiler(>=6.2)
     @Namespace private var pillNamespace
 #endif
 
+    private var supportsLiquid: Bool {
+        if #available(macOS 26, *) { return true }
+        return false
+    }
+
     var body: some View {
+        if supportsLiquid {
+            liquidBody
+        } else {
+            legacyBody
+        }
+    }
+
+    // MARK: - macOS 26+: liquid pill с organic shape, morphing, breathing
+
+    private var liquidBody: some View {
         TimelineView(.animation(paused: !isRecording)) { timeline in
-            // Bounded phase (mod 2π). При amplitude=0 phase не влияет на форму.
             let phase = isRecording
                 ? timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: .pi * 2)
-                : 0
-            pillContent(phase: phase)
+                : frozenPhase
+            liquidPill(phase: phase)
+        }
+        .onChange(of: isRecording) { _, nowRecording in
+            if !nowRecording {
+                frozenPhase = Date().timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: .pi * 2)
+            }
         }
     }
 
     @ViewBuilder
-    private func pillContent(phase: Double) -> some View {
+    private func liquidPill(phase: Double) -> some View {
         let shape = OrganicPillShape(
             amplitude: wobbleAmplitude,
             phase: phase,
@@ -27,40 +48,61 @@ struct BottomBarView: View {
         )
 
         ZStack {
-            // Тонировка — собственная изолированная анимация
             stateTint
                 .clipShape(shape)
                 .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
 
-            // Контент — мгновенная замена, без cross-fade
-            Group {
-                switch controller.state {
-                case .hidden:
-                    EmptyView()
-                case .recording(let audioLevel):
-                    RecordingView(audioLevel: audioLevel)
-                case .processing:
-                    ProcessingView()
-                case .modelLoading:
-                    ModelLoadingView()
-                case .modelDownloading(let progress):
-                    ModelDownloadingView(progress: progress)
-                case .accessibilityHint:
-                    AccessibilityHintView()
-                case .error(let message):
-                    ErrorView(message: message)
-                }
-            }
+            stateContent
         }
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(shape)
         .scaleEffect(scaleFactor)
-        // Единая анимация для state transitions (width + scale + amplitude)
+        // Shell breathing: spring на audioLevel для плавности между metering updates
+        .animation(.spring(duration: 0.12, bounce: 0.15), value: audioLevel)
+        // State transitions: width + scale + amplitude при смене состояния
         .animation(.spring(duration: 0.4, bounce: 0.1), value: controller.state.tintKey)
 #if compiler(>=6.2)
         .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
 #endif
     }
+
+    // MARK: - macOS 14-15: статичная capsule без timeline
+
+    private var legacyBody: some View {
+        ZStack {
+            stateTint
+                .clipShape(Capsule())
+                .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
+
+            stateContent
+        }
+        .frame(width: BottomBarMetrics.pillWidth, height: BottomBarMetrics.pillHeight)
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Контент (общий для обоих путей)
+
+    @ViewBuilder
+    private var stateContent: some View {
+        switch controller.state {
+        case .hidden:
+            EmptyView()
+        case .recording(let audioLevel):
+            RecordingView(audioLevel: audioLevel)
+        case .processing:
+            ProcessingView()
+        case .modelLoading:
+            ModelLoadingView()
+        case .modelDownloading(let progress):
+            ModelDownloadingView(progress: progress)
+        case .accessibilityHint:
+            AccessibilityHintView()
+        case .error(let message):
+            ErrorView(message: message)
+        }
+    }
+
+    // MARK: - Derived state
 
     private var isRecording: Bool {
         if case .recording = controller.state { return true }
@@ -74,26 +116,18 @@ struct BottomBarView: View {
         return 0
     }
 
-    private var supportsLiquid: Bool {
-        if #available(macOS 26, *) { return true }
-        return false
-    }
-
-    // Амплитуда колебаний контура (только macOS 26)
+    // Амплитуда колебаний контура
     private var wobbleAmplitude: CGFloat {
-        guard supportsLiquid else { return 0 }
-        return CGFloat(audioLevel) * 3.0
+        CGFloat(audioLevel) * 3.0
     }
 
-    // Пульсация размера: 0.03 по спеке (только macOS 26)
+    // Пульсация размера: 0.03 по спеке
     private var scaleFactor: CGFloat {
-        guard supportsLiquid else { return 1.0 }
-        return 1.0 + CGFloat(audioLevel) * 0.03
+        1.0 + CGFloat(audioLevel) * 0.03
     }
 
-    // Morphing ширины (только macOS 26)
+    // Morphing ширины
     private var currentWidth: CGFloat {
-        guard supportsLiquid else { return BottomBarMetrics.pillWidth }
         switch controller.state {
         case .processing: return 180
         case .error: return 280
@@ -350,7 +384,7 @@ struct OrganicPillShape: Shape {
     var frequency: Double
 
     // Только amplitude анимируется SwiftUI.
-    // Phase управляется TimelineView напрямую (bounded mod 2π) — не через animatableData.
+    // Phase управляется TimelineView (frozen при паузе) — не через animatableData.
     var animatableData: CGFloat {
         get { amplitude }
         set { amplitude = newValue }
@@ -459,6 +493,7 @@ struct LiquidGlassPillModifier: ViewModifier {
                 content
                     .glassEffect(.clear, in: .capsule)
                     .glassEffectID("pill", in: namespace)
+                    .clipShape(Capsule())
             }
         } else {
             content

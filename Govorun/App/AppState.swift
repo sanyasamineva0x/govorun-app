@@ -571,11 +571,11 @@ final class AppState: ObservableObject {
                 // Emit STT + normalization events постфактум (timestamps из PipelineResult)
                 await emitPipelineEvents(for: result, appBundleId: appBundleId)
 
-                // Минимум 600ms на processing анимацию (2 цикла ProcessingView)
+                // Минимум minProcessingDisplay на processing (единственный источник правды)
                 let elapsed = ContinuousClock.now - processingStart
-                let minimumProcessingDisplay: Duration = .milliseconds(600)
-                if elapsed < minimumProcessingDisplay {
-                    try? await Task.sleep(for: minimumProcessingDisplay - elapsed)
+                let minDisplay = Duration.milliseconds(Int(BottomBarMetrics.minProcessingDisplay * 1000))
+                if elapsed < minDisplay {
+                    try? await Task.sleep(for: minDisplay - elapsed)
                 }
 
                 guard !result.normalizedText.isEmpty else {

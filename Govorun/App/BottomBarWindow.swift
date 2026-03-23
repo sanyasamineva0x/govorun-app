@@ -46,7 +46,9 @@ enum BottomBarMetrics {
     static let dismissDuration: TimeInterval = 0.12
     static let errorAutoDismissDelay: TimeInterval = 3.0
     static let modelLoadingAutoDismissDelay: TimeInterval = 3.0
-    static let minProcessingDuration: TimeInterval = 0.5
+    /// Единственный источник правды для минимального показа processing.
+    /// AppState.handleDeactivated() использует это значение.
+    static let minProcessingDisplay: TimeInterval = 0.6
     static let barCount: Int = 12
     static let barWidth: CGFloat = 2
     static let barSpacing: CGFloat = 2.5
@@ -62,14 +64,10 @@ final class BottomBarController: ObservableObject {
 
     private var panel: BottomBarWindow?
     private var autoDismissTimer: DispatchWorkItem?
-    private var delayedDismissWork: DispatchWorkItem?
-    private var processingShownAt: Date?
 
     // MARK: - Public API
 
     func show() {
-        cancelDelayedDismiss()
-        processingShownAt = nil
         state = .recording(audioLevel: 0)
         ensurePanel()
         showPanel()
@@ -80,14 +78,10 @@ final class BottomBarController: ObservableObject {
     }
 
     func showProcessing() {
-        cancelDelayedDismiss()
         state = .processing
-        processingShownAt = Date()
     }
 
     func showModelLoading() {
-        cancelDelayedDismiss()
-        processingShownAt = nil
         state = .modelLoading
         ensurePanel()
         showPanel()
@@ -95,8 +89,6 @@ final class BottomBarController: ObservableObject {
     }
 
     func showModelDownloading(progress: Int) {
-        cancelDelayedDismiss()
-        processingShownAt = nil
         state = .modelDownloading(progress: progress)
         ensurePanel()
         showPanel()
@@ -104,8 +96,6 @@ final class BottomBarController: ObservableObject {
     }
 
     func showAccessibilityHint() {
-        cancelDelayedDismiss()
-        processingShownAt = nil
         state = .accessibilityHint
         ensurePanel()
         showPanel()
@@ -113,41 +103,19 @@ final class BottomBarController: ObservableObject {
     }
 
     func showError(_ message: String) {
-        cancelDelayedDismiss()
-        processingShownAt = nil
         state = .error(message)
         ensurePanel()
         showPanel()
         scheduleAutoDismiss(after: BottomBarMetrics.errorAutoDismissDelay)
     }
 
+    // Минимальный показ processing гарантируется AppState (minProcessingDisplay).
+    // Контроллер не дублирует — dismiss мгновенный.
     func dismiss() {
         cancelAutoDismiss()
-        cancelDelayedDismiss()
-
-        let delay: TimeInterval
-        if let shownAt = processingShownAt, state == .processing {
-            delay = max(0, BottomBarMetrics.minProcessingDuration - Date().timeIntervalSince(shownAt))
-        } else {
-            delay = 0
+        hidePanel { [weak self] in
+            self?.state = .hidden
         }
-        processingShownAt = nil
-
-        guard delay > 0 else {
-            hidePanel { [weak self] in
-                self?.state = .hidden
-            }
-            return
-        }
-
-        let work = DispatchWorkItem { [weak self] in
-            self?.delayedDismissWork = nil
-            self?.hidePanel { [weak self] in
-                self?.state = .hidden
-            }
-        }
-        delayedDismissWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     // MARK: - Panel lifecycle
@@ -213,11 +181,6 @@ final class BottomBarController: ObservableObject {
     private func cancelAutoDismiss() {
         autoDismissTimer?.cancel()
         autoDismissTimer = nil
-    }
-
-    private func cancelDelayedDismiss() {
-        delayedDismissWork?.cancel()
-        delayedDismissWork = nil
     }
 }
 
