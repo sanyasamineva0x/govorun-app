@@ -225,11 +225,25 @@ final class BottomBarController: ObservableObject {
 
 final class BottomBarWindow: NSPanel {
 
+    private let windowWidth: CGFloat
+
     init(controller: BottomBarController) {
+        let width: CGFloat
+#if compiler(>=6.2)
+        if #available(macOS 26, *) {
+            width = BottomBarMetrics.maxPillWidth
+        } else {
+            width = BottomBarMetrics.pillWidth
+        }
+#else
+        width = BottomBarMetrics.pillWidth
+#endif
+        windowWidth = width
+
         super.init(
             contentRect: NSRect(
                 x: 0, y: 0,
-                width: BottomBarMetrics.maxPillWidth,
+                width: width,
                 height: BottomBarMetrics.pillHeight
             ),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -277,7 +291,7 @@ final class BottomBarWindow: NSPanel {
     func positionAtBottom() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.midX - BottomBarMetrics.maxPillWidth / 2
+        let x = screenFrame.midX - windowWidth / 2
         let y = screenFrame.origin.y + BottomBarMetrics.bottomOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }

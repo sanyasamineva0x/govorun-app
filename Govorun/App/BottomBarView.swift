@@ -10,7 +10,10 @@ struct BottomBarView: View {
 
     var body: some View {
         TimelineView(.animation(paused: !isRecording)) { timeline in
-            let phase = isRecording ? timeline.date.timeIntervalSinceReferenceDate : 0
+            // Bounded phase (mod 2π). При amplitude=0 phase не влияет на форму.
+            let phase = isRecording
+                ? timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: .pi * 2)
+                : 0
             pillContent(phase: phase)
         }
     }
@@ -24,13 +27,12 @@ struct BottomBarView: View {
         )
 
         ZStack {
-            // Тонировка — плавная смена цвета
+            // Тонировка — собственная изолированная анимация
             stateTint
                 .clipShape(shape)
                 .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
 
-            // Контент — мгновенная замена, без cross-fade/ghost.
-            // «Складывание» создаётся анимацией ширины + формы + цвета.
+            // Контент — мгновенная замена, без cross-fade
             Group {
                 switch controller.state {
                 case .hidden:
@@ -53,8 +55,8 @@ struct BottomBarView: View {
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(shape)
         .scaleEffect(scaleFactor)
-        .animation(.spring(duration: 0.45, bounce: 0.1), value: currentWidth)
-        .animation(.spring(duration: 0.15, bounce: 0.2), value: audioLevel)
+        // Единая анимация для state transitions (width + scale + amplitude)
+        .animation(.spring(duration: 0.4, bounce: 0.1), value: controller.state.tintKey)
 #if compiler(>=6.2)
         .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
 #endif
@@ -72,18 +74,26 @@ struct BottomBarView: View {
         return 0
     }
 
-    // Амплитуда колебаний контура
+    private var supportsLiquid: Bool {
+        if #available(macOS 26, *) { return true }
+        return false
+    }
+
+    // Амплитуда колебаний контура (только macOS 26)
     private var wobbleAmplitude: CGFloat {
-        CGFloat(audioLevel) * 3.0
+        guard supportsLiquid else { return 0 }
+        return CGFloat(audioLevel) * 3.0
     }
 
-    // Заметная пульсация размера
+    // Пульсация размера: 0.03 по спеке (только macOS 26)
     private var scaleFactor: CGFloat {
-        1.0 + CGFloat(audioLevel) * 0.06
+        guard supportsLiquid else { return 1.0 }
+        return 1.0 + CGFloat(audioLevel) * 0.03
     }
 
-    // Ширина pill зависит от состояния (morphing)
+    // Morphing ширины (только macOS 26)
     private var currentWidth: CGFloat {
+        guard supportsLiquid else { return BottomBarMetrics.pillWidth }
         switch controller.state {
         case .processing: return 180
         case .error: return 280
@@ -339,12 +349,11 @@ struct OrganicPillShape: Shape {
     var phase: Double
     var frequency: Double
 
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(amplitude, CGFloat(phase)) }
-        set {
-            amplitude = newValue.first
-            phase = Double(newValue.second)
-        }
+    // Только amplitude анимируется SwiftUI.
+    // Phase управляется TimelineView напрямую (bounded mod 2π) — не через animatableData.
+    var animatableData: CGFloat {
+        get { amplitude }
+        set { amplitude = newValue }
     }
 
     // Фиксированные seed offsets для каждой control point

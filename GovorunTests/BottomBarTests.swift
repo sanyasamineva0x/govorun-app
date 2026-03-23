@@ -237,7 +237,6 @@ final class BrandColorsTests: XCTestCase {
 final class BottomBarMetricsTests: XCTestCase {
 
     func test_max_pill_width_fits_all_states() {
-        // maxPillWidth >= pillWidth
         XCTAssertGreaterThanOrEqual(
             BottomBarMetrics.maxPillWidth,
             BottomBarMetrics.pillWidth
@@ -247,10 +246,17 @@ final class BottomBarMetricsTests: XCTestCase {
         let errorWidth: CGFloat = 280
         XCTAssertLessThanOrEqual(errorWidth, BottomBarMetrics.maxPillWidth)
 
-        // Максимальный scaled error width помещается (280 × 1.06 = 296.8)
-        let maxScale: CGFloat = 1.0 + 0.06
+        // Максимальный scaled error width помещается (280 × 1.03 = 288.4)
+        let maxScale: CGFloat = 1.0 + 0.03
         let maxScaledWidth = errorWidth * maxScale
         XCTAssertLessThanOrEqual(maxScaledWidth, BottomBarMetrics.maxPillWidth)
+    }
+
+    func test_vertical_headroom_for_scale() {
+        // Scale 1.03 на pillHeight даёт <2pt overflow — приемлемо
+        let maxScaledHeight = BottomBarMetrics.pillHeight * (1.0 + 0.03)
+        let overflow = maxScaledHeight - BottomBarMetrics.pillHeight
+        XCTAssertLessThan(overflow, 2.0)
     }
 }
 
@@ -286,14 +292,28 @@ final class OrganicPillShapeTests: XCTestCase {
         _ = shape.path(in: .zero)
     }
 
-    func test_animatable_data_roundtrip() {
+    func test_animatable_data_is_amplitude_only() {
         var shape = OrganicPillShape(amplitude: 2.5, phase: 1.7, frequency: 3.0)
-        let data = shape.animatableData
 
-        shape.animatableData = data
+        // animatableData — только amplitude (phase не анимируется SwiftUI)
+        XCTAssertEqual(shape.animatableData, 2.5, accuracy: 0.001)
 
-        XCTAssertEqual(shape.amplitude, 2.5, accuracy: 0.001)
+        shape.animatableData = 0.0
+        XCTAssertEqual(shape.amplitude, 0.0, accuracy: 0.001)
+        // phase не затронут
         XCTAssertEqual(shape.phase, 1.7, accuracy: 0.001)
+    }
+
+    func test_large_phase_values_produce_valid_path() {
+        // Phase mod 2π — bounded, но shape должна работать и с большими значениями
+        let shape = OrganicPillShape(amplitude: 2.0, phase: 1000.0, frequency: 3.0)
+        let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
+        let path = shape.path(in: rect)
+        XCTAssertFalse(path.isEmpty)
+
+        let bounds = path.boundingRect
+        XCTAssertGreaterThan(bounds.width, 200)
+        XCTAssertGreaterThan(bounds.height, 30)
     }
 
     func test_nonzero_amplitude_extends_beyond_rect() {
