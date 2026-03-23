@@ -37,7 +37,7 @@ final class LocalSTTClientTests: XCTestCase {
                 return XCTFail("Ожидался STTError, получен \(error)")
             }
             if case .recognitionFailed(let msg) = sttError {
-                XCTAssertTrue(msg.contains("памяти"), "Сообщение: \(msg)")
+                XCTAssertEqual(msg, "Недостаточно памяти для распознавания")
             } else {
                 XCTFail("Ожидался .recognitionFailed, получен \(sttError)")
             }
@@ -54,7 +54,7 @@ final class LocalSTTClientTests: XCTestCase {
                   case .recognitionFailed(let msg) = sttError else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
-            XCTAssertTrue(msg.contains("не найден"), "Сообщение: \(msg)")
+            XCTAssertEqual(msg, "WAV файл не найден")
         }
     }
 
@@ -192,12 +192,14 @@ final class LocalSTTClientTests: XCTestCase {
                 for (i, byte) in pathBytes.enumerated() { dest[i] = byte }
             }
         }
-        _ = withUnsafePointer(to: &addr) { ptr in
+        let bindResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
                 Darwin.bind(serverFD, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        Darwin.listen(serverFD, 1)
+        precondition(bindResult == 0, "bind() failed: \(String(cString: strerror(errno)))")
+        let listenResult = Darwin.listen(serverFD, 1)
+        precondition(listenResult == 0, "listen() failed: \(String(cString: strerror(errno)))")
 
         let serverReady = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {
@@ -257,6 +259,75 @@ final class LocalSTTClientTests: XCTestCase {
             }
             XCTAssertTrue(msg.contains("памяти"))
         }
+    }
+
+    // MARK: - Таймаут
+
+    func test_sendRequest_timeout_throwsError() async {
+        let socketPath = "/tmp/gvr_hang_\(Int.random(in: 100000...999999)).sock"
+
+        // Мини-сервер: принимает соединение, читает запрос, но НЕ отвечает
+        let serverFD = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        precondition(serverFD >= 0)
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let pathBytes = socketPath.utf8CString
+        withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
+            ptr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
+                for (i, byte) in pathBytes.enumerated() { dest[i] = byte }
+            }
+        }
+        let bindResult = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                Darwin.bind(serverFD, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        precondition(bindResult == 0)
+        Darwin.listen(serverFD, 1)
+
+        let ready = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            ready.signal()
+            let clientFD = Darwin.accept(serverFD, nil, nil)
+            guard clientFD >= 0 else { return }
+            // Читаем запрос но НЕ отвечаем — зависаем
+            var buf = [UInt8](repeating: 0, count: 4096)
+            _ = Darwin.recv(clientFD, &buf, buf.count, 0)
+            sleep(5)
+            Darwin.close(clientFD)
+        }
+
+        defer {
+            Darwin.close(serverFD)
+            unlink(socketPath)
+        }
+
+        ready.wait()
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        let client = LocalSTTClient(socketPath: socketPath, timeout: 1.0)
+        do {
+            _ = try await client.sendRequest(["wav_path": "/tmp/x.wav"], timeout: 1.0)
+            XCTFail("Должен бросить ошибку таймаута")
+        } catch let error as STTError {
+            if case .connectionFailed(let msg) = error {
+                XCTAssertTrue(msg.contains("таймаут"), "Сообщение: \(msg)")
+            } else {
+                XCTFail("Ожидался .connectionFailed, получен \(error)")
+            }
+        } catch {
+            XCTFail("Ожидался STTError, получен \(error)")
+        }
+    }
+
+    func test_defaultTimeout_is300() {
+        let client = LocalSTTClient(socketPath: "/tmp/test.sock")
+        // Проверяем через recognize с пустым аудио — не вызывает sendRequest,
+        // но timeout хранится как stored property.
+        // Используем Mirror для доступа к private property.
+        let mirror = Mirror(reflecting: client)
+        let timeout = mirror.children.first { $0.label == "timeout" }?.value as? TimeInterval
+        XCTAssertEqual(timeout, 300.0)
     }
 
 }

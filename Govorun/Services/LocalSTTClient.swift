@@ -22,6 +22,7 @@ final class LocalSTTClient: STTClient, Sendable {
         socketPath: String? = nil,
         timeout: TimeInterval = 300.0
     ) {
+        precondition(timeout > 0, "Timeout must be positive")
         self.socketPath = socketPath
             ?? NSString("~/.govorun/worker.sock").expandingTildeInPath
         self.timeout = timeout
@@ -29,6 +30,7 @@ final class LocalSTTClient: STTClient, Sendable {
 
     func recognize(audioData: Data, hints: [String]) async throws -> STTResult {
         guard !audioData.isEmpty else {
+            print("[Govorun] STT: пустое аудио, пропускаем")
             return STTResult(text: "", confidence: 1.0)
         }
 
@@ -36,7 +38,11 @@ final class LocalSTTClient: STTClient, Sendable {
         let wavPath = try saveWAVToTemp(audioData)
 
         defer {
-            try? FileManager.default.removeItem(atPath: wavPath)
+            do {
+                try FileManager.default.removeItem(atPath: wavPath)
+            } catch {
+                print("[Govorun] Не удалось удалить временный WAV: \(error)")
+            }
         }
 
         // 2. Отправить запрос worker'у через unix socket
@@ -69,8 +75,13 @@ final class LocalSTTClient: STTClient, Sendable {
                     tv_sec: Int(timeout),
                     tv_usec: Int32((timeout.truncatingRemainder(dividingBy: 1)) * 1_000_000)
                 )
-                setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-                setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+                let rcvOk = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+                let sndOk = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+                if rcvOk != 0 || sndOk != 0 {
+                    let errMsg = String(cString: strerror(errno))
+                    continuation.resume(throwing: STTError.connectionFailed("Не удалось установить таймаут: \(errMsg)"))
+                    return
+                }
 
                 // Подключиться к unix socket
                 var addr = sockaddr_un()
@@ -102,10 +113,16 @@ final class LocalSTTClient: STTClient, Sendable {
 
                 // Отправить запрос
                 let sent = requestData.withUnsafeBytes { buf in
-                    Darwin.send(fd, buf.baseAddress!, buf.count, 0)
+                    guard let base = buf.baseAddress else { return -1 }
+                    return Darwin.send(fd, base, buf.count, 0)
                 }
-                guard sent == requestData.count else {
-                    continuation.resume(throwing: STTError.connectionFailed("Ошибка отправки запроса"))
+                if sent < 0 {
+                    let errMsg = String(cString: strerror(errno))
+                    continuation.resume(throwing: STTError.connectionFailed("Ошибка отправки: \(errMsg)"))
+                    return
+                }
+                if sent != requestData.count {
+                    continuation.resume(throwing: STTError.connectionFailed("Частичная отправка: \(sent)/\(requestData.count) байт"))
                     return
                 }
 
