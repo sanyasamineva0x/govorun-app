@@ -183,31 +183,39 @@ private struct GeneralSettingsContent: View {
             KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 1)
 
-            // Режим работы
-            VStack(alignment: .leading, spacing: 8) {
-                SectionHeader(title: "Режим работы", icon: "rectangle.and.hand.point.up.left")
-
-                Picker("", selection: $store.recordingMode) {
-                    ForEach(RecordingMode.allCases, id: \.self) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: store.recordingMode) { _, newMode in
-                    appState.settings.recordingMode = newMode
-                }
-
-                Text(store.recordingMode.subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .animation(.easeInOut, value: store.recordingMode)
-            }
-            .settingsCard()
-            .staggeredAppear(index: 2)
-
             // Поведение
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeader(title: "Поведение", icon: "slider.horizontal.3")
+
+                // Режим работы
+                HStack(spacing: 12) {
+                    Image(systemName: "rectangle.and.hand.point.up.left")
+                        .font(.body)
+                        .foregroundStyle(Color.cottonCandy.opacity(0.7))
+                        .frame(width: 24, height: 24)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Режим работы")
+                            .font(.body)
+
+                        Picker("", selection: $store.recordingMode) {
+                            ForEach(RecordingMode.allCases, id: \.self) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: store.recordingMode) { _, newMode in
+                            appState.settings.recordingMode = newMode
+                        }
+
+                        Text(store.recordingMode.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .animation(.easeInOut, value: store.recordingMode)
+                    }
+                }
+
+                Divider()
 
                 SettingsToggleRow(
                     title: "Звуки",
@@ -237,9 +245,10 @@ private struct GeneralSettingsContent: View {
                 )
             }
             .settingsCard()
-            .staggeredAppear(index: 3)
+            .staggeredAppear(index: 2)
 
             // Сброс
+
             HStack {
                 Spacer()
                 Button(action: {
