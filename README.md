@@ -10,10 +10,12 @@ macOS menu bar приложение для голосового ввода на 
 - GigaAM-v3 (ONNX) — распознавание речи с пунктуацией
 - Silero VAD — нарезка длинных записей на сегменты
 - Настраиваемая клавиша активации — ⌥, любая клавиша, или комбинация (⌘K, ⇧F5, ...)
+- Два режима: Push to Talk (удерживай) и Toggle (нажми — нажми)
 - Сниппеты — "мой имейл" → подставляет email
 - Словарь замен — "жира" → "Jira"
 - Нормализация чисел — "двадцать пять процентов" → "25%"
 - Вставка через Accessibility API с clipboard fallback
+- Автообновление через Sparkle
 - Apple Silicon (M1+), macOS 14 Sonoma+
 
 ## Установка
@@ -27,26 +29,28 @@ brew install --cask govorun
 
 ### Сборка из исходников
 
-**Требования:** Xcode 15.4+, macOS 14+, Apple Silicon
+**Требования:** Xcode 26+, macOS 14+, Apple Silicon
 
 ```bash
 # 1. Клонировать
 git clone https://github.com/sanyasamineva0x/govorun-app.git
 cd govorun-app
 
-# 2. Скачать Python.framework (63MB, нужен один раз)
+# 2. Скачать Python.framework (63 МБ, один раз)
 bash scripts/fetch-python-framework.sh
 
-# 3. Сгенерировать Xcode проект
+# 3. Скачать wheels для офлайн установки (один раз)
+bash scripts/download-wheels.sh
+
+# 4. Сгенерировать Xcode проект
 brew install xcodegen
 xcodegen generate
 
-# 4. Собрать и запустить
-open Govorun.xcodeproj
-# ⌘R в Xcode
+# 5. Собрать DMG и запустить
+bash scripts/build-unsigned-dmg.sh
 ```
 
-При первом запуске скачивается модель GigaAM-v3 (~900 MB).
+При первом запуске скачивается модель GigaAM-v3 (~900 МБ).
 
 ## Как пользоваться
 
@@ -56,11 +60,11 @@ open Govorun.xcodeproj
 4. Отпустите клавишу — текст вставится в активное поле
 5. **Esc** — отмена
 
-Клавишу можно сменить в настройках — нажмите на карточку с текущей клавишей.
+Клавишу и режим работы можно сменить в настройках.
 
 ## После переустановки
 
-При переустановке или обновлении через DMG macOS сбрасывает разрешение Accessibility (Универсальный доступ). Если после обновления текст вставляется через ⌘V вместо прямой вставки:
+При переустановке через DMG или Cask macOS сбрасывает разрешение Accessibility. Если текст вставляется через ⌘V вместо прямой вставки:
 
 1. Закройте Говоруна
 2. Откройте **Системные настройки → Конфиденциальность и безопасность → Универсальный доступ**
@@ -68,11 +72,11 @@ open Govorun.xcodeproj
 4. Запустите Говоруна
 5. Включите тогл для Говоруна в списке
 
-При обновлении через Sparkle (автообновление) это делать **не нужно** — разрешение сохраняется.
+При обновлении через Sparkle (автообновление) это делать **не нужно**.
 
 ## Производительность
 
-Замеры на MacBook Air M1, 16 GB RAM. Реальная русская речь (TTS → WAV → GigaAM):
+Замеры на MacBook Air M1, 16 GB RAM:
 
 | Аудио | Длительность | Latency |
 |-------|-------------|---------|
@@ -83,13 +87,11 @@ open Govorun.xcodeproj
 
 | Метрика | Значение |
 |---------|----------|
-| **Cold start** | 1.6 сек (загрузка модели + VAD) |
-| **WER** | 6.9% (GigaAM-v3 e2e_rnnt, русский) |
+| **Cold start** | 1.6 сек |
+| **WER** | 6.9% (русский) |
 | **RAM (worker)** | ~1.2 GB |
 | **CPU (idle)** | 0% |
-| **CPU (inference)** | 3–4 ядра на время распознавания |
-| **App bundle** | 67 MB (с Python.framework) |
-| **DMG** | 148 MB (с wheels) |
+| **DMG** | ~150 MB |
 | **Модель** | 892 MB (скачивается один раз) |
 
 ## Архитектура
@@ -104,25 +106,13 @@ Swift App (menu bar)                    Python Worker
 │ DictionaryStore      │               └──────────────────────┘
 │ SnippetEngine        │
 │ NumberNormalizer     │
-│ AppContextEngine     │
 │ TextInserter (AX)    │
-│ BottomBar UI         │
-│ Settings / History   │
 └──────────────────────┘
 ```
 
-- **Swift App** — UI, аудио, вставка текста, настраиваемая клавиша активации
+- **Swift App** — UI, аудио, вставка текста
 - **Python Worker** — ASR через unix socket (JSON протокол)
 - **IPC**: `{"wav_path": "/tmp/govorun_xxx.wav"}` → `{"text": "распознанный текст"}`
-
-## Модели
-
-| Модель | Размер | RAM | Назначение |
-|--------|--------|-----|------------|
-| GigaAM-v3 e2e_rnnt | ~892 MB | ~1.5 GB | Распознавание речи |
-| Silero VAD | ~2 MB | ~50 MB | Нарезка аудио |
-
-Модели скачиваются автоматически при первом запуске в `~/.cache/huggingface/hub/`.
 
 ## Технологии
 
@@ -130,8 +120,9 @@ Swift App (menu bar)                    Python Worker
 - AVAudioEngine (микрофон)
 - Python 3.13 (embedded framework)
 - onnx-asr, ONNX Runtime, Silero VAD
+- Sparkle 2 (автообновление)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (739 тестов)
+- XCTest (761 тестов)
 
 ## Разработка
 
@@ -139,11 +130,11 @@ Swift App (menu bar)                    Python Worker
 # Тесты
 xcodebuild test -scheme Govorun -destination 'platform=macOS'
 
-# Python worker (ручной запуск)
-cd worker && bash setup.sh && python3 server.py
-
-# Python тесты
+# Python worker тесты
 cd worker && python3 -m pytest test_server.py -v
+
+# Собрать и установить тестовую версию
+bash scripts/build-unsigned-dmg.sh
 ```
 
 ## Лицензия
