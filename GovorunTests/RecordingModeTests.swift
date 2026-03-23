@@ -27,9 +27,14 @@ final class RecordingModeTests: XCTestCase {
         XCTAssertEqual(RecordingMode.toggle.title, "Toggle")
     }
 
-    func test_description() {
-        XCTAssertFalse(RecordingMode.pushToTalk.description.isEmpty)
-        XCTAssertFalse(RecordingMode.toggle.description.isEmpty)
+    func test_subtitle() {
+        XCTAssertFalse(RecordingMode.pushToTalk.subtitle.isEmpty)
+        XCTAssertFalse(RecordingMode.toggle.subtitle.isEmpty)
+    }
+
+    func test_hint() {
+        XCTAssertEqual(RecordingMode.pushToTalk.hint(key: "⌥"), "Зажмите ⌥ и говорите")
+        XCTAssertEqual(RecordingMode.toggle.hint(key: "⌥"), "Нажмите ⌥ для записи")
     }
 
     func test_allCases() {

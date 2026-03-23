@@ -42,7 +42,8 @@ private func makeTestAppState(
     llmClient: LLMClient? = nil,
     accessibility: MockAccessibility = MockAccessibility(),
     clipboard: MockClipboard = MockClipboard(),
-    modelContainer: ModelContainer? = nil
+    modelContainer: ModelContainer? = nil,
+    recordingMode: RecordingMode = .pushToTalk
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
 
     let eventMonitor = MockEventMonitoring()
@@ -68,7 +69,11 @@ private func makeTestAppState(
     )
 
     let appState = AppState(
-        activationKeyMonitor: ActivationKeyMonitor(activationKey: .default, eventMonitor: eventMonitor),
+        activationKeyMonitor: ActivationKeyMonitor(
+            activationKey: .default,
+            recordingMode: recordingMode,
+            eventMonitor: eventMonitor
+        ),
         sessionManager: SessionManager(),
         pipelineEngine: pipeline,
         textInserter: inserter,
@@ -341,6 +346,68 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(appState.lastResult?.normalizedText, "Привет, Саша")
         XCTAssertEqual(mockClipboard.setStringValue, "Привет, Саша")
         XCTAssertEqual(mockClipboard.simulatePasteCallCount, 1)
+    }
+
+    // MARK: - 9. Toggle mode: полный pipeline
+
+    func test_toggle_full_pipeline() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = "audio data".data(using: .utf8)!
+
+        let mockSTT = MockSTTClient()
+        mockSTT.recognizeResult = STTResult(text: "привет")
+
+        let mockAccessibility = MockAccessibility()
+        let mockElement = MockAXElement()
+        mockElement.settableAttributes = ["AXSelectedText"]
+        mockAccessibility.focusedElement = mockElement
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: mockSTT,
+            accessibility: mockAccessibility,
+            recordingMode: .toggle
+        )
+
+        // Toggle: первое нажатие → onActivated
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(appState.sessionManager.state, .recording)
+        XCTAssertTrue(mockAudio.startCallCount > 0)
+
+        // Toggle: второе нажатие → onDeactivated → pipeline runs
+        appState.activationKeyMonitor.onDeactivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertEqual(appState.sessionManager.state, .idle)
+        XCTAssertNotNil(appState.lastResult)
+        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет.")
+    }
+
+    // MARK: - 10. Toggle mode: cancel через onCancelled
+
+    func test_toggle_cancel_during_recording() async throws {
+        let mockAudio = MockAudioRecording()
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            recordingMode: .toggle
+        )
+
+        // Toggle activate
+        appState.activationKeyMonitor.onActivated?()
+        await Task.yield()
+        XCTAssertEqual(appState.sessionManager.state, .recording)
+
+        // Esc → cancel
+        appState.activationKeyMonitor.onCancelled?()
+        await Task.yield()
+
+        XCTAssertEqual(appState.sessionManager.state, .idle)
+        XCTAssertNil(appState.lastResult)
     }
 }
 

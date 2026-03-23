@@ -13,10 +13,18 @@ enum RecordingMode: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var description: String {
+    var subtitle: String {
         switch self {
         case .pushToTalk: "Удерживайте клавишу для записи, отпустите для остановки"
         case .toggle: "Нажмите для начала записи, нажмите ещё раз для остановки"
+        }
+    }
+
+    /// Текст-подсказка для StatusBar и WorkerStatusCard
+    func hint(key: String) -> String {
+        switch self {
+        case .pushToTalk: "Зажмите \(key) и говорите"
+        case .toggle: "Нажмите \(key) для записи"
         }
     }
 }

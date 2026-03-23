@@ -197,7 +197,7 @@ private struct GeneralSettingsContent: View {
                     appState.settings.recordingMode = newMode
                 }
 
-                Text(store.recordingMode.description)
+                Text(store.recordingMode.subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .animation(.easeInOut, value: store.recordingMode)
@@ -347,15 +347,9 @@ private struct WorkerStatusCard: View {
     private var statusDetail: some View {
         switch workerState {
         case .ready:
-            Group {
-                if appState.settings.recordingMode == .toggle {
-                    Text("Нажмите \(appState.settings.activationKey.displayName) для записи")
-                } else {
-                    Text("Зажмите \(appState.settings.activationKey.displayName) и говорите")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            Text(appState.settings.recordingMode.hint(key: appState.settings.activationKey.displayName))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .downloadingModel:
             Text("~892 МБ, один раз")
                 .font(.caption)
