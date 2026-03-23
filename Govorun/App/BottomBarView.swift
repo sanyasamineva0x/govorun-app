@@ -24,10 +24,13 @@ struct BottomBarView: View {
         )
 
         ZStack {
+            // Тонировка — плавная смена цвета
             stateTint
                 .clipShape(shape)
-                .animation(.easeInOut(duration: 0.5), value: controller.state.tintKey)
+                .animation(.easeInOut(duration: 0.35), value: controller.state.tintKey)
 
+            // Контент — мгновенная замена, без cross-fade/ghost.
+            // «Складывание» создаётся анимацией ширины + формы + цвета.
             Group {
                 switch controller.state {
                 case .hidden:
@@ -46,13 +49,11 @@ struct BottomBarView: View {
                     ErrorView(message: message)
                 }
             }
-            .contentTransition(.opacity)
-            .animation(.easeInOut(duration: 0.3), value: controller.state.tintKey)
         }
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(shape)
         .scaleEffect(scaleFactor)
-        .animation(.spring(duration: 0.5, bounce: 0.15), value: currentWidth)
+        .animation(.spring(duration: 0.45, bounce: 0.1), value: currentWidth)
         .animation(.spring(duration: 0.15, bounce: 0.2), value: audioLevel)
 #if compiler(>=6.2)
         .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
