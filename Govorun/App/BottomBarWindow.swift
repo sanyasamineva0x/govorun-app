@@ -74,8 +74,12 @@ final class BottomBarController: ObservableObject {
         state = .recording(audioLevel: audioLevel)
     }
 
+    /// Минимальное время показа processing (чтобы pill не мелькал)
+    private var processingShownAt: Date?
+
     func showProcessing() {
         state = .processing
+        processingShownAt = Date()
     }
 
     func showModelLoading() {
@@ -108,6 +112,24 @@ final class BottomBarController: ObservableObject {
 
     func dismiss() {
         cancelAutoDismiss()
+
+        // Если processing показан < 0.5s — подождать чтобы pill не мелькал
+        if let shownAt = processingShownAt, state == .processing {
+            let elapsed = Date().timeIntervalSince(shownAt)
+            let minDuration: TimeInterval = 0.5
+            if elapsed < minDuration {
+                let delay = minDuration - elapsed
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.processingShownAt = nil
+                    self?.hidePanel { [weak self] in
+                        self?.state = .hidden
+                    }
+                }
+                return
+            }
+            processingShownAt = nil
+        }
+
         hidePanel { [weak self] in
             self?.state = .hidden
         }

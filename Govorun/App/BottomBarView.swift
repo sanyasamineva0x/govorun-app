@@ -9,13 +9,9 @@ struct BottomBarView: View {
 #endif
 
     var body: some View {
-        if isRecording {
-            TimelineView(.animation) { timeline in
-                let phase = timeline.date.timeIntervalSinceReferenceDate
-                pillContent(phase: phase)
-            }
-        } else {
-            pillContent(phase: 0)
+        TimelineView(.animation(paused: !isRecording)) { timeline in
+            let phase = isRecording ? timeline.date.timeIntervalSinceReferenceDate : 0
+            pillContent(phase: phase)
         }
     }
 
@@ -25,48 +21,43 @@ struct BottomBarView: View {
             // State-specific tint overlay
             stateTint
                 .clipShape(OrganicPillShape(
-                    amplitude: CGFloat(audioLevel) * 1.5,
+                    amplitude: CGFloat(audioLevel) * 3.0,
                     phase: phase,
                     frequency: 3.0
                 ))
-                .animation(.easeInOut(duration: 0.4), value: controller.state.tintKey)
+                .animation(.easeInOut(duration: 0.5), value: controller.state.tintKey)
 
-            // Content
+            // Content с мягким crossfade
             Group {
                 switch controller.state {
                 case .hidden:
                     EmptyView()
-
                 case .recording(let audioLevel):
                     RecordingView(audioLevel: audioLevel)
-
                 case .processing:
                     ProcessingView()
-
                 case .modelLoading:
                     ModelLoadingView()
-
                 case .modelDownloading(let progress):
                     ModelDownloadingView(progress: progress)
-
                 case .accessibilityHint:
                     AccessibilityHintView()
-
                 case .error(let message):
                     ErrorView(message: message)
                 }
             }
-            .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
+            .contentTransition(.opacity)
+            .animation(.easeInOut(duration: 0.3), value: controller.state.tintKey)
         }
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(OrganicPillShape(
-            amplitude: CGFloat(audioLevel) * 1.5,
+            amplitude: CGFloat(audioLevel) * 3.0,
             phase: phase,
             frequency: 3.0
         ))
         .scaleEffect(scaleFactor)
-        .animation(.spring(duration: 0.12, bounce: 0.2), value: audioLevel)
-        .animation(.spring(duration: 0.4, bounce: 0.2), value: currentWidth)
+        .animation(.spring(duration: 0.5, bounce: 0.15), value: currentWidth)
+        .animation(.spring(duration: 0.15, bounce: 0.2), value: audioLevel)
 #if compiler(>=6.2)
         .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
 #endif
@@ -85,9 +76,9 @@ struct BottomBarView: View {
         return 0
     }
 
-    // #2: scale breathing
+    // #2: scale breathing (заметная пульсация)
     private var scaleFactor: CGFloat {
-        1.0 + CGFloat(audioLevel) * 0.03
+        1.0 + CGFloat(audioLevel) * 0.06
     }
 
     // #3: ширина pill зависит от состояния (morphing)
