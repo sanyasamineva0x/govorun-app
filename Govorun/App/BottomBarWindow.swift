@@ -38,7 +38,7 @@ enum BrandColors {
 
 enum BottomBarMetrics {
     static let pillWidth: CGFloat = 260
-    /// Максимальная ширина pill (error=280 × scale 1.03 + margin)
+    /// Максимальная ширина pill (error=280 + запас на контур OrganicPillShape)
     static let maxPillWidth: CGFloat = 300
     static let pillHeight: CGFloat = 44
     static let bottomOffset: CGFloat = 12
@@ -46,6 +46,7 @@ enum BottomBarMetrics {
     static let dismissDuration: TimeInterval = 0.12
     static let errorAutoDismissDelay: TimeInterval = 3.0
     static let modelLoadingAutoDismissDelay: TimeInterval = 3.0
+    static let minProcessingDuration: TimeInterval = 0.5
     static let barCount: Int = 12
     static let barWidth: CGFloat = 2
     static let barSpacing: CGFloat = 2.5
@@ -61,10 +62,14 @@ final class BottomBarController: ObservableObject {
 
     private var panel: BottomBarWindow?
     private var autoDismissTimer: DispatchWorkItem?
+    private var delayedDismissWork: DispatchWorkItem?
+    private var processingShownAt: Date?
 
     // MARK: - Public API
 
     func show() {
+        cancelDelayedDismiss()
+        processingShownAt = nil
         state = .recording(audioLevel: 0)
         ensurePanel()
         showPanel()
@@ -74,17 +79,15 @@ final class BottomBarController: ObservableObject {
         state = .recording(audioLevel: audioLevel)
     }
 
-    /// Минимальное время показа processing (чтобы pill не мелькал)
-    private var processingShownAt: Date?
-
     func showProcessing() {
-        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
-            state = .processing
-        }
+        cancelDelayedDismiss()
+        state = .processing
         processingShownAt = Date()
     }
 
     func showModelLoading() {
+        cancelDelayedDismiss()
+        processingShownAt = nil
         state = .modelLoading
         ensurePanel()
         showPanel()
@@ -92,6 +95,8 @@ final class BottomBarController: ObservableObject {
     }
 
     func showModelDownloading(progress: Int) {
+        cancelDelayedDismiss()
+        processingShownAt = nil
         state = .modelDownloading(progress: progress)
         ensurePanel()
         showPanel()
@@ -99,6 +104,8 @@ final class BottomBarController: ObservableObject {
     }
 
     func showAccessibilityHint() {
+        cancelDelayedDismiss()
+        processingShownAt = nil
         state = .accessibilityHint
         ensurePanel()
         showPanel()
@@ -106,6 +113,8 @@ final class BottomBarController: ObservableObject {
     }
 
     func showError(_ message: String) {
+        cancelDelayedDismiss()
+        processingShownAt = nil
         state = .error(message)
         ensurePanel()
         showPanel()
@@ -114,27 +123,31 @@ final class BottomBarController: ObservableObject {
 
     func dismiss() {
         cancelAutoDismiss()
+        cancelDelayedDismiss()
 
-        // Если processing показан < 0.5s — подождать чтобы pill не мелькал
+        let delay: TimeInterval
         if let shownAt = processingShownAt, state == .processing {
-            let elapsed = Date().timeIntervalSince(shownAt)
-            let minDuration: TimeInterval = 0.5
-            if elapsed < minDuration {
-                let delay = minDuration - elapsed
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                    self?.processingShownAt = nil
-                    self?.hidePanel { [weak self] in
-                        self?.state = .hidden
-                    }
-                }
-                return
+            delay = max(0, BottomBarMetrics.minProcessingDuration - Date().timeIntervalSince(shownAt))
+        } else {
+            delay = 0
+        }
+        processingShownAt = nil
+
+        guard delay > 0 else {
+            hidePanel { [weak self] in
+                self?.state = .hidden
             }
-            processingShownAt = nil
+            return
         }
 
-        hidePanel { [weak self] in
-            self?.state = .hidden
+        let work = DispatchWorkItem { [weak self] in
+            self?.delayedDismissWork = nil
+            self?.hidePanel { [weak self] in
+                self?.state = .hidden
+            }
         }
+        delayedDismissWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     // MARK: - Panel lifecycle
@@ -145,15 +158,10 @@ final class BottomBarController: ObservableObject {
         self.panel = window
     }
 
-    /// Флаг для предотвращения race condition show/hide
-    private var isHiding = false
-
     private func showPanel() {
-        isHiding = false
         guard let panel else { return }
         panel.positionAtBottom()
 
-        // Начальная позиция ниже на 12pt
         var startFrame = panel.frame
         startFrame.origin.y -= 12
         panel.setFrame(startFrame, display: false)
@@ -178,20 +186,17 @@ final class BottomBarController: ObservableObject {
             return
         }
 
-        isHiding = true
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = BottomBarMetrics.dismissDuration
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            // Если show() был вызван во время hide — не уничтожаем панель
-            guard self?.isHiding == true else { return }
             panel.orderOut(nil)
             self?.panel = nil
             completion()
         })
     }
 
-    // MARK: - Auto-dismiss
+    // MARK: - Таймеры
 
     private func scheduleAutoDismiss(after delay: TimeInterval) {
         cancelAutoDismiss()
@@ -208,6 +213,11 @@ final class BottomBarController: ObservableObject {
     private func cancelAutoDismiss() {
         autoDismissTimer?.cancel()
         autoDismissTimer = nil
+    }
+
+    private func cancelDelayedDismiss() {
+        delayedDismissWork?.cancel()
+        delayedDismissWork = nil
     }
 }
 
@@ -287,7 +297,6 @@ final class BottomBarWindow: NSPanel {
         contentView.addSubview(visualEffect)
     }
 
-    // NSPanel не перехватывает фокус
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
