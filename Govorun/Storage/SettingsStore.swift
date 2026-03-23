@@ -24,15 +24,23 @@ final class SettingsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         registerDefaults()
+        migrateRecordingMode()
     }
 
     private func registerDefaults() {
         defaults.register(defaults: [
             Keys.defaultTextMode: "universal",
-            Keys.recordingMode: RecordingMode.pushToTalk.rawValue,
+            Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: true,
         ])
+    }
+
+    /// Миграция: v0.1.8 хранил recordingMode как "hold", теперь enum "pushToTalk"
+    private func migrateRecordingMode() {
+        if defaults.string(forKey: Keys.recordingMode) == "hold" {
+            defaults.set(RecordingMode.pushToTalk.rawValue, forKey: Keys.recordingMode)
+        }
     }
 
     // MARK: - Properties
@@ -49,7 +57,7 @@ final class SettingsStore: ObservableObject {
         get {
             guard let raw = defaults.string(forKey: Keys.recordingMode),
                   let mode = RecordingMode(rawValue: raw) else {
-                return .pushToTalk
+                return .default
             }
             return mode
         }

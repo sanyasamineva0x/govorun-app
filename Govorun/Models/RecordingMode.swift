@@ -1,6 +1,10 @@
+// MARK: - Режим записи
+
 enum RecordingMode: String, Codable, Sendable, CaseIterable {
     case pushToTalk
     case toggle
+
+    static let `default`: RecordingMode = .pushToTalk
 
     var title: String {
         switch self {

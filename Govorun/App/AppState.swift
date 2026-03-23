@@ -62,6 +62,7 @@ final class AppState: ObservableObject {
     private let sessionManagerDelegate: SessionManagerBridge
     private var escMonitors: [Any] = []
     private var snippetsObserver: NSObjectProtocol?
+    private var sleepObserver: NSObjectProtocol?
     /// Показывался ли хинт Accessibility в этой сессии (не спамим)
     private var accessibilityHintShown = false
 
@@ -142,6 +143,7 @@ final class AppState: ObservableObject {
         wireSnippetNotifications()
         wireWorkerManager()
         wireSettingsChange()
+        wireSleepNotification()
     }
 
     /// Тестовый init с инжектированными зависимостями
@@ -248,6 +250,10 @@ final class AppState: ObservableObject {
             NotificationCenter.default.removeObserver(snippetsObserver)
         }
         snippetsObserver = nil
+        if let sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
+        }
+        sleepObserver = nil
         isReady = false
     }
 
@@ -452,6 +458,23 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.reloadSnippets()
+            }
+        }
+    }
+
+    private func wireSleepNotification() {
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Toggle mode: деактивировать запись при уходе в сон
+                if self.settings.recordingMode == .toggle,
+                   self.sessionManager.state == .recording {
+                    self.handleDeactivated()
+                }
             }
         }
     }

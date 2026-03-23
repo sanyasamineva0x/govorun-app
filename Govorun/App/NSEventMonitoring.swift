@@ -251,8 +251,13 @@ private func activationTapCallback(
     guard let refcon else { return Unmanaged.passUnretained(event) }
     let context = Unmanaged<ActivationTapContext>.fromOpaque(refcon).takeUnretainedValue()
 
-    // Система отключила tap -> переактивируем
+    // Система отключила tap -> сбрасываем состояние и переактивируем
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        context.cancelTimer()
+        context.replayPendingDown()
+        context.activated = false
+        context.toggleRecording = false
+        context.comboModifiersHeld = false
         if let port = context.machPort {
             CGEvent.tapEnable(tap: port, enable: true)
         }

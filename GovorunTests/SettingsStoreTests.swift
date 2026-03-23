@@ -146,4 +146,18 @@ final class SettingsStoreTests: XCTestCase {
         store.resetToDefaults()
         XCTAssertEqual(store.activationKey, .modifier(.maskAlternate))
     }
+
+    // MARK: - 8. Миграция recordingMode "hold" → pushToTalk
+
+    func test_recordingMode_migrates_hold_to_pushToTalk() {
+        defaults.set("hold", forKey: "recordingMode")
+        let migrated = SettingsStore(defaults: defaults)
+        XCTAssertEqual(migrated.recordingMode, .pushToTalk)
+        XCTAssertEqual(defaults.string(forKey: "recordingMode"), "pushToTalk")
+    }
+
+    func test_recordingMode_invalid_fallback() {
+        defaults.set("unknown_mode", forKey: "recordingMode")
+        XCTAssertEqual(store.recordingMode, .pushToTalk)
+    }
 }

@@ -44,6 +44,7 @@ final class RecreateMonitorTests: XCTestCase {
         let appState = AppState(
             activationKeyMonitor: ActivationKeyMonitor(
                 activationKey: settings.activationKey,
+                recordingMode: settings.recordingMode,
                 eventMonitor: eventMonitor
             ),
             sessionManager: SessionManager(),
@@ -166,5 +167,59 @@ final class RecreateMonitorTests: XCTestCase {
 
         // Монитор не пересоздан, но и не убит (guard ПЕРЕД stopMonitoring)
         XCTAssertTrue(appState.activationKeyMonitor === monitorBefore)
+    }
+
+    // MARK: - 5. Смена recordingMode в idle → монитор пересоздаётся
+
+    func test_change_recordingMode_while_idle_recreates_monitor() async throws {
+        let (appState, eventMonitor) = makeAppState()
+        appState.start()
+
+        XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .pushToTalk)
+
+        settings.recordingMode = .toggle
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .toggle)
+        XCTAssertEqual(eventMonitor.recordingMode, .toggle)
+    }
+
+    // MARK: - 6. Смена recordingMode во время сессии → откладывается до idle
+
+    func test_change_recordingMode_while_recording_deferred_until_idle() async throws {
+        let (appState, _) = makeAppState()
+        appState.start()
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .recording)
+
+        settings.recordingMode = .toggle
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        // Не применён пока сессия активна
+        XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .pushToTalk)
+
+        appState.activationKeyMonitor.onCancelled?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(appState.sessionManager.state, .idle)
+        XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .toggle)
+    }
+
+    // MARK: - 7. Одновременная смена key + mode → оба применяются
+
+    func test_change_both_key_and_mode_applies_both() async throws {
+        let (appState, eventMonitor) = makeAppState()
+        appState.start()
+
+        settings.activationKey = .keyCode(96)
+        settings.recordingMode = .toggle
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(appState.activationKeyMonitor.activationKey, .keyCode(96))
+        XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .toggle)
+        XCTAssertEqual(eventMonitor.activationKey, .keyCode(96))
+        XCTAssertEqual(eventMonitor.recordingMode, .toggle)
     }
 }
