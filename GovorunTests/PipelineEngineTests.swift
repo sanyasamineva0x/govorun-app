@@ -879,8 +879,8 @@ final class DeterministicNormalizerTests: XCTestCase {
 
     func test_no_period_multisentence_strips_only_trailing() {
         XCTAssertEqual(
-            DeterministicNormalizer.normalize("первое. второе", terminalPeriodEnabled: false),
-            "Первое. Второе"
+            DeterministicNormalizer.normalize("привет. пока", terminalPeriodEnabled: false),
+            "Привет. Пока"
         )
     }
 
