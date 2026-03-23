@@ -565,10 +565,18 @@ final class AppState: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
+                let processingStart = ContinuousClock.now
                 let result = try await pipelineEngine.stopRecording()
 
                 // Emit STT + normalization events постфактум (timestamps из PipelineResult)
                 await emitPipelineEvents(for: result, appBundleId: appBundleId)
+
+                // Минимум 600ms на processing анимацию (2 цикла ProcessingView)
+                let elapsed = ContinuousClock.now - processingStart
+                let minimumProcessingDisplay: Duration = .milliseconds(600)
+                if elapsed < minimumProcessingDisplay {
+                    try? await Task.sleep(for: minimumProcessingDisplay - elapsed)
+                }
 
                 guard !result.normalizedText.isEmpty else {
                     sessionManager.handleProcessingComplete()

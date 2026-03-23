@@ -78,7 +78,9 @@ final class BottomBarController: ObservableObject {
     private var processingShownAt: Date?
 
     func showProcessing() {
-        state = .processing
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            state = .processing
+        }
         processingShownAt = Date()
     }
 
@@ -143,7 +145,11 @@ final class BottomBarController: ObservableObject {
         self.panel = window
     }
 
+    /// Флаг для предотвращения race condition show/hide
+    private var isHiding = false
+
     private func showPanel() {
+        isHiding = false
         guard let panel else { return }
         panel.positionAtBottom()
 
@@ -172,10 +178,13 @@ final class BottomBarController: ObservableObject {
             return
         }
 
+        isHiding = true
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = BottomBarMetrics.dismissDuration
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
+            // Если show() был вызван во время hide — не уничтожаем панель
+            guard self?.isHiding == true else { return }
             panel.orderOut(nil)
             self?.panel = nil
             completion()

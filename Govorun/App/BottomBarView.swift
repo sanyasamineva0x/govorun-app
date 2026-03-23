@@ -25,7 +25,7 @@ struct BottomBarView: View {
                     phase: phase,
                     frequency: 3.0
                 ))
-                .animation(.easeInOut(duration: 0.5), value: controller.state.tintKey)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
 
             // Content с мягким crossfade
             Group {
@@ -190,6 +190,7 @@ struct WaveformBar: View {
 struct ProcessingView: View {
     private let barCount = 4
     @State private var activeIndex = 0
+    @State private var appeared = false
     private let timer = Timer.publish(every: 0.35, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -211,6 +212,10 @@ struct ProcessingView: View {
             }
         }
         .frame(height: 14)
+        .opacity(appeared ? 1 : 0)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.15)) { appeared = true }
+        }
         .onReceive(timer) { _ in
             activeIndex = (activeIndex + 1) % barCount
         }
