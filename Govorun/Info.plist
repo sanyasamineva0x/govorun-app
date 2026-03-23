@@ -22,5 +22,7 @@
 	<string>5CA1augvUYfLvo4JFzOFm1mau3AGOp7Lt1rpfIPAeiM=</string>
 	<key>SUAutomaticallyCheckForUpdates</key>
 	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
 </dict>
 </plist>
