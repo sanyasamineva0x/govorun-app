@@ -43,7 +43,7 @@ final class LocalSTTClient: STTClient, Sendable {
         let request: [String: Any] = ["wav_path": wavPath]
         let response = try await sendRequest(request, timeout: timeout)
 
-        // 4. Парсить ответ
+        // 3. Парсить ответ
         return try parseResponse(response)
     }
 
@@ -222,12 +222,4 @@ final class LocalSTTClient: STTClient, Sendable {
         return header
     }
 
-    /// Оценить длительность аудио (16kHz, 16-bit, mono)
-    /// audioData — сырой PCM из AudioCapture, без WAV-заголовка
-    func estimateAudioDuration(_ audioData: Data) -> TimeInterval {
-        let bytesPerSample = 2
-        let sampleRate = 16000
-        let samples = audioData.count / bytesPerSample
-        return TimeInterval(samples) / TimeInterval(sampleRate)
-    }
 }

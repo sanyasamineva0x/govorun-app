@@ -146,39 +146,6 @@ final class LocalSTTClientTests: XCTestCase {
         XCTAssertNotEqual(path1, path2, "Каждый вызов должен создавать уникальный файл")
     }
 
-    // MARK: - estimateAudioDuration
-
-    func test_estimateAudioDuration_1second() {
-        let client = LocalSTTClient(socketPath: "/tmp/test.sock")
-        // 16kHz * 2 bytes/sample * 1 sec = 32000 bytes (raw PCM, без заголовка)
-        let data = Data(repeating: 0, count: 32_000)
-        let duration = client.estimateAudioDuration(data)
-        XCTAssertEqual(duration, 1.0, accuracy: 0.001)
-    }
-
-    func test_estimateAudioDuration_2minutes() {
-        let client = LocalSTTClient(socketPath: "/tmp/test.sock")
-        // 16kHz * 2 bytes/sample * 120 sec = 3840000 bytes (raw PCM)
-        let data = Data(repeating: 0, count: 3_840_000)
-        let duration = client.estimateAudioDuration(data)
-        XCTAssertEqual(duration, 120.0, accuracy: 0.001)
-    }
-
-    func test_estimateAudioDuration_emptyData() {
-        let client = LocalSTTClient(socketPath: "/tmp/test.sock")
-        let data = Data()
-        let duration = client.estimateAudioDuration(data)
-        XCTAssertEqual(duration, 0.0, accuracy: 0.001)
-    }
-
-    func test_estimateAudioDuration_smallData() {
-        let client = LocalSTTClient(socketPath: "/tmp/test.sock")
-        // 44 bytes raw PCM = 22 samples = 0.001375 sec
-        let data = Data(repeating: 0, count: 44)
-        let duration = client.estimateAudioDuration(data)
-        XCTAssertEqual(duration, 0.001375, accuracy: 0.0001)
-    }
-
     // MARK: - recognize: пустое аудио
 
     func test_recognize_emptyAudio_returnsEmptyText() async throws {
