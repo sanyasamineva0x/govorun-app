@@ -207,34 +207,6 @@ final class LocalSTTClientTests: XCTestCase {
         }
     }
 
-    // MARK: - Таймаут
-
-    func test_timeout_calculation_shortAudio() {
-        let client = LocalSTTClient(
-            socketPath: "/tmp/test.sock",
-            baseTimeoutSec: 5.0,
-            secsPerAudioChunk: 1.0
-        )
-        // 1 сек аудио → 5 + (1/30)*1 ≈ 5.03 сек
-        let data = Data(repeating: 0, count: 32000 + 44)
-        let duration = client.estimateAudioDuration(data)
-        let timeout = 5.0 + (duration / 30.0) * 1.0
-        XCTAssertEqual(timeout, 5.0 + 1.0 / 30.0, accuracy: 0.01)
-    }
-
-    func test_timeout_calculation_longAudio() {
-        let client = LocalSTTClient(
-            socketPath: "/tmp/test.sock",
-            baseTimeoutSec: 5.0,
-            secsPerAudioChunk: 1.0
-        )
-        // 2 мин аудио → 5 + (120/30)*1 = 9 сек
-        let data = Data(repeating: 0, count: 3_840_000 + 44)
-        let duration = client.estimateAudioDuration(data)
-        let timeout = 5.0 + (duration / 30.0) * 1.0
-        XCTAssertEqual(timeout, 9.0, accuracy: 0.01)
-    }
-
     // MARK: - IPC через реальный unix socket
 
     /// Утилита: создать мини-сервер на unix socket, вернуть FD
@@ -288,7 +260,7 @@ final class LocalSTTClientTests: XCTestCase {
         ready.wait()
         try await Task.sleep(nanoseconds: 10_000_000)
 
-        let client = LocalSTTClient(socketPath: socketPath, baseTimeoutSec: 5.0)
+        let client = LocalSTTClient(socketPath: socketPath, timeout: 5.0)
         let response = try await client.sendRequest(["wav_path": "/tmp/test.wav"], timeout: 5.0)
         XCTAssertEqual(response["text"] as? String, "тест")
     }

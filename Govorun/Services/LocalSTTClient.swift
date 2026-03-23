@@ -11,22 +11,20 @@ import Foundation
 final class LocalSTTClient: STTClient, Sendable {
 
     private let socketPath: String
-    private let baseTimeoutSec: TimeInterval
-    private let secsPerAudioChunk: TimeInterval
+    private let timeout: TimeInterval
 
     /// - Parameters:
     ///   - socketPath: путь к unix socket worker'а
-    ///   - baseTimeoutSec: базовый таймаут (5 сек)
-    ///   - secsPerAudioChunk: доп. время на каждые 30 сек аудио (1 сек)
+    ///   - timeout: таймаут ожидания ответа от worker (5 мин по умолчанию).
+    ///     Crash worker'а детектируется мгновенно (socket закрывается).
+    ///     Таймаут защищает только от зависания worker'а.
     init(
         socketPath: String? = nil,
-        baseTimeoutSec: TimeInterval = 5.0,
-        secsPerAudioChunk: TimeInterval = 1.0
+        timeout: TimeInterval = 300.0
     ) {
         self.socketPath = socketPath
             ?? NSString("~/.govorun/worker.sock").expandingTildeInPath
-        self.baseTimeoutSec = baseTimeoutSec
-        self.secsPerAudioChunk = secsPerAudioChunk
+        self.timeout = timeout
     }
 
     func recognize(audioData: Data, hints: [String]) async throws -> STTResult {
@@ -41,11 +39,7 @@ final class LocalSTTClient: STTClient, Sendable {
             try? FileManager.default.removeItem(atPath: wavPath)
         }
 
-        // 2. Рассчитать таймаут: 5 сек + 1 сек на каждые 30 сек аудио
-        let audioDurationSec = estimateAudioDuration(audioData)
-        let timeout = baseTimeoutSec + (audioDurationSec / 30.0) * secsPerAudioChunk
-
-        // 3. Отправить запрос worker'у через unix socket
+        // 2. Отправить запрос worker'у через unix socket
         let request: [String: Any] = ["wav_path": wavPath]
         let response = try await sendRequest(request, timeout: timeout)
 
