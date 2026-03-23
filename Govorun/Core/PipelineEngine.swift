@@ -263,7 +263,7 @@ enum DeterministicNormalizer {
     }
 
     /// Убирает trailing обычные точки (`.`). Не трогает `?`, `!`, `…` (U+2026).
-    private static func stripTrailingPeriods(_ text: String) -> String {
+    static func stripTrailingPeriods(_ text: String) -> String {
         var result = text
         while result.hasSuffix(".") {
             result = String(result.dropLast())
@@ -611,9 +611,14 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // Санитарный чек: LLM вернул мусор → fallback на deterministicText
-        let finalText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
+        let guardedText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
             ? normalizedText
             : deterministicText
+
+        // Terminal period policy — LLM часто возвращает текст с точкой
+        let finalText = terminalPeriodEnabled
+            ? guardedText
+            : DeterministicNormalizer.stripTrailingPeriods(guardedText)
 
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1000)
         return PipelineResult(

@@ -876,6 +876,31 @@ final class DeterministicNormalizerTests: XCTestCase {
             ""
         )
     }
+
+    func test_no_period_multisentence_strips_only_trailing() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("первое. второе", terminalPeriodEnabled: false),
+            "Первое. Второе"
+        )
+    }
+
+    // MARK: - stripTrailingPeriods (post-LLM)
+
+    func test_stripTrailingPeriods_removes_single_period() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Привет."), "Привет")
+    }
+
+    func test_stripTrailingPeriods_preserves_question() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Как дела?"), "Как дела?")
+    }
+
+    func test_stripTrailingPeriods_preserves_exclamation() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Да!"), "Да!")
+    }
+
+    func test_stripTrailingPeriods_noop_without_period() {
+        XCTAssertEqual(DeterministicNormalizer.stripTrailingPeriods("Привет"), "Привет")
+    }
 }
 
 // MARK: - LLMResponseGuard тесты
