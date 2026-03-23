@@ -6,6 +6,33 @@
     <language>ru</language>
 
     <item>
+      <title>v0.1.10</title>
+      <pubDate>Mon, 24 Mar 2026 00:00:00 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.1.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h3>Новое</h3>
+        <ul>
+          <li>Liquid Pill — живой анимированный pill с organic shape и glass morphing</li>
+          <li>Настройка «Точка в конце фразы» — toggle для удаления trailing точки</li>
+          <li>Motion polish — premium motion choreography</li>
+        </ul>
+        <h3>Исправлено</h3>
+        <ul>
+          <li>CancellationError safety в processing delay</li>
+          <li>Чистый fallback на macOS 14-15 без лишних вычислений</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.1.10/Govorun.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="FYYY7AQOGhe/q8Ry13lblqjZraMVVvO4XimreGhkAsnAkYJpD4bvG7pk+h7ZfyC94kUuQj2VsnmtJuK+tZXaCw=="
+        length="158261862"
+      />
+    </item>
+
+    <item>
       <title>v0.1.9</title>
       <pubDate>Sun, 23 Mar 2026 00:00:00 +0000</pubDate>
       <sparkle:version>9</sparkle:version>
