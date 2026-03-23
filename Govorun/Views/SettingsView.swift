@@ -218,6 +218,15 @@ private struct GeneralSettingsContent: View {
                 Divider()
 
                 SettingsToggleRow(
+                    title: "Точка в конце фразы",
+                    description: "Ставить точку в конце фразы",
+                    icon: "period",
+                    isOn: $store.terminalPeriodEnabled
+                )
+
+                Divider()
+
+                SettingsToggleRow(
                     title: "Звуки",
                     description: "Звуковой сигнал начала и конца записи",
                     icon: "speaker.wave.2",

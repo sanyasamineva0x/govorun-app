@@ -160,4 +160,27 @@ final class SettingsStoreTests: XCTestCase {
         defaults.set("unknown_mode", forKey: "recordingMode")
         XCTAssertEqual(store.recordingMode, .pushToTalk)
     }
+
+    // MARK: - 9. terminalPeriodEnabled
+
+    func test_terminalPeriodEnabled_default_true() {
+        XCTAssertTrue(store.terminalPeriodEnabled)
+    }
+
+    func test_terminalPeriodEnabled_set_and_get() {
+        store.terminalPeriodEnabled = false
+        XCTAssertFalse(store.terminalPeriodEnabled)
+    }
+
+    func test_terminalPeriodEnabled_persists() {
+        store.terminalPeriodEnabled = false
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertFalse(store2.terminalPeriodEnabled)
+    }
+
+    func test_terminalPeriodEnabled_reset_to_defaults() {
+        store.terminalPeriodEnabled = false
+        store.resetToDefaults()
+        XCTAssertTrue(store.terminalPeriodEnabled)
+    }
 }

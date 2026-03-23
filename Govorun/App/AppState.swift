@@ -518,6 +518,7 @@ final class AppState: ObservableObject {
         let dictionary = loadDictionaryHints()
 
         pipelineEngine.textMode = context.textMode
+        pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.hints = NormalizationHints(
             personalDictionary: dictionary.llmReplacements,
             appName: context.appName,
