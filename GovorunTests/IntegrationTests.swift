@@ -127,7 +127,7 @@ final class IntegrationTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         // Ждём завершения async pipeline
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        try await Task.sleep(nanoseconds: 800_000_000) // 800ms (600ms min processing + margin)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertNotNil(appState.lastResult)
@@ -219,7 +219,7 @@ final class IntegrationTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertNil(appState.lastResult)
@@ -256,7 +256,7 @@ final class IntegrationTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         XCTAssertNotNil(appState.lastResult)
         XCTAssertEqual(appState.lastResult?.normalizedText, "Привет.")
@@ -283,7 +283,7 @@ final class IntegrationTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         // State machine перешла в error
         if case .error = appState.sessionManager.state {
@@ -340,7 +340,7 @@ final class IntegrationTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         XCTAssertNotNil(appState.lastResult)
         XCTAssertEqual(appState.lastResult?.normalizedText, "Привет, Саша")
@@ -380,7 +380,7 @@ final class IntegrationTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertNotNil(appState.lastResult)
@@ -454,7 +454,7 @@ final class DictionaryWiringTests: XCTestCase {
         appState.activationKeyMonitor.onDeactivated?()
         await Task.yield()
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         // GigaAM не поддерживает hints — всегда пустой массив
         XCTAssertEqual(mockSTT.recognizeCalls.first?.hints, [])
