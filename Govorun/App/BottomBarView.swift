@@ -4,61 +4,84 @@ import SwiftUI
 
 struct BottomBarView: View {
     @ObservedObject var controller: BottomBarController
+#if compiler(>=6.2)
+    @Namespace private var pillNamespace
+#endif
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let phase = timeline.date.timeIntervalSinceReferenceDate
-
-            ZStack {
-                // State-specific tint overlay
-                stateTint
-                    .clipShape(OrganicPillShape(
-                        amplitude: CGFloat(audioLevel) * 1.5,
-                        phase: phase,
-                        frequency: 3.0
-                    ))
-                    .animation(.easeInOut(duration: 0.4), value: controller.state.tintKey)
-
-                // Content
-                Group {
-                    switch controller.state {
-                    case .hidden:
-                        EmptyView()
-
-                    case .recording(let audioLevel):
-                        RecordingView(audioLevel: audioLevel)
-
-                    case .processing:
-                        ProcessingView()
-
-                    case .modelLoading:
-                        ModelLoadingView()
-
-                    case .modelDownloading(let progress):
-                        ModelDownloadingView(progress: progress)
-
-                    case .accessibilityHint:
-                        AccessibilityHintView()
-
-                    case .error(let message):
-                        ErrorView(message: message)
-                    }
-                }
-                .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
+        if isRecording {
+            TimelineView(.animation) { timeline in
+                let phase = timeline.date.timeIntervalSinceReferenceDate
+                pillContent(phase: phase)
             }
-            .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
-            .scaleEffect(scaleFactor)
-            .animation(.spring(duration: 0.12, bounce: 0.2), value: audioLevel)
-            .animation(.spring(duration: 0.4, bounce: 0.2), value: currentWidth)
-#if compiler(>=6.2)
-            .modifier(LiquidGlassPillModifier())
-#endif
+        } else {
+            pillContent(phase: 0)
         }
     }
 
-    // Текущий audio level (0 для не-recording состояний)
+    @ViewBuilder
+    private func pillContent(phase: Double) -> some View {
+        ZStack {
+            // State-specific tint overlay
+            stateTint
+                .clipShape(OrganicPillShape(
+                    amplitude: CGFloat(audioLevel) * 1.5,
+                    phase: phase,
+                    frequency: 3.0
+                ))
+                .animation(.easeInOut(duration: 0.4), value: controller.state.tintKey)
+
+            // Content
+            Group {
+                switch controller.state {
+                case .hidden:
+                    EmptyView()
+
+                case .recording(let audioLevel):
+                    RecordingView(audioLevel: audioLevel)
+
+                case .processing:
+                    ProcessingView()
+
+                case .modelLoading:
+                    ModelLoadingView()
+
+                case .modelDownloading(let progress):
+                    ModelDownloadingView(progress: progress)
+
+                case .accessibilityHint:
+                    AccessibilityHintView()
+
+                case .error(let message):
+                    ErrorView(message: message)
+                }
+            }
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: controller.state.tintKey)
+        }
+        .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
+        .clipShape(OrganicPillShape(
+            amplitude: CGFloat(audioLevel) * 1.5,
+            phase: phase,
+            frequency: 3.0
+        ))
+        .scaleEffect(scaleFactor)
+        .animation(.spring(duration: 0.12, bounce: 0.2), value: audioLevel)
+        .animation(.spring(duration: 0.4, bounce: 0.2), value: currentWidth)
+#if compiler(>=6.2)
+        .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
+#endif
+    }
+
+    private var isRecording: Bool {
+        if case .recording = controller.state { return true }
+        return false
+    }
+
+    // Текущий audio level (clamped 0–1, 0 для не-recording)
     private var audioLevel: Float {
-        if case .recording(let level) = controller.state { return level }
+        if case .recording(let level) = controller.state {
+            return min(max(level, 0), 1)
+        }
         return 0
     }
 
@@ -332,7 +355,9 @@ struct ErrorView: View {
 // MARK: - OrganicPillShape
 
 /// Органическая форма pill с мягкими колебаниями контура.
-/// При amplitude == 0 вырождается в обычную capsule.
+/// Контур: quad Bézier curves с синусоидальными perturbations.
+/// Полукруги строятся через Bézier (не arc) для бесшовного соединения.
+/// При amplitude ≈ 0 — плавная деградация в capsule (нет threshold snap).
 struct OrganicPillShape: Shape {
     var amplitude: CGFloat
     var phase: Double
@@ -353,73 +378,82 @@ struct OrganicPillShape: Shape {
         0.3, 4.2, 1.9, 5.8, 2.7, 0.9, 3.6, 4.8,
     ]
 
-    func path(in rect: CGRect) -> Path {
-        guard amplitude > 0.01 else {
-            return Path(roundedRect: rect, cornerRadius: rect.height / 2)
-        }
+    // Множитель аппроксимации дуги кубическим Bézier: (4/3)*tan(π/8)
+    private static let arcK: CGFloat = 0.5522847498
 
+    func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height
-        let r = h / 2 // радиус полукруга
+        let r = h / 2
 
         var path = Path()
 
-        // Верхняя линия (слева направо)
+        // Верхняя линия (слева направо): от (r, 0) до (w-r, 0)
         let topSegments = 6
         let topStep = (w - 2 * r) / CGFloat(topSegments)
-        let startTop = CGPoint(x: r, y: perturbY(0, baseY: 0, rect: rect))
-        path.move(to: startTop)
+
+        let topStart = CGPoint(x: r, y: perturb(0, base: 0))
+        path.move(to: topStart)
 
         for i in 1...topSegments {
             let x = r + topStep * CGFloat(i)
-            let y = perturbY(i, baseY: 0, rect: rect)
+            let y = perturb(i, base: 0)
             let cpX = r + topStep * (CGFloat(i) - 0.5)
-            let cpY = perturbY(i + topSegments, baseY: 0, rect: rect)
+            let cpY = perturb(i + topSegments, base: 0)
             path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
         }
 
-        // Правый полукруг
-        let rightCenter = CGPoint(x: w - r, y: h / 2)
-        path.addArc(
-            center: rightCenter,
-            radius: r + perturbR(12),
-            startAngle: .degrees(-90),
-            endAngle: .degrees(90),
-            clockwise: false
+        // Правый полукруг (Bézier): от (w-r, top) → (w, mid) → (w-r, bottom)
+        let rTopY = perturb(topSegments, base: 0)
+        let rBotY = h + perturb(12, base: 0)
+        let rMidX = w - r + r + perturb(14, base: 0) * 0.3
+        let cx = CGPoint(x: w - r, y: h / 2)
+        let k = OrganicPillShape.arcK
+
+        path.addCurve(
+            to: CGPoint(x: cx.x + r, y: cx.y),
+            control1: CGPoint(x: w - r + k * perturb(15, base: r), y: rTopY),
+            control2: CGPoint(x: rMidX, y: cx.y - r * k)
+        )
+        path.addCurve(
+            to: CGPoint(x: w - r, y: rBotY),
+            control1: CGPoint(x: rMidX, y: cx.y + r * k),
+            control2: CGPoint(x: w - r + k * perturb(16, base: r), y: rBotY)
         )
 
-        // Нижняя линия (справа налево)
+        // Нижняя линия (справа налево): от (w-r, h) до (r, h)
         for i in 1...topSegments {
             let x = w - r - topStep * CGFloat(i)
-            let y = perturbY(i + 12, baseY: h, rect: rect)
+            let y = h + perturb(i + 12, base: 0)
             let cpX = w - r - topStep * (CGFloat(i) - 0.5)
-            let cpY = perturbY(i + 18, baseY: h, rect: rect)
+            let cpY = h + perturb(i + 18, base: 0)
             path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: cpY))
         }
 
-        // Левый полукруг
-        let leftCenter = CGPoint(x: r, y: h / 2)
-        path.addArc(
-            center: leftCenter,
-            radius: r + perturbR(0),
-            startAngle: .degrees(90),
-            endAngle: .degrees(-90),
-            clockwise: false
+        // Левый полукруг (Bézier): от (r, bottom) → (0, mid) → (r, top)
+        let lBotY = h + perturb(topSegments + 12, base: 0)
+        let lTopY = perturb(0, base: 0) // совпадает с startTop
+        let lMidX = r - r - perturb(20, base: 0) * 0.3
+        let lc = CGPoint(x: r, y: h / 2)
+
+        path.addCurve(
+            to: CGPoint(x: lc.x - r, y: lc.y),
+            control1: CGPoint(x: r - k * perturb(21, base: r), y: lBotY),
+            control2: CGPoint(x: lMidX, y: lc.y + r * k)
+        )
+        path.addCurve(
+            to: topStart,
+            control1: CGPoint(x: lMidX, y: lc.y - r * k),
+            control2: CGPoint(x: r - k * perturb(22, base: r), y: lTopY)
         )
 
         path.closeSubpath()
         return path
     }
 
-    private func perturbY(_ index: Int, baseY: CGFloat, rect: CGRect) -> CGFloat {
+    private func perturb(_ index: Int, base: CGFloat) -> CGFloat {
         let seed = OrganicPillShape.seeds[index % OrganicPillShape.seeds.count]
-        let offset = amplitude * CGFloat(sin(frequency * Double(index) + phase * 2.0 + seed))
-        return baseY + offset
-    }
-
-    private func perturbR(_ index: Int) -> CGFloat {
-        let seed = OrganicPillShape.seeds[index % OrganicPillShape.seeds.count]
-        return amplitude * 0.3 * CGFloat(sin(phase * 1.5 + seed))
+        return base + amplitude * CGFloat(sin(frequency * Double(index) + phase * 2.0 + seed))
     }
 }
 
@@ -427,10 +461,14 @@ struct OrganicPillShape: Shape {
 
 #if compiler(>=6.2)
 struct LiquidGlassPillModifier: ViewModifier {
+    var namespace: Namespace.ID
+
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
             GlassEffectContainer {
-                content.glassEffect(.clear, in: .capsule)
+                content
+                    .glassEffect(.clear, in: .capsule)
+                    .glassEffectID("pill", in: namespace)
             }
         } else {
             content

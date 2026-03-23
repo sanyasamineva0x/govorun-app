@@ -38,6 +38,8 @@ enum BrandColors {
 
 enum BottomBarMetrics {
     static let pillWidth: CGFloat = 260
+    /// Максимальная ширина pill (error=280 × scale 1.03 + margin)
+    static let maxPillWidth: CGFloat = 300
     static let pillHeight: CGFloat = 44
     static let bottomOffset: CGFloat = 12
     static let showDuration: TimeInterval = 0.18
@@ -186,7 +188,7 @@ final class BottomBarWindow: NSPanel {
         super.init(
             contentRect: NSRect(
                 x: 0, y: 0,
-                width: BottomBarMetrics.pillWidth,
+                width: BottomBarMetrics.maxPillWidth,
                 height: BottomBarMetrics.pillHeight
             ),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -234,7 +236,7 @@ final class BottomBarWindow: NSPanel {
     func positionAtBottom() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.midX - BottomBarMetrics.pillWidth / 2
+        let x = screenFrame.midX - BottomBarMetrics.maxPillWidth / 2
         let y = screenFrame.origin.y + BottomBarMetrics.bottomOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
