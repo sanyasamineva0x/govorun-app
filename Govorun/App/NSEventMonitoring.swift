@@ -5,6 +5,7 @@ import Cocoa
 final class NSEventMonitoring: EventMonitoring {
 
     var activationKey: ActivationKey = .default
+    var recordingMode: RecordingMode = .pushToTalk
 
     /// Хранилище для keyDown/keyUp хандлеров — tap создаётся в addGlobalFlagsChanged
     /// до регистрации keyDown/keyUp, поэтому вызываем через замыкания
@@ -14,6 +15,7 @@ final class NSEventMonitoring: EventMonitoring {
     func addGlobalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any? {
         let tap = ActivationEventTap(
             activationKey: activationKey,
+            recordingMode: recordingMode,
             flagsHandler: handler,
             keyDownHandler: { [weak self] code in self?.onKeyDown?(code) },
             keyUpHandler: { [weak self] code in self?.onKeyUp?(code) }
@@ -106,12 +108,14 @@ final class ActivationEventTap {
 
     init(
         activationKey: ActivationKey,
+        recordingMode: RecordingMode = .pushToTalk,
         flagsHandler: @escaping (CGEventFlags) -> Void,
         keyDownHandler: @escaping (UInt16) -> Void,
         keyUpHandler: @escaping (UInt16) -> Void
     ) {
         self.context = ActivationTapContext(
             activationKey: activationKey,
+            recordingMode: recordingMode,
             flagsHandler: flagsHandler,
             keyDownHandler: keyDownHandler,
             keyUpHandler: keyUpHandler
@@ -177,6 +181,7 @@ final class ActivationEventTap {
 /// Все хандлеры должны быть thread-safe или вызываться только с main.
 private final class ActivationTapContext {
     let activationKey: ActivationKey
+    let recordingMode: RecordingMode
     let flagsHandler: (CGEventFlags) -> Void
     let keyDownHandler: (UInt16) -> Void
     let keyUpHandler: (UInt16) -> Void
@@ -186,6 +191,8 @@ private final class ActivationTapContext {
     var pendingDown: CGEvent?
     /// true -> таймер сработал, Говорун активирован, подавляем всё
     var activated = false
+    /// Toggle: запись идёт (между первым keyUp и вторым keyUp)
+    var toggleRecording = false
     /// Для combo: целевые модификаторы зажаты
     var comboModifiersHeld = false
     /// Таймер для принятия решения
@@ -193,11 +200,13 @@ private final class ActivationTapContext {
 
     init(
         activationKey: ActivationKey,
+        recordingMode: RecordingMode = .pushToTalk,
         flagsHandler: @escaping (CGEventFlags) -> Void,
         keyDownHandler: @escaping (UInt16) -> Void,
         keyUpHandler: @escaping (UInt16) -> Void
     ) {
         self.activationKey = activationKey
+        self.recordingMode = recordingMode
         self.flagsHandler = flagsHandler
         self.keyDownHandler = keyDownHandler
         self.keyUpHandler = keyUpHandler
@@ -288,10 +297,15 @@ private func handleModifierTap(
         context.cancelTimer()
         context.replayPendingDown()
         context.activated = false
+        context.toggleRecording = false
         return Unmanaged.passUnretained(event)
     }
 
     if targetDown {
+        if context.toggleRecording {
+            // Toggle: второе нажатие во время записи → подавляем
+            return nil
+        }
         // Целевой модификатор down (один)
         context.pendingDown = event.copy()
         context.activated = false
@@ -309,9 +323,20 @@ private func handleModifierTap(
     }
 
     if context.activated {
-        // Отпустил после активации -> подавляем up
-        context.activated = false
-        return nil
+        if context.recordingMode == .toggle && !context.toggleRecording {
+            // Toggle: первое отпускание → начинаем запись, подавляем
+            context.toggleRecording = true
+            return nil
+        } else if context.toggleRecording {
+            // Toggle: второе отпускание → завершаем запись
+            context.toggleRecording = false
+            context.activated = false
+            return nil
+        } else {
+            // Push to Talk: отпустил → подавляем up
+            context.activated = false
+            return nil
+        }
     }
 
     return Unmanaged.passUnretained(event)
@@ -332,6 +357,12 @@ private func handleKeyCodeTap(
     }
 
     if type == .keyDown {
+        if context.toggleRecording {
+            // Toggle: второе нажатие во время записи → подавляем
+            context.keyDownHandler(keyCode)
+            return nil
+        }
+
         if context.pendingDown != nil || context.activated {
             // Авторепит после начала delay или после активации -> подавляем
             return nil
@@ -356,10 +387,23 @@ private func handleKeyCodeTap(
         }
 
         if context.activated {
-            // Отпустил после активации -> подавляем keyUp
-            context.activated = false
-            context.keyUpHandler(keyCode)
-            return nil
+            if context.recordingMode == .toggle && !context.toggleRecording {
+                // Toggle: первое отпускание → начинаем запись
+                context.toggleRecording = true
+                context.keyUpHandler(keyCode)
+                return nil
+            } else if context.toggleRecording {
+                // Toggle: второе отпускание → завершаем запись
+                context.toggleRecording = false
+                context.activated = false
+                context.keyUpHandler(keyCode)
+                return nil
+            } else {
+                // Push to Talk: отпустил → подавляем keyUp
+                context.activated = false
+                context.keyUpHandler(keyCode)
+                return nil
+            }
         }
     }
 
@@ -398,6 +442,7 @@ private func handleComboTap(
             } else if context.activated {
                 // Модификатор отпущен после активации -> сброс
                 context.activated = false
+                context.toggleRecording = false
             }
         }
 
@@ -412,6 +457,12 @@ private func handleComboTap(
     }
 
     if type == .keyDown {
+        if context.toggleRecording {
+            // Toggle: второе нажатие во время записи → подавляем
+            context.keyDownHandler(keyCode)
+            return nil
+        }
+
         if context.pendingDown != nil || context.activated {
             // Авторепит -> подавляем
             return nil
@@ -436,10 +487,23 @@ private func handleComboTap(
         }
 
         if context.activated {
-            // Отпустил после активации -> подавляем keyUp
-            context.activated = false
-            context.keyUpHandler(keyCode)
-            return nil
+            if context.recordingMode == .toggle && !context.toggleRecording {
+                // Toggle: первое отпускание → начинаем запись
+                context.toggleRecording = true
+                context.keyUpHandler(keyCode)
+                return nil
+            } else if context.toggleRecording {
+                // Toggle: второе отпускание → завершаем запись
+                context.toggleRecording = false
+                context.activated = false
+                context.keyUpHandler(keyCode)
+                return nil
+            } else {
+                // Push to Talk: отпустил → подавляем keyUp
+                context.activated = false
+                context.keyUpHandler(keyCode)
+                return nil
+            }
         }
     }
 

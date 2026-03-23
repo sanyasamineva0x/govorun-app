@@ -183,7 +183,29 @@ private struct GeneralSettingsContent: View {
             KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 1)
 
-            // Запись
+            // Режим работы
+            VStack(alignment: .leading, spacing: 8) {
+                SectionHeader(title: "Режим работы", icon: "rectangle.and.hand.point.up.left")
+
+                Picker("", selection: $store.recordingMode) {
+                    ForEach(RecordingMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: store.recordingMode) { _, newMode in
+                    appState.settings.recordingMode = newMode
+                }
+
+                Text(store.recordingMode.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .animation(.easeInOut, value: store.recordingMode)
+            }
+            .settingsCard()
+            .staggeredAppear(index: 2)
+
+            // Поведение
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeader(title: "Поведение", icon: "slider.horizontal.3")
 
@@ -215,12 +237,15 @@ private struct GeneralSettingsContent: View {
                 )
             }
             .settingsCard()
-            .staggeredAppear(index: 2)
+            .staggeredAppear(index: 3)
 
             // Сброс
             HStack {
                 Spacer()
-                Button(action: { store.resetToDefaults() }) {
+                Button(action: {
+                    store.resetToDefaults()
+                    appState.settings.recordingMode = .pushToTalk
+                }) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.counterclockwise")
                             .font(.caption)
@@ -322,9 +347,15 @@ private struct WorkerStatusCard: View {
     private var statusDetail: some View {
         switch workerState {
         case .ready:
-            Text("Зажмите \(appState.settings.activationKey.displayName) и говорите")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Group {
+                if appState.settings.recordingMode == .toggle {
+                    Text("Нажмите \(appState.settings.activationKey.displayName) для записи")
+                } else {
+                    Text("Зажмите \(appState.settings.activationKey.displayName) и говорите")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         case .downloadingModel:
             Text("~892 МБ, один раз")
                 .font(.caption)

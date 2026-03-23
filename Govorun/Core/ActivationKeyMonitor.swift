@@ -6,6 +6,8 @@ import Foundation
 protocol EventMonitoring: AnyObject {
     /// Текущая клавиша активации (определяет какие CGEvent types перехватывает tap)
     var activationKey: ActivationKey { get set }
+    /// Режим записи (определяет поведение suppression в tap)
+    var recordingMode: RecordingMode { get set }
     func addGlobalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any?
     func addGlobalKeyDown(_ handler: @escaping (UInt16) -> Void) -> Any?
     func addGlobalKeyUp(_ handler: @escaping (UInt16) -> Void) -> Any?
@@ -36,6 +38,8 @@ final class ActivationKeyMonitor {
 
     /// Текущая клавиша активации (нужна AppState для recreateMonitor)
     let activationKey: ActivationKey
+    /// Режим работы: pushToTalk или toggle
+    let recordingMode: RecordingMode
 
     private let eventMonitor: EventMonitoring
     private var monitors: [Any] = []
@@ -47,13 +51,16 @@ final class ActivationKeyMonitor {
     private var isKeyDown = false
     /// Таймер сработал — Говорун активен
     private var isActivated = false
+    /// Toggle: таймер сработал, ждём keyUp для активации
+    private var isArmed = false
     /// Для combo: нужные модификаторы зажаты
     private var comboModifiersDown = false
 
     // MARK: Init
 
-    init(activationKey: ActivationKey, eventMonitor: EventMonitoring) {
+    init(activationKey: ActivationKey, recordingMode: RecordingMode = .pushToTalk, eventMonitor: EventMonitoring) {
         self.activationKey = activationKey
+        self.recordingMode = recordingMode
         self.eventMonitor = eventMonitor
     }
 
@@ -94,6 +101,7 @@ final class ActivationKeyMonitor {
         cancelActivation()
         isKeyDown = false
         isActivated = false
+        isArmed = false
         comboModifiersDown = false
     }
 
@@ -140,16 +148,14 @@ final class ActivationKeyMonitor {
         if isDown && !isKeyDown {
             // Модификатор нажат
             isKeyDown = true
-            scheduleActivation()
+            if !isActivated {
+                scheduleActivation()
+            }
         } else if !isDown && isKeyDown {
             // Модификатор отпущен
             isKeyDown = false
             cancelActivation()
-
-            if isActivated {
-                isActivated = false
-                onDeactivated?()
-            }
+            handleRelease()
         }
     }
 
@@ -157,6 +163,7 @@ final class ActivationKeyMonitor {
         // Другая клавиша нажата пока модификатор зажат (до активации) → это шорткат
         guard isKeyDown, !isActivated else { return }
         cancelActivation()
+        isArmed = false
         onCancelled?()
     }
 
@@ -167,7 +174,9 @@ final class ActivationKeyMonitor {
         guard !isKeyDown else { return } // игнорируем авторепит
 
         isKeyDown = true
-        scheduleActivation()
+        if !isActivated {
+            scheduleActivation()
+        }
     }
 
     private func handleKeyCodeUp(code: UInt16, target: UInt16) {
@@ -175,11 +184,7 @@ final class ActivationKeyMonitor {
 
         isKeyDown = false
         cancelActivation()
-
-        if isActivated {
-            isActivated = false
-            onDeactivated?()
-        }
+        handleRelease()
     }
 
     // MARK: - Combo логика
@@ -196,11 +201,7 @@ final class ActivationKeyMonitor {
                 // Клавиша всё ещё зажата — деактивируем
                 isKeyDown = false
                 cancelActivation()
-
-                if isActivated {
-                    isActivated = false
-                    onDeactivated?()
-                }
+                handleRelease()
             }
         } else {
             comboModifiersDown = modDown
@@ -213,7 +214,9 @@ final class ActivationKeyMonitor {
         guard !isKeyDown else { return }          // игнорируем авторепит
 
         isKeyDown = true
-        scheduleActivation()
+        if !isActivated {
+            scheduleActivation()
+        }
     }
 
     private func handleComboKeyUp(code: UInt16, targetCode: UInt16) {
@@ -221,8 +224,21 @@ final class ActivationKeyMonitor {
 
         isKeyDown = false
         cancelActivation()
+        handleRelease()
+    }
 
-        if isActivated {
+    // MARK: - Общая логика отпускания клавиши
+
+    /// Вызывается при отпускании клавиши активации (после cancelActivation)
+    private func handleRelease() {
+        if recordingMode == .toggle && isArmed {
+            // Toggle: первое отпускание после armed → активация
+            isArmed = false
+            isActivated = true
+            onActivated?()
+        } else if isActivated {
+            // PTT: отпускание → деактивация
+            // Toggle: повторное отпускание → деактивация
             isActivated = false
             onDeactivated?()
         }
@@ -235,8 +251,12 @@ final class ActivationKeyMonitor {
 
         let timer = DispatchWorkItem { [weak self] in
             guard let self, self.isKeyDown else { return }
-            self.isActivated = true
-            self.onActivated?()
+            if self.recordingMode == .toggle {
+                self.isArmed = true
+            } else {
+                self.isActivated = true
+                self.onActivated?()
+            }
         }
         activationTimer = timer
         DispatchQueue.main.asyncAfter(

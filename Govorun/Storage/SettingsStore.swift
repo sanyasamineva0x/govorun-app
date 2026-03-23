@@ -29,7 +29,7 @@ final class SettingsStore: ObservableObject {
     private func registerDefaults() {
         defaults.register(defaults: [
             Keys.defaultTextMode: "universal",
-            Keys.recordingMode: "hold",
+            Keys.recordingMode: RecordingMode.pushToTalk.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: true,
         ])
@@ -45,10 +45,16 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    var recordingMode: String {
-        get { defaults.string(forKey: Keys.recordingMode) ?? "hold" }
+    var recordingMode: RecordingMode {
+        get {
+            guard let raw = defaults.string(forKey: Keys.recordingMode),
+                  let mode = RecordingMode(rawValue: raw) else {
+                return .pushToTalk
+            }
+            return mode
+        }
         set {
-            defaults.set(newValue, forKey: Keys.recordingMode)
+            defaults.set(newValue.rawValue, forKey: Keys.recordingMode)
             objectWillChange.send()
         }
     }

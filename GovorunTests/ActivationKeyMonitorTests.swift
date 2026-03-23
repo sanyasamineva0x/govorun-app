@@ -344,4 +344,217 @@ final class ActivationKeyMonitorTests: XCTestCase {
         mock.simulateKeyUp(keyCode: 40)
         XCTAssertTrue(deactivated)
     }
+
+    // MARK: - Toggle Modifier: 17. Tap (hold 200ms + release) активирует
+
+    func test_toggle_modifier_tap_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3, description: "armed после 200мс")
+        XCTAssertFalse(activated, "Toggle не активирует при удержании")
+
+        mock.simulateFlagsChanged(CGEventFlags()) // отпускаем → активация
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Toggle Modifier: 18. Повторный tap деактивирует
+
+    func test_toggle_modifier_second_tap_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        var deactivated = false
+        sut.onActivated = { activated = true }
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        // Первый tap → активация
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3)
+        mock.simulateFlagsChanged(CGEventFlags())
+        XCTAssertTrue(activated)
+
+        // Второй tap → деактивация
+        mock.simulateFlagsChanged(.maskAlternate)
+        mock.simulateFlagsChanged(CGEventFlags())
+        XCTAssertTrue(deactivated)
+    }
+
+    // MARK: - Toggle Modifier: 19. Быстрый тап (<200мс) не активирует
+
+    func test_toggle_modifier_quick_tap_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        mock.simulateFlagsChanged(CGEventFlags()) // быстро отпускаем
+
+        waitMain(0.3)
+
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Toggle KeyCode: 20. Tap активирует
+
+    func test_toggle_keyCode_tap_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        waitMain(0.3)
+        XCTAssertFalse(activated)
+
+        mock.simulateKeyUp(keyCode: 96)
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Toggle KeyCode: 21. Повторный tap деактивирует
+
+    func test_toggle_keyCode_second_tap_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var deactivated = false
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        // Первый tap
+        mock.simulateKeyDown(keyCode: 96)
+        waitMain(0.3)
+        mock.simulateKeyUp(keyCode: 96)
+
+        // Второй tap
+        mock.simulateKeyDown(keyCode: 96)
+        mock.simulateKeyUp(keyCode: 96)
+        XCTAssertTrue(deactivated)
+    }
+
+    // MARK: - Toggle KeyCode: 22. Быстрый тап не активирует
+
+    func test_toggle_keyCode_quick_tap_ignored() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .keyCode(96),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateKeyDown(keyCode: 96)
+        mock.simulateKeyUp(keyCode: 96)
+
+        waitMain(0.3)
+        XCTAssertFalse(activated)
+    }
+
+    // MARK: - Toggle Combo: 23. Tap активирует
+
+    func test_toggle_combo_tap_activates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        sut.onActivated = { activated = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskCommand)
+        mock.simulateKeyDown(keyCode: 40)
+        waitMain(0.3)
+        XCTAssertFalse(activated)
+
+        mock.simulateKeyUp(keyCode: 40)
+        XCTAssertTrue(activated)
+    }
+
+    // MARK: - Toggle Combo: 24. Повторный tap деактивирует
+
+    func test_toggle_combo_second_tap_deactivates() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .combo(modifiers: .maskCommand, keyCode: 40),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var deactivated = false
+        sut.onDeactivated = { deactivated = true }
+        sut.startMonitoring()
+
+        // Первый tap
+        mock.simulateFlagsChanged(.maskCommand)
+        mock.simulateKeyDown(keyCode: 40)
+        waitMain(0.3)
+        mock.simulateKeyUp(keyCode: 40)
+
+        // Второй tap (модификатор всё ещё зажат)
+        mock.simulateKeyDown(keyCode: 40)
+        mock.simulateKeyUp(keyCode: 40)
+        XCTAssertTrue(deactivated)
+    }
+
+    // MARK: - Toggle Modifier: 25. Modifier + другая клавиша при armed → cancelled
+
+    func test_toggle_modifier_plus_key_while_armed_cancels() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        var activated = false
+        var cancelled = false
+        sut.onActivated = { activated = true }
+        sut.onCancelled = { cancelled = true }
+        sut.startMonitoring()
+
+        mock.simulateFlagsChanged(.maskAlternate)
+        waitMain(0.3) // armed
+        mock.simulateKeyDown(keyCode: 8) // ⌥+C шорткат
+
+        XCTAssertFalse(activated)
+        XCTAssertTrue(cancelled)
+    }
 }

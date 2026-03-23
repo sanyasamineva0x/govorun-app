@@ -5,6 +5,7 @@ import XCTest
 
 final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
     var activationKey: ActivationKey = .default
+    var recordingMode: RecordingMode = .pushToTalk
     private var flagsHandlers: [(CGEventFlags) -> Void] = []
     private var keyDownHandlers: [(UInt16) -> Void] = []
     private var keyUpHandlers: [(UInt16) -> Void] = []

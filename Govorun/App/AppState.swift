@@ -33,6 +33,10 @@ final class AppState: ObservableObject {
     private var currentActivationKey: ActivationKey
     /// Отложенная клавиша (ждёт idle)
     private var pendingActivationKey: ActivationKey?
+    /// Текущий режим записи
+    private var currentRecordingMode: RecordingMode
+    /// Отложенный режим записи (ждёт idle)
+    private var pendingRecordingMode: RecordingMode?
     /// Подписка на изменения SettingsStore
     private var settingsCancellable: AnyCancellable?
 
@@ -91,8 +95,10 @@ final class AppState: ObservableObject {
         let settings = SettingsStore()
         self.settings = settings
         eventMonitor.activationKey = settings.activationKey
+        eventMonitor.recordingMode = settings.recordingMode
         self.eventMonitor = eventMonitor
         self.currentActivationKey = settings.activationKey
+        self.currentRecordingMode = settings.recordingMode
 
         self.audioCapture = audio
         self.pipelineEngine = PipelineEngine(
@@ -108,6 +114,7 @@ final class AppState: ObservableObject {
         self.sessionManager = SessionManager()
         self.activationKeyMonitor = ActivationKeyMonitor(
             activationKey: settings.activationKey,
+            recordingMode: settings.recordingMode,
             eventMonitor: eventMonitor
         )
         self.bottomBar = BottomBarController()
@@ -180,6 +187,7 @@ final class AppState: ObservableObject {
         self.settings = settings
         self.eventMonitor = eventMonitor
         self.currentActivationKey = settings.activationKey
+        self.currentRecordingMode = settings.recordingMode
         self.updaterService = updaterService
 
         self.workerState = initialWorkerState
@@ -336,28 +344,43 @@ final class AppState: ObservableObject {
 
     private func handleSettingsChanged() {
         let newKey = settings.activationKey
-        guard newKey != currentActivationKey else { return }
+        let newMode = settings.recordingMode
+        let keyChanged = newKey != currentActivationKey
+        let modeChanged = newMode != currentRecordingMode
+
+        guard keyChanged || modeChanged else { return }
+
         if sessionManager.state == .idle {
-            recreateMonitor(newKey)
+            recreateMonitor(key: newKey, mode: newMode)
         } else {
-            pendingActivationKey = newKey
+            if keyChanged { pendingActivationKey = newKey }
+            if modeChanged { pendingRecordingMode = newMode }
         }
     }
 
-    private func recreateMonitor(_ key: ActivationKey) {
+    private func recreateMonitor(key: ActivationKey, mode: RecordingMode) {
         guard let eventMonitor else { return }
         activationKeyMonitor.stopMonitoring()
         eventMonitor.activationKey = key
-        activationKeyMonitor = ActivationKeyMonitor(activationKey: key, eventMonitor: eventMonitor)
+        eventMonitor.recordingMode = mode
+        activationKeyMonitor = ActivationKeyMonitor(
+            activationKey: key,
+            recordingMode: mode,
+            eventMonitor: eventMonitor
+        )
         wireActivationKeyMonitor()
         activationKeyMonitor.startMonitoring()
         currentActivationKey = key
+        currentRecordingMode = mode
         pendingActivationKey = nil
+        pendingRecordingMode = nil
     }
 
-    fileprivate func applyPendingActivationKey() {
-        guard let pending = pendingActivationKey else { return }
-        recreateMonitor(pending)
+    fileprivate func applyPendingSettings() {
+        let key = pendingActivationKey ?? currentActivationKey
+        let mode = pendingRecordingMode ?? currentRecordingMode
+        guard pendingActivationKey != nil || pendingRecordingMode != nil else { return }
+        recreateMonitor(key: key, mode: mode)
     }
 
     /// Проверить что worker жив через ping по unix socket
@@ -726,7 +749,7 @@ private final class SessionManagerBridge: SessionManagerDelegate {
             appState?.startEscMonitor()
         case .idle:
             appState?.stopEscMonitor()
-            appState?.applyPendingActivationKey()
+            appState?.applyPendingSettings()
         default:
             appState?.stopEscMonitor()
         }

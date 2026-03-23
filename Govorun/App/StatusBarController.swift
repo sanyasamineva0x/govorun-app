@@ -129,7 +129,20 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let (title, icon) = statusInfo(for: appState.sessionManager.state)
+        let state = appState.sessionManager.state
+        if case .idle = state {
+            let key = appState.settings.activationKey.displayName
+            if appState.settings.recordingMode == .toggle {
+                statusMenuItem?.title = "Нажмите \(key) для записи"
+            } else {
+                statusMenuItem?.title = "Зажмите \(key) и говорите"
+            }
+            guard let button = statusItem.button else { return }
+            setMenuBarIcon("mic.fill", on: button)
+            return
+        }
+
+        let (title, icon) = statusInfo(for: state)
         statusMenuItem?.title = title
 
         guard let button = statusItem.button else { return }
@@ -222,7 +235,12 @@ final class StatusBarController: NSObject {
         case .ready:
             stopPulseAnimation()
             setMenuBarIcon("mic.fill", on: button)
-            statusMenuItem?.title = "Готов"
+            let key = appState?.settings.activationKey.displayName ?? "⌥"
+            if appState?.settings.recordingMode == .toggle {
+                statusMenuItem?.title = "Нажмите \(key) для записи"
+            } else {
+                statusMenuItem?.title = "Зажмите \(key) и говорите"
+            }
             workerActionMenuItem?.isHidden = true
         case .error(let msg):
             stopPulseAnimation()

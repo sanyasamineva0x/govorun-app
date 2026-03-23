@@ -26,7 +26,7 @@ final class SettingsStoreTests: XCTestCase {
 
     func test_default_values() {
         XCTAssertEqual(store.defaultTextMode, "universal")
-        XCTAssertEqual(store.recordingMode, "hold")
+        XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         // launchAtLogin: SMAppService, зависит от системного состояния
         XCTAssertFalse(store.onboardingCompleted)
@@ -44,8 +44,8 @@ final class SettingsStoreTests: XCTestCase {
     }
 
     func test_set_recording_mode() {
-        store.recordingMode = "toggle"
-        XCTAssertEqual(store.recordingMode, "toggle")
+        store.recordingMode = .toggle
+        XCTAssertEqual(store.recordingMode, .toggle)
     }
 
     func test_set_sound_enabled() {
@@ -74,12 +74,12 @@ final class SettingsStoreTests: XCTestCase {
 
     func test_persistence_across_instances() {
         store.defaultTextMode = "email"
-        store.recordingMode = "toggle"
+        store.recordingMode = .toggle
         store.soundEnabled = false
 
         let store2 = SettingsStore(defaults: defaults)
         XCTAssertEqual(store2.defaultTextMode, "email")
-        XCTAssertEqual(store2.recordingMode, "toggle")
+        XCTAssertEqual(store2.recordingMode, .toggle)
         XCTAssertFalse(store2.soundEnabled)
         // launchAtLogin: SMAppService, не UserDefaults — не проверяем persistence
     }
@@ -88,13 +88,13 @@ final class SettingsStoreTests: XCTestCase {
 
     func test_reset_to_defaults() {
         store.defaultTextMode = "code"
-        store.recordingMode = "toggle"
+        store.recordingMode = .toggle
         store.soundEnabled = false
 
         store.resetToDefaults()
 
         XCTAssertEqual(store.defaultTextMode, "universal")
-        XCTAssertEqual(store.recordingMode, "hold")
+        XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         // launchAtLogin: SMAppService, resetToDefaults не влияет
     }
