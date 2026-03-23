@@ -104,7 +104,6 @@ private struct SettingsSidebar: View {
         .background(
             ZStack {
                 Color(.controlBackgroundColor).opacity(0.5)
-                // Subtle warm gradient at top
                 LinearGradient(
                     colors: [Color.cottonCandy.opacity(0.04), Color.clear],
                     startPoint: .top,

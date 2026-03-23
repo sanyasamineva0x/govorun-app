@@ -122,12 +122,13 @@ final class BottomBarController: ObservableObject {
     private func showPanel() {
         guard let panel else { return }
         panel.positionAtBottom()
-        panel.alphaValue = 0
 
         // Начальная позиция ниже на 12pt
         var startFrame = panel.frame
         startFrame.origin.y -= 12
         panel.setFrame(startFrame, display: false)
+
+        panel.alphaValue = 0
 
         panel.orderFrontRegardless()
 
@@ -196,7 +197,6 @@ final class BottomBarWindow: NSPanel {
         level = .floating
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isMovableByWindowBackground = false
         hidesOnDeactivate = false
@@ -211,25 +211,24 @@ final class BottomBarWindow: NSPanel {
 
 #if compiler(>=6.2)
         if #available(macOS 26, *) {
-            let glass = NSGlassEffectView()
-            glass.frame = contentView.bounds
-            glass.autoresizingMask = [.width, .height]
-            glass.cornerRadius = BottomBarMetrics.pillHeight / 2
-
-            hostingView.frame = glass.bounds
-            glass.contentView = hostingView
-
-            contentView.addSubview(glass)
+            // На macOS 26 glass рисуется через SwiftUI .glassEffect в BottomBarView
+            hasShadow = false
+            hostingView.frame = contentView.bounds
+            contentView.addSubview(hostingView)
         } else {
+            hasShadow = true
             addLegacyBackground(hostingView: hostingView, to: contentView)
+            contentView.wantsLayer = true
+            contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+            contentView.layer?.masksToBounds = true
         }
 #else
+        hasShadow = true
         addLegacyBackground(hostingView: hostingView, to: contentView)
-#endif
-
         contentView.wantsLayer = true
         contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
         contentView.layer?.masksToBounds = true
+#endif
     }
 
     func positionAtBottom() {

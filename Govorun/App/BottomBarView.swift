@@ -43,6 +43,9 @@ struct BottomBarView: View {
             width: BottomBarMetrics.pillWidth,
             height: BottomBarMetrics.pillHeight
         )
+#if compiler(>=6.2)
+        .modifier(GlassPillModifier())
+#endif
     }
 
     @ViewBuilder
@@ -297,3 +300,17 @@ struct ErrorView: View {
         }
     }
 }
+
+// MARK: - Liquid Glass pill modifier
+
+#if compiler(>=6.2)
+struct GlassPillModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(.clear, in: .capsule)
+        } else {
+            content
+        }
+    }
+}
+#endif
