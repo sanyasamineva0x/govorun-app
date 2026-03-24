@@ -398,7 +398,53 @@ final class TextInserterTests: XCTestCase {
         XCTAssertEqual(element.setAttributeCalls[0].value as? String, "Hello Swift")
     }
 
-    // MARK: - 14. Thread safety: lastInsertionMethod
+    // MARK: - 14. Composition с emoji: UTF-16 offset
+
+    func test_composition_insert_withEmoji_correctPosition() async throws {
+        let element = MockAXElement()
+        element.settableAttributes = ["AXValue"]
+        element.attributes = [
+            "AXValue": "Привет 👋 мир",
+            "AXSelectedTextRange": ["location": 10, "length": 0],
+        ]
+
+        let accessibility = MockAccessibility()
+        accessibility.focusedElement = element
+
+        let clipboard = MockClipboard()
+        let sut = TextInserterEngine(accessibility: accessibility, clipboard: clipboard)
+
+        try await sut.insert("красивый ")
+
+        XCTAssertEqual(sut.lastInsertionMethod, .composition)
+        XCTAssertEqual(element.setAttributeCalls[0].value as? String, "Привет 👋 красивый мир")
+    }
+
+    // MARK: - 15. Caret position после вставки emoji
+
+    func test_composition_caretPosition_afterEmojiInsert() async throws {
+        let element = MockAXElement()
+        element.settableAttributes = ["AXValue"]
+        element.attributes = [
+            "AXValue": "hello",
+            "AXSelectedTextRange": ["location": 5, "length": 0],
+        ]
+
+        let accessibility = MockAccessibility()
+        accessibility.focusedElement = element
+
+        let clipboard = MockClipboard()
+        let sut = TextInserterEngine(accessibility: accessibility, clipboard: clipboard)
+
+        try await sut.insert("👍")
+
+        let caretCall = element.setAttributeCalls[1]
+        let range = caretCall.value as? [String: Int]
+        // "👍" = 2 UTF-16 code units → caret at 5 + 2 = 7
+        XCTAssertEqual(range?["location"], 7)
+    }
+
+    // MARK: - 16. Thread safety: lastInsertionMethod
 
     // Полная проверка — xcodebuild test -enableThreadSanitizer YES
 
@@ -464,6 +510,55 @@ final class ComposeTests: XCTestCase {
         )
         let result = sut.compose("Привет мир", inserting: "красивый ", at: 7, length: 0)
         XCTAssertEqual(result, "Привет красивый мир")
+    }
+
+    func test_compose_emoji_utf16_offset() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        // 👋 = 1 Character, 2 UTF-16 code units
+        // "Привет 👋 мир": UTF-16 offset 10 = before "м"
+        let result = sut.compose("Привет 👋 мир", inserting: "красивый ", at: 10, length: 0)
+        XCTAssertEqual(result, "Привет 👋 красивый мир")
+    }
+
+    func test_compose_emoji_replacement_utf16() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        // Replace 👋 (UTF-16 offset 7, length 2)
+        let result = sut.compose("Привет 👋 мир", inserting: "🎉", at: 7, length: 2)
+        XCTAssertEqual(result, "Привет 🎉 мир")
+    }
+
+    func test_compose_negativeLocation_safe() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        let result = sut.compose("hello", inserting: "world", at: -1, length: 0)
+        XCTAssertEqual(result, "helloworld")
+    }
+
+    func test_compose_negativeLength_safe() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        let result = sut.compose("hello", inserting: "world", at: 3, length: -1)
+        XCTAssertEqual(result, "helloworld")
+    }
+
+    func test_compose_surrogatePairBoundary_safe() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        // 👋 = UTF-16 offsets 7-8; offset 8 = внутри суррогатной пары
+        let result = sut.compose("Привет 👋 мир", inserting: "!", at: 8, length: 0)
+        XCTAssertFalse(result.isEmpty, "Offset внутри суррогатной пары не должен крашить")
     }
 
     func test_compose_out_of_bounds_clamped() {

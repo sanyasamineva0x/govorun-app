@@ -352,7 +352,45 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(mockClipboard.simulatePasteCallCount, 1)
     }
 
-    // MARK: - 9. Toggle mode: полный pipeline
+    // MARK: - 9. Cancel во время minProcessingDisplay
+
+    func test_cancel_during_minProcessingDisplay_prevents_insertion() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = Data([0x01])
+
+        let mockSTT = MockSTTClient()
+        mockSTT.recognizeResult = STTResult(text: "тест")
+
+        let mockLLM = MockLLMClient()
+        mockLLM.normalizeResult = "Тест."
+
+        let mockAccessibility = MockAccessibility()
+        let mockElement = MockAXElement()
+        mockElement.settableAttributes = ["AXSelectedText"]
+        mockAccessibility.focusedElement = mockElement
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: mockSTT,
+            llmClient: mockLLM,
+            accessibility: mockAccessibility
+        )
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        appState.activationKeyMonitor.onDeactivated?()
+        // STT мгновенный → pipeline входит в minProcessingDisplay sleep (600ms)
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        appState.cancelProcessing()
+
+        try await Task.sleep(nanoseconds: 600_000_000)
+
+        XCTAssertNil(appState.lastResult, "После Esc текст не должен вставляться")
+    }
+
+    // MARK: - 10. Toggle mode: полный pipeline
 
     func test_toggle_full_pipeline() async throws {
         let mockAudio = MockAudioRecording()

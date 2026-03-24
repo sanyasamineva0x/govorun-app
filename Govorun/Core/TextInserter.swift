@@ -103,7 +103,7 @@ final class TextInserterEngine: TextInserting, @unchecked Sendable {
             let newValue = compose(currentValue, inserting: text, at: location, length: length)
             do {
                 try element.setAttribute("AXValue", value: newValue)
-                let newCaret: [String: Int] = ["location": location + text.count, "length": 0]
+                let newCaret: [String: Int] = ["location": location + text.utf16.count, "length": 0]
                 try? element.setAttribute("AXSelectedTextRange", value: newCaret)
                 lock.withLock { _lastInsertionMethod = .composition }
                 return
@@ -119,12 +119,22 @@ final class TextInserterEngine: TextInserting, @unchecked Sendable {
     // MARK: - Private
 
     func compose(_ current: String, inserting text: String, at location: Int, length: Int) -> String {
-        let safeLocation = min(location, current.count)
-        let safeLength = min(length, current.count - safeLocation)
+        guard location >= 0, length >= 0 else {
+            return current + text
+        }
+        let utf16 = current.utf16
+        let safeLocation = min(location, utf16.count)
+        let safeEnd = min(safeLocation + length, utf16.count)
 
-        let start = current.index(current.startIndex, offsetBy: safeLocation)
-        let end = current.index(start, offsetBy: safeLength)
-        return String(current[..<start]) + text + String(current[end...])
+        let start = utf16.index(utf16.startIndex, offsetBy: safeLocation)
+        let end = utf16.index(utf16.startIndex, offsetBy: safeEnd)
+
+        guard let startIdx = start.samePosition(in: current),
+              let endIdx = end.samePosition(in: current)
+        else {
+            return current + text
+        }
+        return String(current[..<startIdx]) + text + String(current[endIdx...])
     }
 
     private func insertViaClipboard(_ text: String) async throws {

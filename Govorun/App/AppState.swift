@@ -76,6 +76,8 @@ final class AppState: ObservableObject {
     private var accessibilityHintShown = false
     /// Cancellable auto-dismiss error → idle
     fileprivate var errorDismissTask: Task<Void, Never>?
+    /// Task обработки pipeline (для отмены по Esc)
+    private var processingTask: Task<Void, Never>?
 
     init(
         eventMonitor: EventMonitoring = NSEventMonitoring(),
@@ -595,7 +597,8 @@ final class AppState: ObservableObject {
             ])
         }
 
-        Task { [weak self] in
+        processingTask?.cancel()
+        processingTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let processingStart = ContinuousClock.now
@@ -628,6 +631,7 @@ final class AppState: ObservableObject {
                     AnalyticsMetadataKey.appBundleId: appBundleId ?? "",
                 ])
 
+                try Task.checkCancellation()
                 let insertionStart = CFAbsoluteTimeGetCurrent()
                 try await textInserter.insert(result.normalizedText)
                 let insertionMs = Int((CFAbsoluteTimeGetCurrent() - insertionStart) * 1_000)
@@ -733,6 +737,8 @@ final class AppState: ObservableObject {
         activationKeyMonitor.resetState()
         sessionManager.handleCancelled()
         pipelineEngine.cancel()
+        processingTask?.cancel()
+        processingTask = nil
         stopEscMonitor()
         bottomBar.dismiss()
         Task {

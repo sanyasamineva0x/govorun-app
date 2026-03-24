@@ -73,6 +73,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     private var _isStarting: Bool = false
     private var _launchWorkerOverride: (() -> Void)?
     private var _launchAttemptId: UUID = .init()
+    private var _stdoutBuffer = ""
 
     let versionUserDefaultsKey = "govorun.worker.installedVersion"
 
@@ -188,7 +189,8 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     func stop() {
         lock.lock()
         _isStoppedManually = true
-        _launchAttemptId = UUID() // инвалидировать все таймауты/callbacks текущей попытки
+        _launchAttemptId = UUID() // инвалидировать pending таймауты/callbacks
+        _stdoutBuffer = ""
         let process = _process
         _process = nil
         let setupProcess = _setupProcess
@@ -246,6 +248,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         _isStoppedManually = false
         _restartCount = 0
         _launchAttemptId = UUID()
+        _stdoutBuffer = ""
         lock.unlock()
     }
 
@@ -275,11 +278,44 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         // LOADED — промежуточный, не меняем состояние
     }
 
+    /// Буферизованный парсинг stdout (защита от фрагментации pipe)
+    func handleStdoutData(
+        _ data: Data,
+        onLine: ((_ line: String) -> Void)? = nil,
+        onReady: (() -> Void)? = nil
+    ) {
+        let chunk: String
+        if let utf8 = String(data: data, encoding: .utf8) {
+            chunk = utf8
+        } else {
+            // Lossy decode: протокольные слова (READY, LOADING) — чистый ASCII
+            print("[Worker] stdout: не UTF-8 (\(data.count) bytes)")
+            chunk = String(decoding: data, as: UTF8.self)
+        }
+
+        lock.lock()
+        _stdoutBuffer.append(chunk)
+        var lines: [String] = []
+        while let idx = _stdoutBuffer.firstIndex(of: "\n") {
+            let line = String(_stdoutBuffer[..<idx]).trimmingCharacters(in: .whitespaces)
+            _stdoutBuffer = String(_stdoutBuffer[_stdoutBuffer.index(after: idx)...])
+            if !line.isEmpty { lines.append(line) }
+        }
+        lock.unlock()
+
+        for line in lines {
+            onLine?(line)
+            handleStdoutLine(line, onReady: onReady)
+        }
+    }
+
     /// Обработка завершения процесса (crash или штатное)
     func handleTermination(exitCode: Int32) {
         lock.lock()
         let wasManual = _isStoppedManually
         let count = _restartCount
+        _launchAttemptId = UUID()
+        _stdoutBuffer = ""
         let attemptId = _launchAttemptId
         lock.unlock()
 
@@ -448,7 +484,11 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     }
 
     private func launchWorker() async throws {
-        // Удалить старый socket
+        lock.lock()
+        _launchAttemptId = UUID()
+        _stdoutBuffer = ""
+        lock.unlock()
+
         try? FileManager.default.removeItem(atPath: socketPath)
 
         // Создать директорию для socket (700)
@@ -512,17 +552,10 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         _process = process
         lock.unlock()
 
-        // Обработчик завершения — автоперезапуск
-        process.terminationHandler = { [weak self] proc in
-            self?.handleTermination(exitCode: proc.terminationStatus)
-        }
-
-        // Запомнить attemptId для валидации таймаутов
         lock.lock()
         let attemptId = _launchAttemptId
         lock.unlock()
 
-        // Ожидание READY из stdout
         return try await withCheckedThrowingContinuation { [weak self] continuation in
             guard let self else {
                 continuation.resume(throwing: WorkerError.notRunning)
@@ -540,8 +573,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 continuation.resume(with: result)
             }
 
-            // Adaptive timeout: перезапускается при каждом отчёте прогресса.
-            // Детектирует зависания (нет активности N секунд), а не медленность.
+            // Adaptive timeout: детектирует зависания (N секунд без активности), а не медленность
             let timeoutLock = NSLock()
             var currentTimeoutWork: DispatchWorkItem?
 
@@ -550,9 +582,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 currentTimeoutWork?.cancel()
                 let work = DispatchWorkItem { [weak self] in
                     guard let self else { return }
-                    // Валидация: таймаут принадлежит текущей попытке запуска
                     guard launchAttemptId == attemptId else { return }
-                    // Пометить как остановленный — предотвратить zombie restart в handleTermination
                     markStoppedManually()
                     setState(.error("Таймаут загрузки модели"))
                     resumeOnce(with: .failure(WorkerError.timeout))
@@ -569,35 +599,37 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 timeoutLock.unlock()
             }
 
-            // Парсинг stdout
-            stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-                let data = handle.availableData
-                guard !data.isEmpty,
-                      let output = String(data: data, encoding: .utf8) else { return }
-
-                for line in output.components(separatedBy: .newlines) {
-                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    guard !trimmed.isEmpty else { continue }
-
-                    // Перезапуск таймаута при активности worker'а
-                    if trimmed.hasPrefix("DOWNLOADING") {
-                        scheduleTimeout(120) // скачивание: 120с без прогресса = зависание
-                    } else if trimmed.hasPrefix("LOADING") || trimmed.hasPrefix("LOADED") {
-                        scheduleTimeout(120) // загрузка модели в память
-                    }
-
-                    self?.handleStdoutLine(trimmed) {
-                        cancelTimeout()
-                        resumeOnce(with: .success(()))
-                    }
-                }
+            // Завершение процесса: resume continuation, handleTermination решает нужен ли перезапуск
+            process.terminationHandler = { [weak self] proc in
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                cancelTimeout()
+                resumeOnce(with: .failure(WorkerError.internalError(
+                    "Worker exited (\(proc.terminationStatus))"
+                )))
+                self?.handleTermination(exitCode: proc.terminationStatus)
             }
 
-            // Логирование stderr
+            stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+
+                self?.handleStdoutData(data, onLine: { line in
+                    if line.hasPrefix("DOWNLOADING") {
+                        scheduleTimeout(120)
+                    } else if line.hasPrefix("LOADING") || line.hasPrefix("LOADED") {
+                        scheduleTimeout(120)
+                    }
+                }, onReady: {
+                    cancelTimeout()
+                    resumeOnce(with: .success(()))
+                })
+            }
+
             stderrPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
-                guard !data.isEmpty,
-                      let output = String(data: data, encoding: .utf8) else { return }
+                guard !data.isEmpty else { return }
+                let output = String(decoding: data, as: UTF8.self)
                 print("[Worker stderr] \(output)", terminator: "")
             }
 
@@ -612,7 +644,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 return
             }
 
-            // Начальный таймаут — 30с покрывает случай когда модель уже в кэше
+            // 30с: модель в кэше; stdout при активности перезапускает таймаут
             scheduleTimeout(30)
         }
     }
