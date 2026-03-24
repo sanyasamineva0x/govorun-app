@@ -74,6 +74,17 @@ bash scripts/build-unsigned-dmg.sh
 
 При обновлении через Sparkle (автообновление) это делать **не нужно**.
 
+## Обновление через Homebrew
+
+```bash
+brew update
+brew upgrade --cask govorun
+```
+
+После обновления через Cask macOS сбрасывает разрешение Accessibility (меняется code signature). Повторите шаги из раздела «После переустановки» выше.
+
+При обновлении через Sparkle (автообновление из menu bar) Accessibility **сохраняется** — повторять не нужно.
+
 ## Производительность
 
 Замеры на MacBook Air M1, 16 GB RAM:
@@ -122,7 +133,7 @@ Swift App (menu bar)                    Python Worker
 - onnx-asr, ONNX Runtime, Silero VAD
 - Sparkle 2 (автообновление)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (761 тестов)
+- XCTest (799 тестов)
 
 ## Разработка
 
