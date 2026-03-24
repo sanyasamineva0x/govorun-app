@@ -570,6 +570,59 @@ final class ASRWorkerManagerTests: XCTestCase {
         XCTAssertNotEqual(id1, manager.launchAttemptId)
     }
 
+    // MARK: - Crash до READY: attemptId инвалидация
+
+    func test_handleTermination_crashInvalidatesAttemptId() {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        manager.resetForStart()
+        let attemptIdBefore = manager.launchAttemptId
+
+        manager.launchWorkerOverride = {}
+        manager.handleTermination(exitCode: 1)
+
+        XCTAssertNotEqual(manager.launchAttemptId, attemptIdBefore,
+                          "handleTermination должен инвалидировать attemptId при перезапуске")
+    }
+
+    // MARK: - Фрагментация stdout pipe
+
+    func test_handleStdoutData_fragmentedReady() throws {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        manager.resetForStart()
+
+        var readyCalled = false
+
+        try manager.handleStdoutData(XCTUnwrap("REA".data(using: .utf8)), onReady: { readyCalled = true })
+        XCTAssertNotEqual(manager.state, .ready, "Partial line не должен менять состояние")
+
+        try manager.handleStdoutData(XCTUnwrap("DY\n".data(using: .utf8)), onReady: { readyCalled = true })
+        XCTAssertEqual(manager.state, .ready, "Полная строка должна сработать")
+        XCTAssertTrue(readyCalled)
+    }
+
+    func test_handleStdoutData_multiLineChunk() throws {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        manager.resetForStart()
+
+        let chunk = "DOWNLOADING 50%\nLOADING model=gigaam\nREADY\n"
+        var readyCalled = false
+
+        try manager.handleStdoutData(XCTUnwrap(chunk.data(using: .utf8)), onReady: { readyCalled = true })
+        XCTAssertEqual(manager.state, .ready)
+        XCTAssertTrue(readyCalled)
+    }
+
+    func test_handleStdoutData_fragmentedDownloading() throws {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        manager.resetForStart()
+
+        try manager.handleStdoutData(XCTUnwrap("DOWNLOAD".data(using: .utf8)))
+        XCTAssertEqual(manager.state, .notStarted)
+
+        try manager.handleStdoutData(XCTUnwrap("ING 75%\n".data(using: .utf8)))
+        XCTAssertEqual(manager.state, .downloadingModel(progress: 75))
+    }
+
     // MARK: - WorkerError
 
     func test_workerError_equatable() {
