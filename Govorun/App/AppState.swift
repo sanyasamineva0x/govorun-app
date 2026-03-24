@@ -46,6 +46,12 @@ final class AppState: ObservableObject {
     private var currentAppBundleId: String?
     private var currentAppContext: AppContext?
 
+    /// Фактически действующий runtime режим записи.
+    /// Может отличаться от settings.recordingMode, если смена режима отложена до idle.
+    var effectiveRecordingMode: RecordingMode {
+        currentRecordingMode
+    }
+
     /// Последний результат (для StatusBar)
     @Published private(set) var lastResult: PipelineResult?
 
@@ -496,6 +502,7 @@ final class AppState: ObservableObject {
 
         // Блокировка записи пока worker не готов
         guard workerState == .ready else {
+            activationKeyMonitor.resetState()
             switch workerState {
             case .error(let msg):
                 bottomBar.showError(msg)
@@ -540,6 +547,7 @@ final class AppState: ObservableObject {
             try pipelineEngine.startRecording(sessionId: sessionId)
         } catch {
             let message = ErrorMessages.userFacing(for: error)
+            activationKeyMonitor.resetState()
             sessionManager.handleError(message)
             bottomBar.showError(message)
             soundPlayer.play(.error)
@@ -701,6 +709,7 @@ final class AppState: ObservableObject {
 
     private func handleCancelled() {
         let sessionId = currentSessionId
+        activationKeyMonitor.resetState()
         sessionManager.handleCancelled()
         pipelineEngine.cancel()
         stopEscMonitor()
@@ -798,12 +807,19 @@ private final class SessionManagerBridge: SessionManagerDelegate {
             appState?.startEscMonitor()
         case .recording:
             // Toggle mode: Esc должен отменять запись
-            if appState?.settings.recordingMode == .toggle {
+            if appState?.effectiveRecordingMode == .toggle {
                 appState?.startEscMonitor()
             }
         case .idle:
             appState?.stopEscMonitor()
             appState?.applyPendingSettings()
+        case .error:
+            appState?.stopEscMonitor()
+            // Auto-dismiss error → idle после задержки, чтобы pending settings применились
+            // и следующая активация работала
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak appState] in
+                appState?.sessionManager.handleErrorDismissed()
+            }
         default:
             appState?.stopEscMonitor()
         }

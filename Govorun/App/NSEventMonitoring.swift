@@ -313,10 +313,14 @@ private func handleModifierTap(
 
     // Комбинация с другими модификаторами -> пропускаем, сбрасываем состояние
     if hasOtherModifiers {
-        context.cancelTimer()
-        context.replayPendingDown()
-        context.activated = false
-        context.toggleRecording = false
+        if context.recordingMode == .toggle && context.toggleRecording {
+            // Toggle recording: другие модификаторы (шорткаты) не прерывают сессию
+        } else {
+            context.cancelTimer()
+            context.replayPendingDown()
+            context.activated = false
+            context.toggleRecording = false
+        }
         return Unmanaged.passUnretained(event)
     }
 
@@ -459,9 +463,14 @@ private func handleComboTap(
                 context.replayPendingDown()
                 context.activated = false
             } else if context.activated {
-                // Модификатор отпущен после активации -> сброс
-                context.activated = false
-                context.toggleRecording = false
+                if context.recordingMode == .toggle && context.toggleRecording {
+                    // Toggle recording: отпускание модификаторов НЕ завершает сессию.
+                    // Сессия продолжается до второго combo tap или explicit cancel.
+                } else {
+                    // Push-to-talk или toggle до начала записи -> сброс
+                    context.activated = false
+                    context.toggleRecording = false
+                }
             }
         }
 

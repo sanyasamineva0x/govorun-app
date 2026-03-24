@@ -138,7 +138,7 @@ final class StatusBarController: NSObject {
         let state = appState.sessionState
         if case .idle = state {
             let key = appState.settings.activationKey.displayName
-            statusMenuItem?.title = appState.settings.recordingMode.hint(key: key)
+            statusMenuItem?.title = appState.effectiveRecordingMode.hint(key: key)
             guard let button = statusItem.button else { return }
             setMenuBarIcon("mic.fill", on: button)
             return
@@ -238,7 +238,7 @@ final class StatusBarController: NSObject {
             stopPulseAnimation()
             setMenuBarIcon("mic.fill", on: button)
             let key = appState?.settings.activationKey.displayName ?? "⌥"
-            let mode = appState?.settings.recordingMode ?? .default
+            let mode = appState?.effectiveRecordingMode ?? .default
             statusMenuItem?.title = mode.hint(key: key)
             workerActionMenuItem?.isHidden = true
         case .error(let msg):

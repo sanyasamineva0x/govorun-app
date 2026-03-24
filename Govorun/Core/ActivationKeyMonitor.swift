@@ -98,6 +98,12 @@ final class ActivationKeyMonitor {
             eventMonitor.removeMonitor(monitor)
         }
         monitors.removeAll()
+        resetState()
+    }
+
+    /// Сброс internal state без вызова callbacks.
+    /// Используется при out-of-band cancel (Esc, sleep, CGEventTap reset, rejected activation).
+    func resetState() {
         cancelActivation()
         isKeyDown = false
         isActivated = false

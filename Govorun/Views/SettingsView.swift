@@ -198,20 +198,20 @@ private struct GeneralSettingsContent: View {
                         Text("Режим работы")
                             .font(.body)
 
-                        Picker("", selection: $store.recordingMode) {
+                        Picker("", selection: Binding(
+                            get: { appState.settings.recordingMode },
+                            set: { appState.settings.recordingMode = $0 }
+                        )) {
                             ForEach(RecordingMode.allCases, id: \.self) { mode in
                                 Text(mode.title).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: store.recordingMode) { _, newMode in
-                            appState.settings.recordingMode = newMode
-                        }
 
-                        Text(store.recordingMode.subtitle)
+                        Text(appState.settings.recordingMode.subtitle)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                            .animation(.easeInOut, value: store.recordingMode)
+                            .animation(.easeInOut, value: appState.settings.recordingMode)
                     }
                 }
 
@@ -365,9 +365,17 @@ private struct WorkerStatusCard: View {
     private var statusDetail: some View {
         switch workerState {
         case .ready:
-            Text(appState.settings.recordingMode.hint(key: appState.settings.activationKey.displayName))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            let effective = appState.effectiveRecordingMode
+            let selected = appState.settings.recordingMode
+            if effective != selected {
+                Text("\(effective.hint(key: appState.settings.activationKey.displayName)) (режим сменится после завершения сессии)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(effective.hint(key: appState.settings.activationKey.displayName))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         case .downloadingModel:
             Text("~892 МБ, один раз")
                 .font(.caption)
