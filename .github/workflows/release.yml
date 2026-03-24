@@ -1,0 +1,272 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Parse version from tag ────────────────────────────────
+      - name: Parse version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          BUILD="${VERSION##*.}"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD"     >> "$GITHUB_OUTPUT"
+          echo "Parsed: tag=$TAG  version=$VERSION  build=$BUILD"
+
+      # ── 3. Validate version in project.yml ───────────────────────
+      - name: Validate version in project.yml
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+          EXPECTED_BUILD: ${{ steps.version.outputs.build }}
+        run: |
+          PROJ_VERSION=$(grep 'MARKETING_VERSION' project.yml | head -1 | awk '{print $NF}' | tr -d '"')
+          PROJ_BUILD=$(grep 'CURRENT_PROJECT_VERSION' project.yml | head -1 | awk '{print $NF}' | tr -d '"')
+
+          echo "project.yml: MARKETING_VERSION=$PROJ_VERSION  CURRENT_PROJECT_VERSION=$PROJ_BUILD"
+          echo "Expected:    version=$EXPECTED_VERSION  build=$EXPECTED_BUILD"
+
+          if [ "$PROJ_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::MARKETING_VERSION mismatch: project.yml has '$PROJ_VERSION' but tag expects '$EXPECTED_VERSION'"
+            exit 1
+          fi
+          if [ "$PROJ_BUILD" != "$EXPECTED_BUILD" ]; then
+            echo "::error::CURRENT_PROJECT_VERSION mismatch: project.yml has '$PROJ_BUILD' but tag expects '$EXPECTED_BUILD'"
+            exit 1
+          fi
+
+      # ── 4. Install XcodeGen ──────────────────────────────────────
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # ── 5. Cache Python.framework ────────────────────────────────
+      - name: Cache Python.framework
+        id: cache-python
+        uses: actions/cache@v4
+        with:
+          path: Frameworks/Python.framework
+          key: python-fw-${{ hashFiles('scripts/fetch-python-framework.sh') }}
+
+      # ── 6. Download Python.framework ─────────────────────────────
+      - name: Download Python.framework
+        if: steps.cache-python.outputs.cache-hit != 'true'
+        run: bash scripts/fetch-python-framework.sh
+
+      # ── 7. Cache wheels ──────────────────────────────────────────
+      - name: Cache wheels
+        id: cache-wheels
+        uses: actions/cache@v4
+        with:
+          path: worker/wheels
+          key: wheels-cp313-${{ hashFiles('worker/requirements.txt', 'scripts/download-wheels.sh') }}
+
+      # ── 8. Download wheels ───────────────────────────────────────
+      - name: Download wheels
+        if: steps.cache-wheels.outputs.cache-hit != 'true'
+        run: bash scripts/download-wheels.sh
+
+      # ── 9. Generate Xcode project ───────────────────────────────
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # ── 10. Run tests ───────────────────────────────────────────
+      - name: Run tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme Govorun \
+            -destination 'platform=macOS' \
+            2>&1 | tee build/test.log
+          grep 'Executed' build/test.log
+
+      # ── 11. Build unsigned DMG ──────────────────────────────────
+      - name: Build unsigned DMG
+        run: bash scripts/build-unsigned-dmg.sh
+
+      # ── 12. Upload DMG artifact ─────────────────────────────────
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Govorun-${{ steps.version.outputs.version }}.dmg
+          path: build/Govorun.dmg
+
+      # ── 13. Sign DMG with Sparkle EdDSA ─────────────────────────
+      - name: Sign DMG with Sparkle EdDSA
+        id: sign
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          SIGN_UPDATE=$(find ~/Library/Developer/Xcode/DerivedData -name sign_update -type f | head -1)
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update not found in DerivedData. Ensure Sparkle was built."
+            exit 1
+          fi
+          echo "Found sign_update at: $SIGN_UPDATE"
+
+          trap 'rm -f /tmp/sparkle_key' EXIT
+          echo "$SPARKLE_PRIVATE_KEY" | base64 -D > /tmp/sparkle_key
+
+          OUTPUT=$("$SIGN_UPDATE" -f /tmp/sparkle_key build/Govorun.dmg)
+          echo "sign_update output: $OUTPUT"
+
+          ED_SIG=$(echo "$OUTPUT" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+          LENGTH=$(echo "$OUTPUT" | grep -o 'length="[0-9]*"' | cut -d'"' -f2)
+
+          if [ -z "$ED_SIG" ] || [ -z "$LENGTH" ]; then
+            echo "::error::Failed to parse edSignature or length from sign_update output"
+            exit 1
+          fi
+
+          echo "ed_signature=$ED_SIG" >> "$GITHUB_OUTPUT"
+          echo "length=$LENGTH"       >> "$GITHUB_OUTPUT"
+
+      # ── 14. Compute SHA256 ──────────────────────────────────────
+      - name: Compute SHA256
+        id: sha
+        run: |
+          SHA256=$(shasum -a 256 build/Govorun.dmg | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA256"
+
+      # ── 15. Create or update GitHub Release ─────────────────────
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists — uploading asset"
+            gh release upload "$TAG" build/Govorun.dmg --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" build/Govorun.dmg --generate-notes
+          fi
+
+      # ── 16. Update appcast.xml ──────────────────────────────────
+      - name: Update appcast.xml
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ steps.version.outputs.build }}
+          ED_SIG: ${{ steps.sign.outputs.ed_signature }}
+          LENGTH: ${{ steps.sign.outputs.length }}
+          REPO: ${{ github.repository }}
+        run: |
+          DMG_URL="https://github.com/${REPO}/releases/download/${TAG}/Govorun.dmg"
+          PUB_DATE=$(LC_TIME=C date -u '+%a, %d %b %Y %H:%M:%S %z')
+          RELEASE_URL="https://github.com/${REPO}/releases/tag/${TAG}"
+
+          BODY=$(gh release view "$TAG" --json body -q '.body' 2>/dev/null || true)
+
+          if [ -n "$BODY" ]; then
+            read -r -d '' APPCAST_ITEM <<XMLEOF || true
+                <item>
+                  <title>Version ${VERSION}</title>
+                  <pubDate>${PUB_DATE}</pubDate>
+                  <sparkle:version>${BUILD}</sparkle:version>
+                  <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                  <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                  <description><![CDATA[${BODY}]]></description>
+                  <enclosure url="${DMG_URL}"
+                             type="application/octet-stream"
+                             sparkle:edSignature="${ED_SIG}"
+                             length="${LENGTH}" />
+                </item>
+          XMLEOF
+          else
+            read -r -d '' APPCAST_ITEM <<XMLEOF || true
+                <item>
+                  <title>Version ${VERSION}</title>
+                  <pubDate>${PUB_DATE}</pubDate>
+                  <sparkle:version>${BUILD}</sparkle:version>
+                  <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                  <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                  <description><![CDATA[<a href="${RELEASE_URL}">Release notes</a>]]></description>
+                  <enclosure url="${DMG_URL}"
+                             type="application/octet-stream"
+                             sparkle:edSignature="${ED_SIG}"
+                             length="${LENGTH}" />
+                </item>
+          XMLEOF
+          fi
+
+          export APPCAST_ITEM
+
+          git fetch origin main
+          git switch -C main --track origin/main
+
+          python3 -c "
+          import os, re
+
+          item = os.environ['APPCAST_ITEM']
+
+          with open('appcast.xml', 'r') as f:
+              content = f.read()
+
+          # Insert before closing </channel>
+          content = re.sub(
+              r'([ \t]*)</channel>',
+              item + r'\n\1</channel>',
+              content,
+              count=1,
+          )
+
+          with open('appcast.xml', 'w') as f:
+              f.write(content)
+          "
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "appcast: ${VERSION}"
+          git push origin main
+
+      # ── 17. Generate Homebrew token ─────────────────────────────
+      - name: Generate Homebrew token
+        id: homebrew-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}
+          repositories: homebrew-govorun
+          owner: sanyasamineva0x
+
+      # ── 18. Update Homebrew Cask ────────────────────────────────
+      - name: Update Homebrew Cask
+        env:
+          GH_TOKEN: ${{ steps.homebrew-token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/sanyasamineva0x/homebrew-govorun.git" /tmp/homebrew-govorun
+          cd /tmp/homebrew-govorun
+
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Casks/govorun.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/govorun.rb
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/govorun.rb
+          git commit -m "govorun ${VERSION}"
+          git push
