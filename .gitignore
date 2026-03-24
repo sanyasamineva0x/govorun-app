@@ -29,6 +29,10 @@ build/
 .idea/
 *.code-workspace
 
+# AI agent configs
+.claude/
+AGENTS.md
+
 # Worktrees
 .worktrees/
 
