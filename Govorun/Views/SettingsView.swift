@@ -171,7 +171,13 @@ private struct SidebarItem: View {
 
 private struct GeneralSettingsContent: View {
     @EnvironmentObject private var appState: AppState
-    @StateObject private var store = SettingsStore()
+
+    private func settingsBinding<T>(_ keyPath: ReferenceWritableKeyPath<SettingsStore, T>) -> Binding<T> {
+        Binding(
+            get: { appState.settings[keyPath: keyPath] },
+            set: { appState.settings[keyPath: keyPath] = $0 }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -198,20 +204,17 @@ private struct GeneralSettingsContent: View {
                         Text("Режим работы")
                             .font(.body)
 
-                        Picker("", selection: $store.recordingMode) {
+                        Picker("", selection: settingsBinding(\.recordingMode)) {
                             ForEach(RecordingMode.allCases, id: \.self) { mode in
                                 Text(mode.title).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: store.recordingMode) { _, newMode in
-                            appState.settings.recordingMode = newMode
-                        }
 
-                        Text(store.recordingMode.subtitle)
+                        Text(appState.settings.recordingMode.subtitle)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                            .animation(.easeInOut, value: store.recordingMode)
+                            .animation(.easeInOut, value: appState.settings.recordingMode)
                     }
                 }
 
@@ -221,7 +224,7 @@ private struct GeneralSettingsContent: View {
                     title: "Точка в конце фразы",
                     description: "Ставить точку в конце фразы",
                     icon: "period",
-                    isOn: $store.terminalPeriodEnabled
+                    isOn: settingsBinding(\.terminalPeriodEnabled)
                 )
 
                 Divider()
@@ -230,7 +233,7 @@ private struct GeneralSettingsContent: View {
                     title: "Звуки",
                     description: "Звуковой сигнал начала и конца записи",
                     icon: "speaker.wave.2",
-                    isOn: $store.soundEnabled
+                    isOn: settingsBinding(\.soundEnabled)
                 )
 
                 Divider()
@@ -240,7 +243,7 @@ private struct GeneralSettingsContent: View {
                     description: "Запуск Говоруна при включении компьютера",
                     icon: "power",
                     iconColor: .oceanMist,
-                    isOn: $store.launchAtLogin
+                    isOn: settingsBinding(\.launchAtLogin)
                 )
 
                 Divider()
@@ -250,7 +253,7 @@ private struct GeneralSettingsContent: View {
                     description: "Хранить аудио на компьютере",
                     icon: "waveform",
                     iconColor: .orange,
-                    isOn: $store.saveAudioHistory
+                    isOn: settingsBinding(\.saveAudioHistory)
                 )
             }
             .settingsCard()
@@ -261,8 +264,7 @@ private struct GeneralSettingsContent: View {
             HStack {
                 Spacer()
                 Button(action: {
-                    store.resetToDefaults()
-                    appState.settings.recordingMode = .pushToTalk
+                    appState.settings.resetToDefaults()
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.counterclockwise")
@@ -365,9 +367,17 @@ private struct WorkerStatusCard: View {
     private var statusDetail: some View {
         switch workerState {
         case .ready:
-            Text(appState.settings.recordingMode.hint(key: appState.settings.activationKey.displayName))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            let effective = appState.effectiveRecordingMode
+            let selected = appState.settings.recordingMode
+            if effective != selected {
+                Text("\(effective.hint(key: appState.settings.activationKey.displayName)) (режим сменится после завершения сессии)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(effective.hint(key: appState.settings.activationKey.displayName))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         case .downloadingModel:
             Text("~892 МБ, один раз")
                 .font(.caption)

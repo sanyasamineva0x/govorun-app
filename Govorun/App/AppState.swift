@@ -46,6 +46,12 @@ final class AppState: ObservableObject {
     private var currentAppBundleId: String?
     private var currentAppContext: AppContext?
 
+    /// Фактически действующий runtime режим записи.
+    /// Может отличаться от settings.recordingMode, если смена режима отложена до idle.
+    var effectiveRecordingMode: RecordingMode {
+        currentRecordingMode
+    }
+
     /// Последний результат (для StatusBar)
     @Published private(set) var lastResult: PipelineResult?
 
@@ -66,8 +72,11 @@ final class AppState: ObservableObject {
     private var escMonitors: [Any] = []
     private var snippetsObserver: NSObjectProtocol?
     private var sleepObserver: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
     /// Показывался ли хинт Accessibility в этой сессии (не спамим)
     private var accessibilityHintShown = false
+    /// Cancellable auto-dismiss error → idle
+    fileprivate var errorDismissTask: Task<Void, Never>?
 
     init(
         eventMonitor: EventMonitoring = NSEventMonitoring(),
@@ -257,6 +266,10 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
         }
         sleepObserver = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
+        wakeObserver = nil
         isReady = false
     }
 
@@ -480,10 +493,24 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                // Деактивировать запись при уходе в сон (оба режима)
-                if self.sessionManager.state == .recording {
+                let state = self.sessionManager.state
+                if state == .recording || state == .processing || state == .inserting {
                     self.handleCancelled()
                 }
+            }
+        }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let state = self.sessionManager.state
+                if state == .recording || state == .processing || state == .inserting {
+                    self.handleCancelled()
+                }
+                self.activationKeyMonitor.resetState()
             }
         }
     }
@@ -496,6 +523,7 @@ final class AppState: ObservableObject {
 
         // Блокировка записи пока worker не готов
         guard workerState == .ready else {
+            activationKeyMonitor.resetState()
             switch workerState {
             case .error(let msg):
                 bottomBar.showError(msg)
@@ -540,6 +568,7 @@ final class AppState: ObservableObject {
             try pipelineEngine.startRecording(sessionId: sessionId)
         } catch {
             let message = ErrorMessages.userFacing(for: error)
+            activationKeyMonitor.resetState()
             sessionManager.handleError(message)
             bottomBar.showError(message)
             soundPlayer.play(.error)
@@ -701,6 +730,7 @@ final class AppState: ObservableObject {
 
     private func handleCancelled() {
         let sessionId = currentSessionId
+        activationKeyMonitor.resetState()
         sessionManager.handleCancelled()
         pipelineEngine.cancel()
         stopEscMonitor()
@@ -798,13 +828,25 @@ private final class SessionManagerBridge: SessionManagerDelegate {
             appState?.startEscMonitor()
         case .recording:
             // Toggle mode: Esc должен отменять запись
-            if appState?.settings.recordingMode == .toggle {
+            if appState?.effectiveRecordingMode == .toggle {
                 appState?.startEscMonitor()
             }
         case .idle:
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = nil
             appState?.stopEscMonitor()
             appState?.applyPendingSettings()
+        case .error:
+            appState?.stopEscMonitor()
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = Task { @MainActor [weak appState] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
+                appState?.sessionManager.handleErrorDismissed()
+            }
         default:
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = nil
             appState?.stopEscMonitor()
         }
     }

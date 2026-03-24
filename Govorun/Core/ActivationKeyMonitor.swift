@@ -15,6 +15,8 @@ protocol EventMonitoring: AnyObject {
     func addLocalKeyDown(_ handler: @escaping (UInt16) -> Void) -> Any?
     func addLocalKeyUp(_ handler: @escaping (UInt16) -> Void) -> Any?
     func removeMonitor(_ monitor: Any)
+    /// Сброс internal state CGEventTap context
+    func resetTapState()
 }
 
 // MARK: - Константы
@@ -98,11 +100,18 @@ final class ActivationKeyMonitor {
             eventMonitor.removeMonitor(monitor)
         }
         monitors.removeAll()
+        resetState()
+    }
+
+    /// Сброс internal state без вызова callbacks.
+    /// Используется при out-of-band cancel (Esc, sleep, CGEventTap reset, rejected activation).
+    func resetState() {
         cancelActivation()
         isKeyDown = false
         isActivated = false
         isArmed = false
         comboModifiersDown = false
+        eventMonitor.resetTapState()
     }
 
     // MARK: - Обработчики событий
@@ -210,8 +219,8 @@ final class ActivationKeyMonitor {
 
     private func handleComboKeyDown(code: UInt16, targetCode: UInt16) {
         guard code == targetCode else { return }
-        guard comboModifiersDown else { return } // модификатор должен быть зажат
-        guard !isKeyDown else { return }          // игнорируем авторепит
+        guard comboModifiersDown || isActivated else { return }
+        guard !isKeyDown else { return } // игнорируем авторепит
 
         isKeyDown = true
         if !isActivated {
@@ -250,7 +259,7 @@ final class ActivationKeyMonitor {
         cancelActivation()
 
         let timer = DispatchWorkItem { [weak self] in
-            guard let self, self.isKeyDown else { return }
+            guard let self, self.activationTimer?.isCancelled == false, self.isKeyDown else { return }
             if self.recordingMode == .toggle {
                 self.isArmed = true
             } else {

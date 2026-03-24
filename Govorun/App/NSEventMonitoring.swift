@@ -24,12 +24,13 @@ final class NSEventMonitoring: EventMonitoring {
             onTapReset: { [weak self] in self?.onTapReset?() }
         )
         guard tap.start() else {
+            // TODO: показать Accessibility хинт пользователю (сейчас только print)
             print("[Govorun] CGEventTap не создан — нет Accessibility permission, fallback на NSEvent")
-            // Fallback: NSEvent monitor (не может подавлять -> системный звук сохранится)
             return NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
                 handler(CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue)))
             }
         }
+        currentTap = tap
         return tap
     }
 
@@ -77,6 +78,12 @@ final class NSEventMonitoring: EventMonitoring {
         } else {
             NSEvent.removeMonitor(monitor)
         }
+    }
+
+    private weak var currentTap: ActivationEventTap?
+
+    func resetTapState() {
+        currentTap?.resetContext()
     }
 }
 
@@ -172,6 +179,15 @@ final class ActivationEventTap {
         }
         runLoopSource = nil
         machPort = nil
+    }
+
+    /// Сброс tap context без остановки tap
+    func resetContext() {
+        context.cancelTimer()
+        context.replayPendingDown()
+        context.activated = false
+        context.toggleRecording = false
+        context.comboModifiersHeld = false
     }
 
     deinit {
@@ -313,10 +329,12 @@ private func handleModifierTap(
 
     // Комбинация с другими модификаторами -> пропускаем, сбрасываем состояние
     if hasOtherModifiers {
-        context.cancelTimer()
-        context.replayPendingDown()
-        context.activated = false
-        context.toggleRecording = false
+        if !(context.recordingMode == .toggle && context.toggleRecording) {
+            context.cancelTimer()
+            context.replayPendingDown()
+            context.activated = false
+            context.toggleRecording = false
+        }
         return Unmanaged.passUnretained(event)
     }
 
@@ -458,8 +476,9 @@ private func handleComboTap(
                 context.cancelTimer()
                 context.replayPendingDown()
                 context.activated = false
-            } else if context.activated {
-                // Модификатор отпущен после активации -> сброс
+            } else if context.activated
+                        && !(context.recordingMode == .toggle && context.toggleRecording) {
+                // Push-to-talk или toggle до начала записи -> сброс
                 context.activated = false
                 context.toggleRecording = false
             }
@@ -471,7 +490,7 @@ private func handleComboTap(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
-    guard keyCode == targetCode, context.comboModifiersHeld else {
+    guard keyCode == targetCode, context.comboModifiersHeld || context.toggleRecording else {
         return Unmanaged.passUnretained(event)
     }
 

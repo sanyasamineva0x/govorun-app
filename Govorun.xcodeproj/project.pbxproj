@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -18,6 +18,7 @@
 		1E1FD6A2A99EFCB82A38BFB0 /* RecreateMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F67F121D59B2796FF982947 /* RecreateMonitorTests.swift */; };
 		1FDB718921A55566BB7BBDCD /* SystemSoundPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AFD05A1075389C37AF5300C /* SystemSoundPlayer.swift */; };
 		21012316C8692E8A451DD1F5 /* ModelManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2F6608A6960547A380E24C /* ModelManagerTests.swift */; };
+		2230B4B936B91F65AAD72B13 /* ToggleRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07315ED04AA583753A76F33A /* ToggleRecoveryTests.swift */; };
 		23D1C6303909695FC0D6B022 /* recording_finished.aiff in Resources */ = {isa = PBXBuildFile; fileRef = 150AF99CB7832D4F49B70FC1 /* recording_finished.aiff */; };
 		2501576E415EFEA5B9398464 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CEC58BDC2D109BD603B2B3 /* OnboardingView.swift */; };
 		2A9054F9749C9B7FC0DCE40C /* ASRWorkerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90438E642C9DB17B9E93C5E /* ASRWorkerManager.swift */; };
@@ -108,6 +109,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		07315ED04AA583753A76F33A /* ToggleRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleRecoveryTests.swift; sourceTree = "<group>"; };
 		0E92DD6DD2BE366471D422EE /* DictionaryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryStore.swift; sourceTree = "<group>"; };
 		0EA5982DCC8B312490AE5A2F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1158BAB69D8698008A75A59D /* HistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItem.swift; sourceTree = "<group>"; };
@@ -363,6 +365,7 @@
 				14EC150EF61D8B4224B7760B /* SnippetReinserterTests.swift */,
 				BBB2538D814837D958E44EEA /* TestHelpers.swift */,
 				2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */,
+				07315ED04AA583753A76F33A /* ToggleRecoveryTests.swift */,
 			);
 			path = GovorunTests;
 			sourceTree = "<group>";
@@ -533,6 +536,7 @@
 				67B89E95FEE2B417559E219B /* SnippetReinserterTests.swift in Sources */,
 				E4ED1EDB43963426C3D473DE /* TestHelpers.swift in Sources */,
 				97F580D6CA61AC67DA9BA975 /* TextInserterTests.swift in Sources */,
+				2230B4B936B91F65AAD72B13 /* ToggleRecoveryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -614,14 +618,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Govorun/Govorun.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Govorun/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.govorun.app;
 				PRODUCT_NAME = Govorun;
 				SDKROOT = macosx;
@@ -691,14 +695,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Govorun/Govorun.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Govorun/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.10;
+				MARKETING_VERSION = 0.1.11;
 				PRODUCT_BUNDLE_IDENTIFIER = com.govorun.app;
 				PRODUCT_NAME = Govorun;
 				SDKROOT = macosx;
