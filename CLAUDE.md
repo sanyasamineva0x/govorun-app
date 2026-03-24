@@ -235,7 +235,7 @@ Govorun/
 │   ├── LocalSTTClient.swift       # 300s fixed timeout, precondition, setsockopt check
 │   ├── ModelManager.swift
 │   ├── STTClient.swift
-│   ├── LLMClient.swift            # PlaceholderLLMClient (Phase 5)
+│   ├── LLMClient.swift            # PlaceholderLLMClient → GigaChat 3.1 Lightning (Phase 5)
 │   ├── UpdaterService.swift       # Sparkle 2, UpdateChecking protocol, @MainActor
 │   └── AnalyticsService.swift
 ├── Models/
@@ -312,12 +312,19 @@ brew install --cask govorun
 
 ## Модели
 
-| Модель | Размер | RAM | Назначение |
-|--------|--------|-----|------------|
-| GigaAM-v3 e2e_rnnt (3 ONNX) | ~892 MB | ~1.5 GB | ASR |
-| Silero VAD (ONNX) | ~2 MB | ~50 MB | Нарезка аудио |
+| Модель | Размер | RAM | Назначение | Статус |
+|--------|--------|-----|------------|--------|
+| GigaAM-v3 e2e_rnnt (3 ONNX, fp32) | ~892 MB | ~1.5 GB | ASR | Используется |
+| Silero VAD (ONNX) | ~2 MB | ~50 MB | Нарезка аудио | Используется |
+| GigaChat 3.1 Lightning (GGUF Q4_K_M) | ~TBD | ~TBD | Нормализация текста (Phase 5) | Планируется |
 
-Кэш: `~/.cache/huggingface/hub/`
+ASR кэш: `~/.cache/huggingface/hub/`
+
+### Phase 5: LLM нормализация
+
+Текущий `PlaceholderLLMClient` будет заменён на локальный инференс GigaChat 3.1 Lightning (GGUF Q4_K_M).
+Задача: умная нормализация после ASR — пунктуация, стиль, контекстные замены.
+Инференс полностью офлайн, без API. Runtime: llama.cpp или MLX.
 
 ## Известные особенности
 
