@@ -203,6 +203,13 @@ def main():
         except socket.timeout:
             # Клиент завис — не отправил данные в течение CONNECTION_TIMEOUT
             print("WARNING: connection timeout, dropping client", file=sys.stderr, flush=True)
+            try:
+                conn.sendall(json.dumps({
+                    "error": "internal",
+                    "message": f"Connection timeout: client did not send data within {CONNECTION_TIMEOUT}s"
+                }).encode())
+            except Exception:
+                pass
         except MemoryError:
             try:
                 conn.sendall(json.dumps({

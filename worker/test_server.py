@@ -149,6 +149,7 @@ def worker_server(request):
             except OSError:
                 break
             try:
+                conn.settimeout(2.0)  # короткий timeout для тестов
                 # recv-loop до EOF (клиент делает shutdown SHUT_WR)
                 chunks = []
                 while True:
@@ -185,6 +186,14 @@ def worker_server(request):
                 text = " ".join(seg.text for seg in segments if seg.text).strip()
                 conn.sendall(json.dumps({"text": text}).encode())
 
+            except socket.timeout:
+                try:
+                    conn.sendall(json.dumps({
+                        "error": "internal",
+                        "message": "Connection timeout"
+                    }).encode())
+                except Exception:
+                    pass
             except MemoryError:
                 try:
                     conn.sendall(json.dumps({
@@ -516,17 +525,16 @@ def test_text_with_punctuation(worker_server):
 # --- Тесты: timeout / hanging client ---
 
 def test_hanging_client_does_not_block_worker(worker_server):
-    """Зависший клиент (connect без данных и без shutdown) не блокирует worker навсегда.
+    """Зависший клиент (connect без данных и без shutdown) дропается по timeout.
 
-    Worker fixture использует sock.settimeout(1.0) на accept, но в реальном server.py
-    conn.settimeout(CONNECTION_TIMEOUT) защищает от зависших клиентов.
-    Здесь проверяем что после зависшего клиента worker продолжает работать.
+    Fixture conn.settimeout(2.0) — держим connection 3s чтобы сработал timeout path.
+    После timeout worker продолжает принимать запросы.
     """
     # Клиент подключается, но не отправляет данные и не делает shutdown
     hanging = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     hanging.connect(SOCKET_PATH)
-    # Ждём чтобы worker обработал (в fixture timeout на recv = нет, но данные пустые)
-    time.sleep(0.3)
+    # Ждём дольше fixture timeout (2s) чтобы сработал timeout path
+    time.sleep(3.0)
     hanging.close()
 
     # Worker должен остаться живым
@@ -535,12 +543,13 @@ def test_hanging_client_does_not_block_worker(worker_server):
 
 
 def test_incomplete_data_does_not_crash_worker(worker_server):
-    """Неполные данные (без shutdown SHUT_WR) — worker не падает после таймаута."""
+    """Неполные данные (без shutdown SHUT_WR) — worker дропает по timeout."""
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.settimeout(2.0)
+    sock.settimeout(5.0)
     sock.connect(SOCKET_PATH)
     sock.sendall(b'{"wav_path": "/tmp')  # неполный JSON, без shutdown
-    time.sleep(0.3)
+    # Ждём дольше fixture timeout (2s)
+    time.sleep(3.0)
     sock.close()
 
     # Worker жив

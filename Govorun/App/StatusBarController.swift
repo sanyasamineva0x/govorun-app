@@ -135,7 +135,7 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let state = appState.sessionManager.state
+        let state = appState.sessionState
         if case .idle = state {
             let key = appState.settings.activationKey.displayName
             statusMenuItem?.title = appState.settings.recordingMode.hint(key: key)

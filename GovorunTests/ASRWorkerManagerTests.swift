@@ -520,20 +520,28 @@ final class ASRWorkerManagerTests: XCTestCase {
         XCTAssertNotEqual(id1, id2, "stop() должен инвалидировать attemptId")
     }
 
-    func test_staleTimeout_doesNotOverwriteReady() {
-        // Симулируем race: старый таймаут пытается перезаписать .ready
-        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
-        let staleAttemptId = manager.launchAttemptId
+    func test_staleTimeout_guard_prevents_state_overwrite() {
+        // Симулируем guard логику из timeout closure в launchWorker()
+        let manager = ASRWorkerManager(
+            workerDirectory: "/tmp/test",
+            socketPath: "/tmp/test.sock",
+            venvPath: "/tmp/venv"
+        )
+        let staleId = manager.launchAttemptId
 
         // Worker успешно стартовал → новая попытка
         manager.resetForStart()
         manager.setState(.ready)
 
-        // Старый таймаут стреляет — но attemptId не совпадает
-        // (в реальном коде DispatchWorkItem проверяет attemptId перед setState)
-        let currentAttemptId = manager.launchAttemptId
-        XCTAssertNotEqual(staleAttemptId, currentAttemptId)
-        XCTAssertEqual(manager.state, .ready, ".ready не должен быть перезаписан старым таймаутом")
+        // Симулируем что делает timeout closure:
+        // guard self.launchAttemptId == attemptId else { return }
+        if manager.launchAttemptId == staleId {
+            manager.markStoppedManually()
+            manager.setState(.error("Stale timeout"))
+        }
+
+        // Guard предотвратил — state остался .ready
+        XCTAssertEqual(manager.state, .ready)
     }
 
     func test_handleTermination_afterStop_doesNotRestart() {

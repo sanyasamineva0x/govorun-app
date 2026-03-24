@@ -288,15 +288,17 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             let override = _launchWorkerOverride
             lock.unlock()
 
-            print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
-
             if let override {
+                print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
                 override()
             } else {
                 Task { [weak self] in
                     guard let self else { return }
-                    // Проверяем что attempt не был инвалидирован (stop/resetForStart)
-                    guard self.launchAttemptId == attemptId else { return }
+                    guard self.launchAttemptId == attemptId else {
+                        print("[Worker] Перезапуск пропущен: attempt инвалидирован")
+                        return
+                    }
+                    print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
                     do {
                         try await self.launchWorker()
                     } catch {
@@ -364,10 +366,14 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
 
             process.terminationHandler = { [weak self] proc in
                 pipe.fileHandleForReading.readabilityHandler = nil
+                guard let self else {
+                    resumeOnce(with: .failure(WorkerError.setupFailed("Manager deallocated")))
+                    return
+                }
                 // Очистить ссылку на setup process
-                self?.lock.lock()
-                if self?._setupProcess === proc { self?._setupProcess = nil }
-                self?.lock.unlock()
+                self.lock.lock()
+                if self._setupProcess === proc { self._setupProcess = nil }
+                self.lock.unlock()
 
                 if proc.terminationStatus == 0 {
                     resumeOnce(with: .success(()))
@@ -383,9 +389,11 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             do {
                 try process.run()
             } catch {
-                self?.lock.lock()
-                self?._setupProcess = nil
-                self?.lock.unlock()
+                if let self {
+                    self.lock.lock()
+                    self._setupProcess = nil
+                    self.lock.unlock()
+                }
                 pipe.fileHandleForReading.readabilityHandler = nil
                 resumeOnce(with: .failure(WorkerError.setupFailed(
                     "Не удалось запустить setup.sh: \(error.localizedDescription)"
