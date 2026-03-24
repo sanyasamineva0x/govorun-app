@@ -96,8 +96,8 @@ jobs:
           xcodebuild test \
             -scheme Govorun \
             -destination 'platform=macOS' \
-            2>&1 | tee build/test.log
-          grep 'Executed' build/test.log
+            2>&1 | tee /tmp/test.log
+          grep 'Executed' /tmp/test.log
 
       # ── 11. Build unsigned DMG ──────────────────────────────────
       - name: Build unsigned DMG
