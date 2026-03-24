@@ -511,3 +511,38 @@ def test_text_with_punctuation(worker_server):
         assert resp["text"] == "Здравствуйте, как дела? Всё хорошо!"
     finally:
         os.unlink(wav)
+
+
+# --- Тесты: timeout / hanging client ---
+
+def test_hanging_client_does_not_block_worker(worker_server):
+    """Зависший клиент (connect без данных и без shutdown) не блокирует worker навсегда.
+
+    Worker fixture использует sock.settimeout(1.0) на accept, но в реальном server.py
+    conn.settimeout(CONNECTION_TIMEOUT) защищает от зависших клиентов.
+    Здесь проверяем что после зависшего клиента worker продолжает работать.
+    """
+    # Клиент подключается, но не отправляет данные и не делает shutdown
+    hanging = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    hanging.connect(SOCKET_PATH)
+    # Ждём чтобы worker обработал (в fixture timeout на recv = нет, но данные пустые)
+    time.sleep(0.3)
+    hanging.close()
+
+    # Worker должен остаться живым
+    resp = send_request({"cmd": "ping"})
+    assert resp["status"] == "ok"
+
+
+def test_incomplete_data_does_not_crash_worker(worker_server):
+    """Неполные данные (без shutdown SHUT_WR) — worker не падает после таймаута."""
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(2.0)
+    sock.connect(SOCKET_PATH)
+    sock.sendall(b'{"wav_path": "/tmp')  # неполный JSON, без shutdown
+    time.sleep(0.3)
+    sock.close()
+
+    # Worker жив
+    resp = send_request({"cmd": "ping"})
+    assert resp["status"] == "ok"

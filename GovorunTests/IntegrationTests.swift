@@ -63,10 +63,15 @@ private func makeTestAppState(
         sttClient: stt,
         llmClient: llm
     )
+
     let inserter = TextInserterEngine(
         accessibility: accessibility,
         clipboard: clipboard
     )
+
+    // Изолированный SettingsStore — тесты не зависят от UserDefaults.standard
+    let testDefaults = UserDefaults(suiteName: "com.govorun.integration-test.\(UUID().uuidString)")!
+    let settings = SettingsStore(defaults: testDefaults)
 
     let appState = AppState(
         activationKeyMonitor: ActivationKeyMonitor(
@@ -79,7 +84,8 @@ private func makeTestAppState(
         textInserter: inserter,
         bottomBar: BottomBarController(),
         audioCapture: AudioCapture(),
-        modelContainer: modelContainer
+        modelContainer: modelContainer,
+        settings: settings
     )
 
     return (appState, mockAudio, eventMonitor)
