@@ -13,7 +13,7 @@ macOS menu bar приложение для голосового ввода на 
 - Silero VAD (нарезка длинного аудио)
 - Sparkle 2 (автообновление с EdDSA подписью)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (761 тестов)
+- XCTest (799 тестов)
 
 ## Сборка и запуск тестовой версии
 
@@ -156,17 +156,36 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 
 ## Релиз-процесс
 
-При каждом новом релизе:
+**Автоматический (CI):**
 
 1. Bump `MARKETING_VERSION` и `CURRENT_PROJECT_VERSION` в `project.yml`
-2. `xcodegen generate` (objectVersion теперь 77, Xcode 26 native)
+2. Коммит + push
+3. `git tag v0.X.Y && git push --tags`
+4. GitHub Actions (`release.yml`) делает всё остальное:
+   - xcodegen → тесты → build DMG → sign Sparkle EdDSA → GitHub Release → appcast.xml → Homebrew Cask
+
+Соглашение: `CURRENT_PROJECT_VERSION` = последний сегмент semver (patch). Для `v0.1.11` → 11.
+
+**Secrets (GitHub repo Settings → Secrets):**
+
+| Secret | Что |
+|--------|-----|
+| `SPARKLE_PRIVATE_KEY` | EdDSA key из Keychain (`security find-generic-password -s "https://sparkle-project.org" -w`), base64-encoded |
+| `RELEASE_PAT` | Fine-grained PAT (contents:write на govorun-app) — авторство релизов от sanyasamineva0x |
+| `HOMEBREW_APP_ID` | GitHub App ID (3173509) |
+| `HOMEBREW_APP_PRIVATE_KEY` | GitHub App PEM key |
+
+**GitHub App "Govorun-app"** установлен на `homebrew-govorun` + `govorun-app`.
+
+**Ручной (локальный) — если CI недоступен:**
+
+1. Bump `project.yml`
+2. `xcodegen generate`
 3. `bash scripts/build-unsigned-dmg.sh`
-4. Подписать DMG: `sign_update build/Govorun.dmg` (Sparkle EdDSA)
+4. `sign_update build/Govorun.dmg` (Sparkle EdDSA)
 5. `gh release create vX.Y.Z build/Govorun.dmg`
-6. Добавить `<item>` в `appcast.xml` с edSignature и length из п.4 (новый item сверху)
-7. Коммит + push (appcast.xml + project.yml + pbxproj)
-8. Обновить Cask: version + sha256 в `homebrew-govorun/Casks/govorun.rb`, коммит + push
-9. `brew update` — проверить что `brew info --cask govorun` показывает новую версию
+6. Добавить `<item>` в `appcast.xml`, коммит + push
+7. Обновить `homebrew-govorun/Casks/govorun.rb`, коммит + push
 
 `sign_update` находится в DerivedData:
 ```bash
