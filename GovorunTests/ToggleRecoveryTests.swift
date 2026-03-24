@@ -805,3 +805,117 @@ final class ToggleModifierOtherKeysTests: XCTestCase {
         XCTAssertTrue(cancelled, "PTT: ⌥+клавиша до активации = cancel")
     }
 }
+
+// MARK: - Fix 6: startRecording error recovery
+
+@MainActor
+final class StartRecordingErrorRecoveryTests: XCTestCase {
+
+    func test_toggle_startRecording_error_then_reactivate() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.startError = AudioCaptureError.microphoneNotAvailable
+
+        let (appState, _, _) = makeToggleAppState(mockAudio: mockAudio)
+
+        // Активация — startRecording бросит ошибку
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        // Session в error (startRecording failed)
+        if case .error = appState.sessionManager.state {
+            // OK
+        } else {
+            XCTFail("Ожидался .error, получено \(appState.sessionManager.state)")
+        }
+
+        // Ждём auto-dismiss error
+        try await Task.sleep(nanoseconds: 3_500_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .idle)
+
+        // "Чиним" audio
+        mockAudio.startError = nil
+
+        // Повторная активация — должна работать
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .recording,
+            "После починки audio повторная активация должна работать")
+    }
+}
+
+// MARK: - Fix 7: resetTapState вызывается через mock
+
+@MainActor
+final class ResetTapStateTests: XCTestCase {
+
+    func test_resetState_calls_resetTapState_on_eventMonitor() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            recordingMode: .toggle,
+            eventMonitor: mock
+        )
+
+        XCTAssertEqual(mock.resetTapStateCallCount, 0)
+        sut.resetState()
+        XCTAssertEqual(mock.resetTapStateCallCount, 1,
+            "resetState() должен вызывать resetTapState() на eventMonitor")
+    }
+
+    func test_stopMonitoring_calls_resetTapState() {
+        let mock = MockEventMonitoring()
+        let sut = ActivationKeyMonitor(
+            activationKey: .modifier(.maskAlternate),
+            eventMonitor: mock
+        )
+        sut.startMonitoring()
+
+        XCTAssertEqual(mock.resetTapStateCallCount, 0)
+        sut.stopMonitoring()
+        XCTAssertEqual(mock.resetTapStateCallCount, 1)
+    }
+
+    func test_handleCancelled_resets_tap_state() async throws {
+        let eventMonitor = MockEventMonitoring()
+        let (appState, _, _) = makeToggleAppState(eventMonitor: eventMonitor)
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        let before = eventMonitor.resetTapStateCallCount
+        appState.activationKeyMonitor.onCancelled?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertGreaterThan(eventMonitor.resetTapStateCallCount, before,
+            "handleCancelled должен сбрасывать tap state")
+    }
+}
+
+// MARK: - Fix 3: Cancellable error dismiss
+
+@MainActor
+final class CancellableErrorDismissTests: XCTestCase {
+
+    func test_second_error_gets_full_3_seconds() async throws {
+        let (appState, _, _) = makeToggleAppState()
+
+        // Первый error
+        appState.sessionManager.handleActivated()
+        appState.sessionManager.handleError("ошибка 1")
+
+        // Через 2 секунды — второй error
+        try await Task.sleep(nanoseconds: 2_000_000_000)
+        appState.sessionManager.handleErrorDismissed()
+        appState.sessionManager.handleActivated()
+        appState.sessionManager.handleError("ошибка 2")
+
+        // Через 2 секунды после второго error — ещё не dismiss
+        try await Task.sleep(nanoseconds: 2_000_000_000)
+        XCTAssertEqual(appState.sessionState, .error("ошибка 2"),
+            "Второй error не должен быть dismiss'нут преждевременно")
+
+        // Через ещё 1.5s — dismiss
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .idle)
+    }
+}

@@ -72,8 +72,11 @@ final class AppState: ObservableObject {
     private var escMonitors: [Any] = []
     private var snippetsObserver: NSObjectProtocol?
     private var sleepObserver: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
     /// Показывался ли хинт Accessibility в этой сессии (не спамим)
     private var accessibilityHintShown = false
+    /// Cancellable auto-dismiss error → idle
+    fileprivate var errorDismissTask: Task<Void, Never>?
 
     init(
         eventMonitor: EventMonitoring = NSEventMonitoring(),
@@ -263,6 +266,10 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
         }
         sleepObserver = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
+        wakeObserver = nil
         isReady = false
     }
 
@@ -486,10 +493,19 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                // Деактивировать запись при уходе в сон (оба режима)
-                if self.sessionManager.state == .recording {
+                let state = self.sessionManager.state
+                if state == .recording || state == .processing || state == .inserting {
                     self.handleCancelled()
                 }
+            }
+        }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.activationKeyMonitor.resetState()
             }
         }
     }
@@ -811,16 +827,21 @@ private final class SessionManagerBridge: SessionManagerDelegate {
                 appState?.startEscMonitor()
             }
         case .idle:
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = nil
             appState?.stopEscMonitor()
             appState?.applyPendingSettings()
         case .error:
             appState?.stopEscMonitor()
-            // Auto-dismiss error → idle после задержки, чтобы pending settings применились
-            // и следующая активация работала
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak appState] in
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = Task { @MainActor [weak appState] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
                 appState?.sessionManager.handleErrorDismissed()
             }
         default:
+            appState?.errorDismissTask?.cancel()
+            appState?.errorDismissTask = nil
             appState?.stopEscMonitor()
         }
     }

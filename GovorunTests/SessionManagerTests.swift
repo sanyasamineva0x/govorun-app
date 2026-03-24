@@ -10,6 +10,7 @@ final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
     private var keyDownHandlers: [(UInt16) -> Void] = []
     private var keyUpHandlers: [(UInt16) -> Void] = []
     private(set) var removeMonitorCallCount = 0
+    private(set) var resetTapStateCallCount = 0
     private var nextMonitorId = 0
 
     func addGlobalFlagsChanged(_ handler: @escaping (CGEventFlags) -> Void) -> Any? {
@@ -50,6 +51,10 @@ final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
 
     func removeMonitor(_ monitor: Any) {
         removeMonitorCallCount += 1
+    }
+
+    func resetTapState() {
+        resetTapStateCallCount += 1
     }
 
     // Симуляция событий
