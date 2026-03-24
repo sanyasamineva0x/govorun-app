@@ -519,10 +519,13 @@ final class AppState: ObservableObject {
     // MARK: - Handlers
 
     private func handleActivated() {
-        // Новая диктовка → предыдущий post-insertion монитор отменяется
+        guard sessionManager.state == .idle else {
+            activationKeyMonitor.resetState()
+            return
+        }
+
         postInsertionMonitor.stopMonitoring()
 
-        // Блокировка записи пока worker не готов
         guard workerState == .ready else {
             activationKeyMonitor.resetState()
             switch workerState {

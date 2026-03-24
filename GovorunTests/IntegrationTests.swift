@@ -161,7 +161,39 @@ final class IntegrationTests: XCTestCase {
         XCTAssertNil(appState.lastResult)
     }
 
-    // MARK: - 3. Cancel во время обработки (LLM)
+    // MARK: - 3. Спам хоткея: повторная активация во время processing
+
+    func test_reactivation_during_processing_ignored() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = Data([0x01])
+
+        let controlledSTT = ControlledSTTClient()
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: controlledSTT
+        )
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .recording)
+
+        appState.activationKeyMonitor.onDeactivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(appState.sessionManager.state, .processing)
+
+        // Спам: повторная активация во время processing
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        // Должен остаться в processing, не крашить на alreadyRecording
+        XCTAssertEqual(appState.sessionManager.state, .processing)
+
+        controlledSTT.complete(with: STTResult(text: "test"))
+        try await Task.sleep(nanoseconds: 800_000_000)
+    }
+
+    // MARK: - 4. Cancel во время обработки (LLM)
 
     func test_cancel_during_processing() async throws {
         let mockAudio = MockAudioRecording()
