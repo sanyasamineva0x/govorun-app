@@ -128,7 +128,13 @@ final class TextInserterEngine: TextInserting, @unchecked Sendable {
 
         let start = utf16.index(utf16.startIndex, offsetBy: safeLocation)
         let end = utf16.index(utf16.startIndex, offsetBy: safeEnd)
-        return String(current[..<start]) + text + String(current[end...])
+
+        guard let startIdx = start.samePosition(in: current),
+              let endIdx = end.samePosition(in: current)
+        else {
+            return current + text
+        }
+        return String(current[..<startIdx]) + text + String(current[endIdx...])
     }
 
     private func insertViaClipboard(_ text: String) async throws {

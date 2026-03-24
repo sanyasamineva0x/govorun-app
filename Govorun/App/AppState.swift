@@ -631,6 +631,7 @@ final class AppState: ObservableObject {
                     AnalyticsMetadataKey.appBundleId: appBundleId ?? "",
                 ])
 
+                try Task.checkCancellation()
                 let insertionStart = CFAbsoluteTimeGetCurrent()
                 try await textInserter.insert(result.normalizedText)
                 let insertionMs = Int((CFAbsoluteTimeGetCurrent() - insertionStart) * 1_000)

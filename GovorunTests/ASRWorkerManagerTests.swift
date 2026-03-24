@@ -623,6 +623,21 @@ final class ASRWorkerManagerTests: XCTestCase {
         XCTAssertEqual(manager.state, .downloadingModel(progress: 75))
     }
 
+    // MARK: - Невалидный UTF-8 в stdout
+
+    func test_handleStdoutData_invalidUTF8_doesNotCrash() {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        manager.resetForStart()
+
+        // Байты не-UTF-8 (без newline — остаются в буфере)
+        manager.handleStdoutData(Data([0xff, 0xfe]))
+        XCTAssertEqual(manager.state, .notStarted, "Невалидный UTF-8 не должен менять состояние")
+
+        // Newline flush'ит мусорную строку, затем валидная строка
+        manager.handleStdoutData(Data("\nREADY\n".utf8))
+        XCTAssertEqual(manager.state, .ready)
+    }
+
     // MARK: - WorkerError
 
     func test_workerError_equatable() {

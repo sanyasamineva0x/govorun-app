@@ -539,7 +539,26 @@ final class ComposeTests: XCTestCase {
             clipboard: MockClipboard()
         )
         let result = sut.compose("hello", inserting: "world", at: -1, length: 0)
-        XCTAssertFalse(result.isEmpty, "Negative location должен обрабатываться без crash")
+        XCTAssertEqual(result, "helloworld")
+    }
+
+    func test_compose_negativeLength_safe() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        let result = sut.compose("hello", inserting: "world", at: 3, length: -1)
+        XCTAssertEqual(result, "helloworld")
+    }
+
+    func test_compose_surrogatePairBoundary_safe() {
+        let sut = TextInserterEngine(
+            accessibility: MockAccessibility(),
+            clipboard: MockClipboard()
+        )
+        // 👋 = UTF-16 offsets 7-8; offset 8 = внутри суррогатной пары
+        let result = sut.compose("Привет 👋 мир", inserting: "!", at: 8, length: 0)
+        XCTAssertFalse(result.isEmpty, "Offset внутри суррогатной пары не должен крашить")
     }
 
     func test_compose_out_of_bounds_clamped() {

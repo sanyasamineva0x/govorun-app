@@ -189,7 +189,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     func stop() {
         lock.lock()
         _isStoppedManually = true
-        _launchAttemptId = UUID()
+        _launchAttemptId = UUID() // инвалидировать pending таймауты/callbacks
         _stdoutBuffer = ""
         let process = _process
         _process = nil
@@ -284,7 +284,14 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         onLine: ((_ line: String) -> Void)? = nil,
         onReady: (() -> Void)? = nil
     ) {
-        guard let chunk = String(data: data, encoding: .utf8) else { return }
+        let chunk: String
+        if let utf8 = String(data: data, encoding: .utf8) {
+            chunk = utf8
+        } else {
+            // Lossy decode: протокольные слова (READY, LOADING) — чистый ASCII
+            print("[Worker] stdout: не UTF-8 (\(data.count) bytes)")
+            chunk = String(decoding: data, as: UTF8.self)
+        }
 
         lock.lock()
         _stdoutBuffer.append(chunk)
@@ -308,6 +315,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         let wasManual = _isStoppedManually
         let count = _restartCount
         _launchAttemptId = UUID()
+        _stdoutBuffer = ""
         let attemptId = _launchAttemptId
         lock.unlock()
 
@@ -565,6 +573,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 continuation.resume(with: result)
             }
 
+            // Adaptive timeout: детектирует зависания (N секунд без активности), а не медленность
             let timeoutLock = NSLock()
             var currentTimeoutWork: DispatchWorkItem?
 
@@ -590,7 +599,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 timeoutLock.unlock()
             }
 
-            // Завершение процесса: resume continuation + автоперезапуск
+            // Завершение процесса: resume continuation, handleTermination решает нужен ли перезапуск
             process.terminationHandler = { [weak self] proc in
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
@@ -619,8 +628,8 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
 
             stderrPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
-                guard !data.isEmpty,
-                      let output = String(data: data, encoding: .utf8) else { return }
+                guard !data.isEmpty else { return }
+                let output = String(decoding: data, as: UTF8.self)
                 print("[Worker stderr] \(output)", terminator: "")
             }
 
@@ -635,6 +644,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 return
             }
 
+            // 30с: модель в кэше; stdout при активности перезапускает таймаут
             scheduleTimeout(30)
         }
     }
