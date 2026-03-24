@@ -505,7 +505,12 @@ final class AppState: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.activationKeyMonitor.resetState()
+                guard let self else { return }
+                let state = self.sessionManager.state
+                if state == .recording || state == .processing || state == .inserting {
+                    self.handleCancelled()
+                }
+                self.activationKeyMonitor.resetState()
             }
         }
     }
