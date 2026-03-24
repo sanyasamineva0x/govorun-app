@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class SettingsStoreTests: XCTestCase {
-
     private var defaults: UserDefaults!
     private var store: SettingsStore!
 
@@ -54,11 +53,11 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertFalse(store.soundEnabled)
     }
 
-    // launchAtLogin управляется через SMAppService — не тестируем set
-    // (вызывает реальный системный register/unregister)
+    /// launchAtLogin управляется через SMAppService — не тестируем set
+    /// (вызывает реальный системный register/unregister)
     func test_launch_at_login_reads_without_crash() {
         // Только проверяем что getter не крашится
-        let _ = store.launchAtLogin
+        _ = store.launchAtLogin
     }
 
     // MARK: - 3. Валидация TextMode

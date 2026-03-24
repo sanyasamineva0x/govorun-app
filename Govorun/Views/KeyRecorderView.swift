@@ -1,11 +1,10 @@
-import SwiftUI
-import CoreGraphics
 import AppKit
+import CoreGraphics
+import SwiftUI
 
 // MARK: - Логика записи клавиши (чистая, без UI)
 
 enum KeyRecorderLogic {
-
     // MARK: - FlagsResult
 
     /// Результат обработки события изменения модификаторов
@@ -55,7 +54,7 @@ enum KeyRecorderLogic {
             return .cancel
         }
         let meaningful = currentFlags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
-        if hasPendingModifier && !meaningful.isEmpty {
+        if hasPendingModifier, !meaningful.isEmpty {
             return .combo(modifiers: meaningful, keyCode: keyCode)
         }
         return .keyCode(keyCode)
@@ -66,7 +65,6 @@ enum KeyRecorderLogic {
 
 /// Карточка настроек, которая позволяет пользователю записать новую клавишу активации
 struct KeyRecorderView: View {
-
     @ObservedObject var store: SettingsStore
 
     @State private var isRecording = false

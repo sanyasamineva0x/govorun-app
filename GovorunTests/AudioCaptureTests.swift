@@ -1,6 +1,6 @@
-import XCTest
 import AVFoundation
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок AudioCapture для юнит-тестов
 
@@ -17,12 +17,18 @@ final class MockAudioCapture: AudioRecording {
     var startError: AudioCaptureError?
     var simulatedBufferData: Data?
 
-    var isRecording: Bool { _isRecording }
+    var isRecording: Bool {
+        _isRecording
+    }
+
     var duration: TimeInterval {
         guard let start = recordingStartTime else { return _duration }
         return Date().timeIntervalSince(start)
     }
-    var currentLevel: Float { _currentLevel }
+
+    var currentLevel: Float {
+        _currentLevel
+    }
 
     func startRecording() throws {
         if let error = startError {
@@ -81,7 +87,6 @@ final class MockAudioCaptureDelegate: AudioCaptureDelegate {
 // MARK: - Тесты
 
 final class AudioCaptureTests: XCTestCase {
-
     // MARK: - 1. Формат 16kHz mono
 
     func test_audio_format_16khz_mono() {
@@ -114,7 +119,7 @@ final class AudioCaptureTests: XCTestCase {
 
     func test_stop_returns_full_buffer() throws {
         let capture = MockAudioCapture()
-        let testData = Data(repeating: 0xAB, count: 1600)
+        let testData = Data(repeating: 0xab, count: 1_600)
         capture.simulatedBufferData = testData
 
         try capture.startRecording()
@@ -122,7 +127,7 @@ final class AudioCaptureTests: XCTestCase {
 
         let result = capture.stopRecording()
         XCTAssertFalse(capture.isRecording)
-        XCTAssertEqual(result.count, 1600)
+        XCTAssertEqual(result.count, 1_600)
         XCTAssertEqual(result, testData)
     }
 
@@ -174,13 +179,13 @@ final class AudioCaptureTests: XCTestCase {
 
     // MARK: - Доп: RMS level вычисляется корректно
 
-    func test_rms_level_normalization() {
+    func test_rms_level_normalization() throws {
         // Тишина → уровень ~0
-        let silentFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
-        let silentBuffer = AVAudioPCMBuffer(pcmFormat: silentFormat, frameCapacity: 100)!
+        let silentFormat = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
+        let silentBuffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: silentFormat, frameCapacity: 100))
         silentBuffer.frameLength = 100
         // Заполняем нулями (тишина)
-        memset(silentBuffer.floatChannelData!.pointee, 0, Int(silentBuffer.frameLength) * MemoryLayout<Float>.size)
+        try memset(XCTUnwrap(silentBuffer.floatChannelData?.pointee), 0, Int(silentBuffer.frameLength) * MemoryLayout<Float>.size)
 
         let silentLevel = silentBuffer.rmsLevel()
         XCTAssertEqual(silentLevel, 0, accuracy: 0.01)
@@ -198,9 +203,9 @@ final class AudioCaptureTests: XCTestCase {
         XCTAssertTrue(format === AudioCapture.outputFormat)
     }
 
-    func test_toData_emptyBuffer_returnsEmptyData() {
-        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 0)!
+    func test_toData_emptyBuffer_returnsEmptyData() throws {
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 0))
         buffer.frameLength = 0
         let data = buffer.toData()
         XCTAssertTrue(data.isEmpty)

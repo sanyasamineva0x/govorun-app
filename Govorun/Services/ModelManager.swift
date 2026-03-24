@@ -19,7 +19,6 @@ enum ModelDownloadState: Equatable {
 /// Кэш: ~/.cache/huggingface/hub/models--istupakov--gigaam-v3-onnx/
 @MainActor
 final class ModelManager: ObservableObject {
-
     @Published private(set) var downloadState: ModelDownloadState = .idle
     @Published private(set) var modelSizeBytes: Int64 = 0
 
@@ -77,7 +76,8 @@ final class ModelManager: ObservableObject {
             let filePath = (snapshotPath as NSString).appendingPathComponent(file)
             guard let attrs = try? fileManager.attributesOfItem(atPath: filePath),
                   let size = attrs[.size] as? Int64,
-                  size > 0 else {
+                  size > 0
+            else {
                 downloadState = .notDownloaded
                 modelSizeBytes = 0
                 return

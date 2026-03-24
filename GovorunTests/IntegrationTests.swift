@@ -1,6 +1,6 @@
+@testable import Govorun
 import SwiftData
 import XCTest
-@testable import Govorun
 
 // MARK: - Controlled STT Mock (ждёт resume для ответа)
 
@@ -45,7 +45,6 @@ private func makeTestAppState(
     modelContainer: ModelContainer? = nil,
     recordingMode: RecordingMode = .pushToTalk
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
-
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
         let m = MockSTTClient()
@@ -95,7 +94,6 @@ private func makeTestAppState(
 
 @MainActor
 final class IntegrationTests: XCTestCase {
-
     // MARK: - 1. Полный pipeline: hotkey → STT → LLM → insert
 
     func test_full_pipeline_mock() async throws {
@@ -143,7 +141,7 @@ final class IntegrationTests: XCTestCase {
 
     // MARK: - 2. Cancel во время записи
 
-    func test_cancel_during_recording() async throws {
+    func test_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
         let (appState, _, _) = makeTestAppState(mockAudio: mockAudio)
@@ -302,7 +300,7 @@ final class IntegrationTests: XCTestCase {
 
     // MARK: - 7. Start/stop lifecycle
 
-    func test_start_stop_lifecycle() async throws {
+    func test_start_stop_lifecycle() {
         let (appState, _, _) = makeTestAppState()
 
         XCTAssertFalse(appState.isReady)
@@ -395,7 +393,7 @@ final class IntegrationTests: XCTestCase {
 
     // MARK: - 10. Toggle mode: cancel через onCancelled
 
-    func test_toggle_cancel_during_recording() async throws {
+    func test_toggle_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
         let (appState, _, _) = makeTestAppState(
@@ -421,7 +419,6 @@ final class IntegrationTests: XCTestCase {
 
 @MainActor
 final class DictionaryWiringTests: XCTestCase {
-
     func test_dictionary_is_wired_into_runtime_pipeline() async throws {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
@@ -475,7 +472,6 @@ final class DictionaryWiringTests: XCTestCase {
 
 @MainActor
 final class StatusBarControllerTests: XCTestCase {
-
     func test_status_bar_creates_with_app_state() throws {
         let (appState, _, _) = makeTestAppState()
         let config = ModelConfiguration(isStoredInMemoryOnly: true)

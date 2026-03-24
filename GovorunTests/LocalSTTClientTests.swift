@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class LocalSTTClientTests: XCTestCase {
-
     // MARK: - parseResponse: успех
 
     func test_parseResponse_validText() throws {
@@ -31,7 +30,7 @@ final class LocalSTTClientTests: XCTestCase {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
             "error": "oom",
-            "message": "Недостаточно памяти"
+            "message": "Недостаточно памяти",
         ])) { error in
             guard let sttError = error as? STTError else {
                 return XCTFail("Ожидался STTError, получен \(error)")
@@ -48,10 +47,11 @@ final class LocalSTTClientTests: XCTestCase {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
             "error": "file_not_found",
-            "message": "Файл не найден: /tmp/govorun_xxx.wav"
+            "message": "Файл не найден: /tmp/govorun_xxx.wav",
         ])) { error in
             guard let sttError = error as? STTError,
-                  case .recognitionFailed(let msg) = sttError else {
+                  case .recognitionFailed(let msg) = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
             XCTAssertEqual(msg, "WAV файл не найден")
@@ -62,10 +62,11 @@ final class LocalSTTClientTests: XCTestCase {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
             "error": "internal",
-            "message": "сегмент повреждён"
+            "message": "сегмент повреждён",
         ])) { error in
             guard let sttError = error as? STTError,
-                  case .recognitionFailed(let msg) = sttError else {
+                  case .recognitionFailed(let msg) = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
             XCTAssertEqual(msg, "сегмент повреждён")
@@ -76,10 +77,11 @@ final class LocalSTTClientTests: XCTestCase {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
             "error": "custom_error",
-            "message": "что-то пошло не так"
+            "message": "что-то пошло не так",
         ])) { error in
             guard let sttError = error as? STTError,
-                  case .recognitionFailed(let msg) = sttError else {
+                  case .recognitionFailed(let msg) = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
             XCTAssertEqual(msg, "что-то пошло не так")
@@ -89,11 +91,12 @@ final class LocalSTTClientTests: XCTestCase {
     func test_parseResponse_errorWithoutMessage() {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
-            "error": "oom"
+            "error": "oom",
         ])) { error in
             // Должен использовать тип ошибки как fallback message
             guard let sttError = error as? STTError,
-                  case .recognitionFailed = sttError else {
+                  case .recognitionFailed = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
         }
@@ -102,10 +105,11 @@ final class LocalSTTClientTests: XCTestCase {
     func test_parseResponse_missingText() {
         let client = LocalSTTClient(socketPath: "/tmp/test.sock")
         XCTAssertThrowsError(try client.parseResponse([
-            "foo": "bar"
+            "foo": "bar",
         ])) { error in
             guard let sttError = error as? STTError,
-                  case .recognitionFailed(let msg) = sttError else {
+                  case .recognitionFailed(let msg) = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
             XCTAssertTrue(msg.contains("text"), "Сообщение: \(msg)")
@@ -189,7 +193,9 @@ final class LocalSTTClientTests: XCTestCase {
         let pathBytes = socketPath.utf8CString
         withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
             ptr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
-                for (i, byte) in pathBytes.enumerated() { dest[i] = byte }
+                for (i, byte) in pathBytes.enumerated() {
+                    dest[i] = byte
+                }
             }
         }
         let bindResult = withUnsafePointer(to: &addr) { ptr in
@@ -206,7 +212,7 @@ final class LocalSTTClientTests: XCTestCase {
             serverReady.signal()
             let clientFD = Darwin.accept(serverFD, nil, nil)
             guard clientFD >= 0 else { return }
-            var buf = [UInt8](repeating: 0, count: 4096)
+            var buf = [UInt8](repeating: 0, count: 4_096)
             _ = Darwin.recv(clientFD, &buf, buf.count, 0)
             _ = responseJSON.withCString { ptr in
                 Darwin.send(clientFD, ptr, strlen(ptr), 0)
@@ -218,7 +224,7 @@ final class LocalSTTClientTests: XCTestCase {
     }
 
     func test_sendRequest_realSocket_ping() async throws {
-        let socketPath = "/tmp/gvr_ipc_\(Int.random(in: 100000...999999)).sock"
+        let socketPath = "/tmp/gvr_ipc_\(Int.random(in: 100_000...999_999)).sock"
         let (serverFD, ready) = makeTestServer(socketPath: socketPath, responseJSON: #"{"text":"тест"}"#)
 
         defer {
@@ -235,7 +241,7 @@ final class LocalSTTClientTests: XCTestCase {
     }
 
     func test_sendRequest_realSocket_errorResponse() async throws {
-        let socketPath = "/tmp/gvr_err_\(Int.random(in: 100000...999999)).sock"
+        let socketPath = "/tmp/gvr_err_\(Int.random(in: 100_000...999_999)).sock"
         let (serverFD, ready) = makeTestServer(
             socketPath: socketPath,
             responseJSON: #"{"error":"oom","message":"Недостаточно памяти"}"#
@@ -254,7 +260,8 @@ final class LocalSTTClientTests: XCTestCase {
 
         XCTAssertThrowsError(try client.parseResponse(response)) { error in
             guard let sttError = error as? STTError,
-                  case .recognitionFailed(let msg) = sttError else {
+                  case .recognitionFailed(let msg) = sttError
+            else {
                 return XCTFail("Ожидался STTError.recognitionFailed")
             }
             XCTAssertTrue(msg.contains("памяти"))
@@ -264,7 +271,7 @@ final class LocalSTTClientTests: XCTestCase {
     // MARK: - Таймаут
 
     func test_sendRequest_timeout_throwsError() async {
-        let socketPath = "/tmp/gvr_hang_\(Int.random(in: 100000...999999)).sock"
+        let socketPath = "/tmp/gvr_hang_\(Int.random(in: 100_000...999_999)).sock"
 
         // Мини-сервер: принимает соединение, читает запрос, но НЕ отвечает
         let serverFD = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
@@ -274,7 +281,9 @@ final class LocalSTTClientTests: XCTestCase {
         let pathBytes = socketPath.utf8CString
         withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
             ptr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
-                for (i, byte) in pathBytes.enumerated() { dest[i] = byte }
+                for (i, byte) in pathBytes.enumerated() {
+                    dest[i] = byte
+                }
             }
         }
         let bindResult = withUnsafePointer(to: &addr) { ptr in
@@ -291,7 +300,7 @@ final class LocalSTTClientTests: XCTestCase {
             let clientFD = Darwin.accept(serverFD, nil, nil)
             guard clientFD >= 0 else { return }
             // Читаем запрос но НЕ отвечаем — зависаем
-            var buf = [UInt8](repeating: 0, count: 4096)
+            var buf = [UInt8](repeating: 0, count: 4_096)
             _ = Darwin.recv(clientFD, &buf, buf.count, 0)
             sleep(5)
             Darwin.close(clientFD)
@@ -329,5 +338,4 @@ final class LocalSTTClientTests: XCTestCase {
         let timeout = mirror.children.first { $0.label == "timeout" }?.value as? TimeInterval
         XCTAssertEqual(timeout, 300.0)
     }
-
 }

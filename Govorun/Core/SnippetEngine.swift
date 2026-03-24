@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - SnippetRecord (lightweight, для Core/)
 
-struct SnippetRecord: Sendable {
+struct SnippetRecord {
     let trigger: String
     let content: String
     let matchMode: MatchMode
@@ -12,7 +12,6 @@ struct SnippetRecord: Sendable {
 // MARK: - SnippetEngine
 
 final class SnippetEngine: SnippetMatching, @unchecked Sendable {
-
     private let lock = NSLock()
     private var snippets: [SnippetRecord] = []
 
@@ -115,9 +114,9 @@ final class SnippetEngine: SnippetMatching, @unchecked Sendable {
             for j in 1...n {
                 let cost = a[i - 1] == b[j - 1] ? 0 : 1
                 curr[j] = min(
-                    prev[j] + 1,         // удаление
-                    curr[j - 1] + 1,     // вставка
-                    prev[j - 1] + cost   // замена
+                    prev[j] + 1, // удаление
+                    curr[j - 1] + 1, // вставка
+                    prev[j - 1] + cost // замена
                 )
             }
             swap(&prev, &curr)

@@ -1,10 +1,9 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - BottomBarState: modelLoading
 
 final class BottomBarStateModelLoadingTests: XCTestCase {
-
     func test_modelLoading_is_visible() {
         XCTAssertTrue(BottomBarState.modelLoading.isVisible)
     }
@@ -33,6 +32,7 @@ final class BottomBarStateModelLoadingTests: XCTestCase {
             .modelLoading
         )
     }
+
     func test_accessibilityHint_is_visible() {
         XCTAssertTrue(BottomBarState.accessibilityHint.isVisible)
     }
@@ -47,7 +47,6 @@ final class BottomBarStateModelLoadingTests: XCTestCase {
 
 @MainActor
 final class BottomBarControllerAccessibilityHintTests: XCTestCase {
-
     func test_showAccessibilityHint_sets_state() {
         let sut = BottomBarController()
         sut.showAccessibilityHint()
@@ -59,7 +58,6 @@ final class BottomBarControllerAccessibilityHintTests: XCTestCase {
 
 @MainActor
 final class BottomBarControllerModelLoadingTests: XCTestCase {
-
     func test_showModelLoading_sets_state() {
         let sut = BottomBarController()
         XCTAssertEqual(sut.state, .hidden)
@@ -96,7 +94,6 @@ final class BottomBarControllerModelLoadingTests: XCTestCase {
 
 @MainActor
 final class ColdStartAppStateTests: XCTestCase {
-
     func test_workerState_defaults_to_notStarted() {
         let (appState, _, _) = makeColdStartTestAppState()
         XCTAssertEqual(appState.workerState, .notStarted)
@@ -207,7 +204,6 @@ final class ColdStartAppStateTests: XCTestCase {
 
 @MainActor
 final class AppStateWorkerLifecycleTests: XCTestCase {
-
     func test_start_launches_worker() async throws {
         let mockWorker = MockASRWorkerManager()
         let (appState, _, _) = makeColdStartTestAppState(workerManager: mockWorker)
@@ -323,7 +319,6 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
 // MARK: - ErrorMessages: WorkerError
 
 final class WorkerErrorMessagesTests: XCTestCase {
-
     func test_workerError_notRunning() {
         let msg = ErrorMessages.userFacing(for: WorkerError.notRunning)
         XCTAssertEqual(msg, "Распознавание недоступно")
@@ -368,7 +363,6 @@ final class WorkerErrorMessagesTests: XCTestCase {
 // MARK: - humanReadableError
 
 final class HumanReadableErrorTests: XCTestCase {
-
     func test_упал_maps_to_launch_error() {
         XCTAssertEqual(ErrorMessages.humanReadable("Worker упал 3 раз подряд"), "Не удалось запустить распознавание")
     }
@@ -402,21 +396,20 @@ final class HumanReadableErrorTests: XCTestCase {
 // MARK: - findPythonPath
 
 final class FindPythonPathTests: XCTestCase {
-
-    func test_returns_nil_when_no_python() {
+    func test_returns_nil_when_no_python() throws {
         let dir = NSTemporaryDirectory() + "govorun_nopython_\(UUID())"
-        try! FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
 
         let manager = ASRWorkerManager(workerDirectory: dir)
         // Нет ни venv, ни embedded python — системный может быть
         // Проверяем что метод не крашится
-        let _ = manager.findPythonPath()
+        _ = manager.findPythonPath()
     }
 
-    func test_prefers_persistent_venv_over_system() {
+    func test_prefers_persistent_venv_over_system() throws {
         let dir = NSTemporaryDirectory() + "govorun_venv_\(UUID())"
-        try! FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
 
         let manager = ASRWorkerManager(workerDirectory: dir)
@@ -429,16 +422,16 @@ final class FindPythonPathTests: XCTestCase {
         // Если нет — любой результат допустим (системный python или nil)
     }
 
-    func test_bundle_venv_checked() {
+    func test_bundle_venv_checked() throws {
         let dir = NSTemporaryDirectory() + "govorun_bvenv_\(UUID())"
         let venvDir = dir + "/.venv/bin"
-        try! FileManager.default.createDirectory(atPath: venvDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: venvDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
 
         // Создаём фейковый python3 в bundle venv
         let fakePython = venvDir + "/python3"
         FileManager.default.createFile(atPath: fakePython, contents: Data("#!/bin/sh".utf8))
-        try! FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakePython)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakePython)
 
         let manager = ASRWorkerManager(workerDirectory: dir)
         let path = manager.findPythonPath()

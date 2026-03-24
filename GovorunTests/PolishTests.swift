@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - MockSoundPlayer
 
@@ -14,7 +14,6 @@ final class MockSoundPlayer: SoundPlaying {
 // MARK: - SoundManager Tests
 
 final class SoundManagerTests: XCTestCase {
-
     func test_muteSoundPlayer_doesNotCrash() {
         let mute = MuteSoundPlayer()
         mute.play(.recordingStarted)
@@ -41,7 +40,6 @@ final class SoundManagerTests: XCTestCase {
 // MARK: - ErrorMessages Tests
 
 final class ErrorMessagesTests: XCTestCase {
-
     // MARK: - URLError
 
     func test_urlError_noInternet_returnsRussianMessage() {
@@ -131,7 +129,9 @@ final class ErrorMessagesTests: XCTestCase {
 
     func test_unknownError_fallsBackToLocalizedDescription() {
         struct CustomError: LocalizedError {
-            var errorDescription: String? { "custom message" }
+            var errorDescription: String? {
+                "custom message"
+            }
         }
         let error = CustomError()
         XCTAssertEqual(ErrorMessages.userFacing(for: error), "Ошибка: custom message")
@@ -142,7 +142,6 @@ final class ErrorMessagesTests: XCTestCase {
 
 @MainActor
 final class BrandColorsExtendedTests: XCTestCase {
-
     func test_alabasterGrey_isDefined() {
         let color = BrandColors.alabasterGrey
         XCTAssertNotNil(color)

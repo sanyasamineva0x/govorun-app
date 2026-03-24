@@ -1,6 +1,6 @@
-import SwiftUI
-import AVFoundation
 import ApplicationServices
+import AVFoundation
+import SwiftUI
 
 // MARK: - Шаги онбординга
 
@@ -21,25 +21,25 @@ struct OnboardingView: View {
     @State private var accessibilityGranted = false
     @State private var modelSkipped = false
     var onComplete: () -> Void = {}
-    var settingsStore: SettingsStore = SettingsStore()
+    var settingsStore: SettingsStore = .init()
 
     private var canAdvance: Bool {
         switch step {
         case .welcome:
-            return true
+            true
         case .microphone:
-            return micPermissionGranted
+            micPermissionGranted
         case .accessibility:
-            return accessibilityGranted
+            accessibilityGranted
         case .model:
-            return appState.workerState == .ready || modelSkipped
+            appState.workerState == .ready || modelSkipped
         case .tryIt:
-            return false
+            false
         }
     }
 
     private var progress: Double {
-        Double(step.rawValue) / Double(OnboardingStep.allCases.count - 1)
+        Double(step.rawValue)/Double(OnboardingStep.allCases.count - 1)
     }
 
     var body: some View {
@@ -127,7 +127,7 @@ struct OnboardingView: View {
         guard let idx = allCases.firstIndex(of: step),
               allCases.index(after: idx) < allCases.endIndex else { return }
         var nextIdx = allCases.index(after: idx)
-        if allCases[nextIdx] == .model && appState.workerState == .ready {
+        if allCases[nextIdx] == .model, appState.workerState == .ready {
             nextIdx = allCases.index(after: nextIdx)
             guard nextIdx < allCases.endIndex else { return }
         }
@@ -235,8 +235,8 @@ private struct MicrophoneStepView: View {
     private func requestMicrophoneAccess() {
         AVCaptureDevice.requestAccess(for: .audio) { granted in
             Task { @MainActor in
-                self.permissionGranted = granted
-                self.permissionChecked = true
+                permissionGranted = granted
+                permissionChecked = true
             }
         }
     }
@@ -305,8 +305,13 @@ private struct ModelStepView: View {
     @Binding var modelSkipped: Bool
     @State private var downloadStarted = false
 
-    private var workerState: WorkerState { appState.workerState }
-    private var networkMonitor: NetworkMonitor { appState.networkMonitor }
+    private var workerState: WorkerState {
+        appState.workerState
+    }
+
+    private var networkMonitor: NetworkMonitor {
+        appState.networkMonitor
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -417,7 +422,9 @@ private struct TryItStepView: View {
     @EnvironmentObject private var appState: AppState
     var onComplete: () -> Void
 
-    private var isWorkerReady: Bool { appState.workerState == .ready }
+    private var isWorkerReady: Bool {
+        appState.workerState == .ready
+    }
 
     var body: some View {
         VStack(spacing: 20) {

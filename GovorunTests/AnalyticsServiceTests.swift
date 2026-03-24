@@ -1,9 +1,8 @@
-import XCTest
-import SwiftData
 @testable import Govorun
+import SwiftData
+import XCTest
 
 final class AnalyticsServiceTests: XCTestCase {
-
     private func makeService() throws -> (AnalyticsService, ModelContainer) {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
@@ -26,7 +25,7 @@ final class AnalyticsServiceTests: XCTestCase {
         let sessionId = UUID()
 
         await service.emit(.dictationStarted, sessionId: sessionId, metadata: [
-            AnalyticsMetadataKey.appBundleId: "com.test.app"
+            AnalyticsMetadataKey.appBundleId: "com.test.app",
         ])
 
         let events = try fetchAll(container)
@@ -71,7 +70,7 @@ final class AnalyticsServiceTests: XCTestCase {
             AnalyticsMetadataKey.sttLatencyMs: "150",
             AnalyticsMetadataKey.normalizationPath: "llm",
             AnalyticsMetadataKey.insertionStrategy: "ax_selected_text",
-            AnalyticsMetadataKey.e2eLatencyMs: "500"
+            AnalyticsMetadataKey.e2eLatencyMs: "500",
         ]
 
         await service.emit(.insertionSucceeded, sessionId: UUID(), metadata: metadata)

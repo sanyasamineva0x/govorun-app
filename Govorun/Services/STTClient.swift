@@ -8,7 +8,7 @@ protocol STTClient: Sendable {
 
 // MARK: - Результат распознавания
 
-struct STTResult: Sendable, Equatable {
+struct STTResult: Equatable {
     let text: String
     let normalizedText: String
     let confidence: Float
@@ -32,12 +32,12 @@ enum STTError: Error, Equatable {
         switch (lhs, rhs) {
         case (.noAudioData, .noAudioData),
              (.noResult, .noResult):
-            return true
+            true
         case (.connectionFailed(let a), .connectionFailed(let b)),
              (.recognitionFailed(let a), .recognitionFailed(let b)):
-            return a == b
+            a == b
         default:
-            return false
+            false
         }
     }
 }

@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок AXFocusedElement
 
@@ -30,8 +30,13 @@ final class MockAccessibility: AccessibilityProviding {
     var trusted = true
     var focusedElement: AXFocusedElementProtocol?
 
-    func isTrusted() -> Bool { trusted }
-    func getFocusedElement() -> AXFocusedElementProtocol? { focusedElement }
+    func isTrusted() -> Bool {
+        trusted
+    }
+
+    func getFocusedElement() -> AXFocusedElementProtocol? {
+        focusedElement
+    }
 }
 
 // MARK: - Мок ClipboardProviding
@@ -66,7 +71,6 @@ final class MockClipboard: ClipboardProviding {
 // MARK: - TextInserterEngine тесты
 
 final class TextInserterTests: XCTestCase {
-
     // MARK: - 1. Пустая строка → ничего не делаем
 
     func test_insert_empty_string_noop() async throws {
@@ -148,7 +152,7 @@ final class TextInserterTests: XCTestCase {
         element.settableAttributes = ["AXValue"]
         element.attributes = [
             "AXValue": "Привет мир",
-            "AXSelectedTextRange": ["location": 7, "length": 0]
+            "AXSelectedTextRange": ["location": 7, "length": 0],
         ]
 
         let accessibility = MockAccessibility()
@@ -171,7 +175,7 @@ final class TextInserterTests: XCTestCase {
         element.settableAttributes = ["AXValue"]
         element.attributes = [
             "AXValue": "ABCDEF",
-            "AXSelectedTextRange": ["location": 3, "length": 0]
+            "AXSelectedTextRange": ["location": 3, "length": 0],
         ]
 
         let accessibility = MockAccessibility()
@@ -192,7 +196,7 @@ final class TextInserterTests: XCTestCase {
         element.settableAttributes = ["AXValue"]
         element.attributes = [
             "AXValue": "Hello world",
-            "AXSelectedTextRange": ["location": 5, "length": 0]
+            "AXSelectedTextRange": ["location": 5, "length": 0],
         ]
 
         let accessibility = MockAccessibility()
@@ -220,7 +224,7 @@ final class TextInserterTests: XCTestCase {
         accessibility.focusedElement = nil
 
         let clipboard = MockClipboard()
-        clipboard.savedItems = [ClipboardItem(type: "public.utf8-plain-text", data: "старое".data(using: .utf8)!, itemIndex: 0)]
+        clipboard.savedItems = try [ClipboardItem(type: "public.utf8-plain-text", data: XCTUnwrap("старое".data(using: .utf8)), itemIndex: 0)]
 
         let sut = TextInserterEngine(accessibility: accessibility, clipboard: clipboard)
 
@@ -238,9 +242,9 @@ final class TextInserterTests: XCTestCase {
         let accessibility = MockAccessibility()
         accessibility.focusedElement = nil
 
-        let savedItems = [
-            ClipboardItem(type: "public.utf8-plain-text", data: "важные данные".data(using: .utf8)!, itemIndex: 0),
-            ClipboardItem(type: "public.rtf", data: "rtf data".data(using: .utf8)!, itemIndex: 0)
+        let savedItems = try [
+            ClipboardItem(type: "public.utf8-plain-text", data: XCTUnwrap("важные данные".data(using: .utf8)), itemIndex: 0),
+            ClipboardItem(type: "public.rtf", data: XCTUnwrap("rtf data".data(using: .utf8)), itemIndex: 0),
         ]
         let clipboard = MockClipboard()
         clipboard.savedItems = savedItems
@@ -259,11 +263,11 @@ final class TextInserterTests: XCTestCase {
         let accessibility = MockAccessibility()
         accessibility.focusedElement = nil
 
-        let imageData = Data([0x89, 0x50, 0x4E, 0x47]) // PNG header
-        let richItems = [
+        let imageData = Data([0x89, 0x50, 0x4e, 0x47]) // PNG header
+        let richItems = try [
             ClipboardItem(type: "public.png", data: imageData, itemIndex: 0),
-            ClipboardItem(type: "public.utf8-plain-text", data: "caption".data(using: .utf8)!, itemIndex: 0),
-            ClipboardItem(type: "public.html", data: "<b>bold</b>".data(using: .utf8)!, itemIndex: 0)
+            ClipboardItem(type: "public.utf8-plain-text", data: XCTUnwrap("caption".data(using: .utf8)), itemIndex: 0),
+            ClipboardItem(type: "public.html", data: XCTUnwrap("<b>bold</b>".data(using: .utf8)), itemIndex: 0),
         ]
         let clipboard = MockClipboard()
         clipboard.savedItems = richItems
@@ -311,9 +315,9 @@ final class TextInserterTests: XCTestCase {
         let accessibility = MockAccessibility()
         accessibility.focusedElement = nil
 
-        let multiItems = [
-            ClipboardItem(type: "public.utf8-plain-text", data: "a".data(using: .utf8)!, itemIndex: 0),
-            ClipboardItem(type: "public.utf8-plain-text", data: "b".data(using: .utf8)!, itemIndex: 1),
+        let multiItems = try [
+            ClipboardItem(type: "public.utf8-plain-text", data: XCTUnwrap("a".data(using: .utf8)), itemIndex: 0),
+            ClipboardItem(type: "public.utf8-plain-text", data: XCTUnwrap("b".data(using: .utf8)), itemIndex: 1),
         ]
         let clipboard = MockClipboard()
         clipboard.savedItems = multiItems
@@ -333,7 +337,7 @@ final class TextInserterTests: XCTestCase {
         element.settableAttributes = ["AXSelectedText", "AXValue"]
         element.attributes = [
             "AXValue": "текст",
-            "AXSelectedTextRange": ["location": 0, "length": 0]
+            "AXSelectedTextRange": ["location": 0, "length": 0],
         ]
 
         let accessibility = MockAccessibility()
@@ -356,7 +360,7 @@ final class TextInserterTests: XCTestCase {
         element.setAttributeError = TextInsertionError.allStrategiesFailed
         element.attributes = [
             "AXValue": "Hello",
-            "AXSelectedTextRange": ["location": 5, "length": 0]
+            "AXSelectedTextRange": ["location": 5, "length": 0],
         ]
 
         let accessibility = MockAccessibility()
@@ -379,7 +383,7 @@ final class TextInserterTests: XCTestCase {
         element.settableAttributes = ["AXValue"]
         element.attributes = [
             "AXValue": "Hello World",
-            "AXSelectedTextRange": ["location": 6, "length": 5] // "World" выделен
+            "AXSelectedTextRange": ["location": 6, "length": 5], // "World" выделен
         ]
 
         let accessibility = MockAccessibility()
@@ -395,6 +399,7 @@ final class TextInserterTests: XCTestCase {
     }
 
     // MARK: - 14. Thread safety: lastInsertionMethod
+
     // Полная проверка — xcodebuild test -enableThreadSanitizer YES
 
     func test_lastInsertionMethod_threadSafe() {
@@ -409,7 +414,7 @@ final class TextInserterTests: XCTestCase {
 
         DispatchQueue.concurrentPerform(iterations: 100) { i in
             if i % 2 == 0 {
-                let exp = expectations[i / 2]
+                let exp = expectations[i/2]
                 Task {
                     try? await sut.insert("test")
                     exp.fulfill()
@@ -425,7 +430,6 @@ final class TextInserterTests: XCTestCase {
 // MARK: - compose() тесты
 
 final class ComposeTests: XCTestCase {
-
     func test_compose_insert_at_beginning() {
         let sut = TextInserterEngine(
             accessibility: MockAccessibility(),

@@ -1,9 +1,8 @@
-import XCTest
-import SwiftData
 @testable import Govorun
+import SwiftData
+import XCTest
 
 final class DictionaryStoreTests: XCTestCase {
-
     private func makeStore() throws -> DictionaryStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

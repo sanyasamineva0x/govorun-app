@@ -1,28 +1,29 @@
 import SwiftUI
 
 // MARK: - Motion choreography
+
 // Все motion-константы в одном месте для тюнинга.
 // Shell = внешняя оболочка pill. Bars = контент внутри.
 
 enum PillMotion {
-    // Shell breathing во время recording — тяжёлый, бeз bounce.
-    // Сырой audioLevel приходит ~60fps; shell сглаживает его как тяжёлая масса.
+    /// Shell breathing во время recording — тяжёлый, бeз bounce.
+    /// Сырой audioLevel приходит ~60fps; shell сглаживает его как тяжёлая масса.
     static let shellSpring = Animation.spring(duration: 0.35, bounce: 0.0)
 
-    // State transitions (recording→processing, processing→hidden, etc.)
-    // Уверенный, с лёгким settle.
+    /// State transitions (recording→processing, processing→hidden, etc.)
+    /// Уверенный, с лёгким settle.
     static let stateSpring = Animation.spring(duration: 0.5, bounce: 0.08)
 
     // Organic shape
-    static let maxAmplitude: CGFloat = 1.5   // ±1.5pt — subtle, not jelly
-    static let maxScale: CGFloat = 0.02      // 1.02x max — barely perceptible breathing
+    static let maxAmplitude: CGFloat = 1.5 // ±1.5pt — subtle, not jelly
+    static let maxScale: CGFloat = 0.02 // 1.02x max — barely perceptible breathing
     static let frequency: Double = 3.0
 
     // Processing pulse — медленнее и мягче, чем ticker
     static let pulseInterval: TimeInterval = 0.45
     static let pulseCurve = Animation.easeInOut(duration: 0.4)
 
-    // Bar spring — лёгкий, отзывчивый (контент живее shell)
+    /// Bar spring — лёгкий, отзывчивый (контент живее shell)
     static let barSpring = Animation.spring(duration: 0.12, bounce: 0.2)
 
     // Glow — сдержанный
@@ -85,10 +86,10 @@ struct BottomBarView: View {
         .frame(width: currentWidth, height: BottomBarMetrics.pillHeight)
         .clipShape(shape)
         .scaleEffect(scaleFactor)
-        // Нет stacked .animation — вся анимация приходит из withAnimation в контроллере.
-        // shellSpring для metering updates, stateSpring для state transitions.
+// Нет stacked .animation — вся анимация приходит из withAnimation в контроллере.
+// shellSpring для metering updates, stateSpring для state transitions.
 #if compiler(>=6.2)
-        .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
+            .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
 #endif
     }
 
@@ -218,7 +219,7 @@ struct WaveformBar: View {
     let totalBars: Int
 
     var body: some View {
-        RoundedRectangle(cornerRadius: BottomBarMetrics.barWidth / 2)
+        RoundedRectangle(cornerRadius: BottomBarMetrics.barWidth/2)
             .fill(Color(nsColor: BrandColors.cottonCandy))
             .frame(width: BottomBarMetrics.barWidth, height: barHeight)
             .shadow(
@@ -234,9 +235,9 @@ struct WaveformBar: View {
         guard totalBars > 1 else {
             return max(2.5, CGFloat(audioLevel) * BottomBarMetrics.maxBarHeight)
         }
-        let center = Double(totalBars - 1) / 2.0
-        let distance = abs(Double(index) - center) / center
-        let envelope = cos(distance * .pi / 2)
+        let center = Double(totalBars - 1)/2.0
+        let distance = abs(Double(index) - center)/center
+        let envelope = cos(distance * .pi/2)
         let level = max(0.06, Double(audioLevel))
         let height = level * envelope * BottomBarMetrics.maxBarHeight
         return max(2.5, CGFloat(height))
@@ -397,8 +398,8 @@ struct OrganicPillShape: Shape {
     var phase: Double
     var frequency: Double
 
-    // Только amplitude анимируется SwiftUI.
-    // Phase управляется TimelineView (frozen при паузе).
+    /// Только amplitude анимируется SwiftUI.
+    /// Phase управляется TimelineView (frozen при паузе).
     var animatableData: CGFloat {
         get { amplitude }
         set { amplitude = newValue }
@@ -417,14 +418,14 @@ struct OrganicPillShape: Shape {
         let h = rect.height
 
         guard w >= h, h > 0 else {
-            return Path(roundedRect: rect, cornerRadius: min(w, h) / 2)
+            return Path(roundedRect: rect, cornerRadius: min(w, h)/2)
         }
 
-        let r = h / 2
+        let r = h/2
         var path = Path()
 
         let topSegments = 6
-        let topStep = (w - 2 * r) / CGFloat(topSegments)
+        let topStep = (w - 2 * r)/CGFloat(topSegments)
         let topStart = CGPoint(x: r, y: perturb(0, base: 0))
         path.move(to: topStart)
 
@@ -439,7 +440,7 @@ struct OrganicPillShape: Shape {
         let rTopY = perturb(topSegments, base: 0)
         let rBotY = h + perturb(12, base: 0)
         let rMidX = w - r + r + perturb(14, base: 0) * 0.3
-        let cx = CGPoint(x: w - r, y: h / 2)
+        let cx = CGPoint(x: w - r, y: h/2)
         let k = Self.arcK
 
         path.addCurve(
@@ -464,7 +465,7 @@ struct OrganicPillShape: Shape {
         let lBotY = h + perturb(topSegments + 12, base: 0)
         let lTopY = perturb(0, base: 0)
         let lMidX = r - r - perturb(20, base: 0) * 0.3
-        let lc = CGPoint(x: r, y: h / 2)
+        let lc = CGPoint(x: r, y: h/2)
 
         path.addCurve(
             to: CGPoint(x: lc.x - r, y: lc.y),

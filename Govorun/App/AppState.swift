@@ -6,7 +6,6 @@ import SwiftData
 
 @MainActor
 final class AppState: ObservableObject {
-
     private(set) var activationKeyMonitor: ActivationKeyMonitor
     let sessionManager: SessionManager
     let pipelineEngine: PipelineEngine
@@ -88,7 +87,7 @@ final class AppState: ObservableObject {
         analytics: AnalyticsEmitting? = nil
     ) {
         let manager = ASRWorkerManager()
-        self.workerManager = manager
+        workerManager = manager
 
         let stt: STTClient = LocalSTTClient(socketPath: manager.socketPath)
         let llm: LLMClient = PlaceholderLLMClient()
@@ -96,7 +95,7 @@ final class AppState: ObservableObject {
 
         let snippetEngine = SnippetEngine()
         let container = AppModelContainer.shared
-        self.modelContainer = container
+        modelContainer = container
         let context = ModelContext(container)
         let snippetStore = SnippetStore(modelContext: context)
         try? snippetStore.seedDefaultsIfNeeded()
@@ -110,30 +109,30 @@ final class AppState: ObservableObject {
         eventMonitor.activationKey = settings.activationKey
         eventMonitor.recordingMode = settings.recordingMode
         self.eventMonitor = eventMonitor
-        self.currentActivationKey = settings.activationKey
-        self.currentRecordingMode = settings.recordingMode
+        currentActivationKey = settings.activationKey
+        currentRecordingMode = settings.recordingMode
 
-        self.audioCapture = audio
-        self.pipelineEngine = PipelineEngine(
+        audioCapture = audio
+        pipelineEngine = PipelineEngine(
             audioCapture: audio,
             sttClient: stt,
             llmClient: llm,
             snippetEngine: snippetEngine
         )
-        self.textInserter = TextInserterEngine(
+        textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
         )
-        self.sessionManager = SessionManager()
-        self.activationKeyMonitor = ActivationKeyMonitor(
+        sessionManager = SessionManager()
+        activationKeyMonitor = ActivationKeyMonitor(
             activationKey: settings.activationKey,
             recordingMode: settings.recordingMode,
             eventMonitor: eventMonitor
         )
-        self.bottomBar = BottomBarController()
-        self.audioCaptureDelegate = AudioCaptureBridge()
-        self.sessionManagerDelegate = SessionManagerBridge()
-        self.appContextEngine = AppContextEngine(
+        bottomBar = BottomBarController()
+        audioCaptureDelegate = AudioCaptureBridge()
+        sessionManagerDelegate = SessionManagerBridge()
+        appContextEngine = AppContextEngine(
             workspace: workspace,
             modeOverrides: modeOverrides
         )
@@ -143,11 +142,11 @@ final class AppState: ObservableObject {
         } else {
             self.analytics = AnalyticsService(modelContainer: AppModelContainer.shared)
         }
-        self.postInsertionMonitor = PostInsertionMonitor(
+        postInsertionMonitor = PostInsertionMonitor(
             focusedTextReader: SystemFocusedTextReader(),
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
-        self.updaterService = UpdaterService()
+        updaterService = UpdaterService()
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -184,14 +183,14 @@ final class AppState: ObservableObject {
         self.textInserter = textInserter
         self.bottomBar = bottomBar
         self.audioCapture = audioCapture
-        self.audioCaptureDelegate = AudioCaptureBridge()
-        self.sessionManagerDelegate = SessionManagerBridge()
+        audioCaptureDelegate = AudioCaptureBridge()
+        sessionManagerDelegate = SessionManagerBridge()
         self.appContextEngine = appContextEngine ?? AppContextEngine(
             workspace: NSWorkspaceProvider(),
             modeOverrides: UserDefaultsAppModeOverrides()
         )
         self.soundPlayer = soundPlayer
-        self.snippetEngine = SnippetEngine()
+        snippetEngine = SnippetEngine()
         self.modelContainer = modelContainer
         self.analytics = analytics
         self.postInsertionMonitor = postInsertionMonitor ?? PostInsertionMonitor(
@@ -200,11 +199,11 @@ final class AppState: ObservableObject {
         )
         self.settings = settings
         self.eventMonitor = eventMonitor
-        self.currentActivationKey = settings.activationKey
-        self.currentRecordingMode = settings.recordingMode
+        currentActivationKey = settings.activationKey
+        currentRecordingMode = settings.recordingMode
         self.updaterService = updaterService
 
-        self.workerState = initialWorkerState
+        workerState = initialWorkerState
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -228,14 +227,14 @@ final class AppState: ObservableObject {
         if let workerManager {
             // Если worker уже запущен (вручную или от предыдущего запуска) — проверить ping
             let socketPath = workerManager.socketPath
-            if FileManager.default.fileExists(atPath: socketPath) && isWorkerAlive(socketPath: socketPath) {
+            if FileManager.default.fileExists(atPath: socketPath), isWorkerAlive(socketPath: socketPath) {
                 updateWorkerState(.ready)
                 print("[Govorun] Worker alive (ping ok), пропускаю запуск")
             } else {
                 // Проверить: если модель не скачана и нет сети — показать ошибку
                 let modelManager = ModelManager()
                 modelManager.checkModelStatus()
-                if !modelManager.isModelDownloaded && !networkMonitor.isCurrentlyConnected {
+                if !modelManager.isModelDownloaded, !networkMonitor.isCurrentlyConnected {
                     updateWorkerState(.error("Нет интернета. Модель ещё не скачана."))
                     print("[Govorun] Нет сети, модель не скачана — worker не запускаю")
                     return
@@ -493,9 +492,9 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let state = self.sessionManager.state
+                let state = sessionManager.state
                 if state == .recording || state == .processing || state == .inserting {
-                    self.handleCancelled()
+                    handleCancelled()
                 }
             }
         }
@@ -506,11 +505,11 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let state = self.sessionManager.state
+                let state = sessionManager.state
                 if state == .recording || state == .processing || state == .inserting {
-                    self.handleCancelled()
+                    handleCancelled()
                 }
-                self.activationKeyMonitor.resetState()
+                activationKeyMonitor.resetState()
             }
         }
     }
@@ -607,7 +606,7 @@ final class AppState: ObservableObject {
 
                 // Минимум minProcessingDisplay на processing (единственный источник правды)
                 let elapsed = ContinuousClock.now - processingStart
-                let minDisplay = Duration.milliseconds(Int(BottomBarMetrics.minProcessingDisplay * 1000))
+                let minDisplay = Duration.milliseconds(Int(BottomBarMetrics.minProcessingDisplay * 1_000))
                 if elapsed < minDisplay {
                     try await Task.sleep(for: minDisplay - elapsed)
                 }
@@ -631,7 +630,7 @@ final class AppState: ObservableObject {
 
                 let insertionStart = CFAbsoluteTimeGetCurrent()
                 try await textInserter.insert(result.normalizedText)
-                let insertionMs = Int((CFAbsoluteTimeGetCurrent() - insertionStart) * 1000)
+                let insertionMs = Int((CFAbsoluteTimeGetCurrent() - insertionStart) * 1_000)
                 sessionManager.handleInsertionComplete()
 
                 var resultWithInsertion = result
@@ -661,7 +660,8 @@ final class AppState: ObservableObject {
                 // Accessibility хинт: один раз за сессию после clipboard fallback
                 if resultWithInsertion.insertionStrategy == .clipboard,
                    !accessibilityHintShown,
-                   !AXIsProcessTrusted() {
+                   !AXIsProcessTrusted()
+                {
                     accessibilityHintShown = true
                     // Показать после короткой паузы чтобы pill dismiss анимация завершилась
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -703,7 +703,7 @@ final class AppState: ObservableObject {
     }
 
     /// Emit STT и normalization событий из PipelineResult
-    private func emitPipelineEvents(for result: PipelineResult, appBundleId: String?) async {
+    private func emitPipelineEvents(for result: PipelineResult, appBundleId _: String?) async {
         let sessionId = result.sessionId
 
         await analytics.emit(.sttCompleted, sessionId: sessionId, metadata: [
@@ -790,20 +790,20 @@ final class AppState: ObservableObject {
 private final class AudioCaptureBridge: AudioCaptureDelegate {
     weak var appState: AppState?
 
-    func audioCapture(_ capture: any AudioRecording, didUpdateLevel level: Float) {
+    func audioCapture(_: any AudioRecording, didUpdateLevel level: Float) {
         let appState = appState
         Task { @MainActor in
             appState?.handleAudioLevelUpdate(level)
         }
     }
 
-    func audioCapture(_ capture: any AudioRecording, didCaptureChunk chunk: Data) {
+    func audioCapture(_: any AudioRecording, didCaptureChunk chunk: Data) {
         appState?.pipelineEngine.handleAudioChunk(chunk)
     }
 
-    func audioCaptureDidStop(_ capture: any AudioRecording) {}
+    func audioCaptureDidStop(_: any AudioRecording) {}
 
-    func audioCapture(_ capture: any AudioRecording, didFailWithError error: Error) {
+    func audioCapture(_: any AudioRecording, didFailWithError error: Error) {
         let appState = appState
         let message = ErrorMessages.userFacing(for: error)
         Task { @MainActor in
@@ -820,7 +820,7 @@ private final class AudioCaptureBridge: AudioCaptureDelegate {
 private final class SessionManagerBridge: SessionManagerDelegate {
     weak var appState: AppState?
 
-    func sessionManager(_ manager: SessionManager, didChangeState state: SessionState) {
+    func sessionManager(_: SessionManager, didChangeState state: SessionState) {
         appState?.sessionState = state
 
         switch state {

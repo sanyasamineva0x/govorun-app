@@ -3,7 +3,6 @@ import Cocoa
 // MARK: - NSWorkspace-реализация WorkspaceProviding
 
 final class NSWorkspaceProvider: WorkspaceProviding {
-
     func frontmostApp() -> (bundleId: String?, appName: String?) {
         let app = NSWorkspace.shared.frontmostApplication
         return (app?.bundleIdentifier, app?.localizedName)
@@ -13,7 +12,6 @@ final class NSWorkspaceProvider: WorkspaceProviding {
 // MARK: - UserDefaults-реализация AppModeOverriding
 
 final class UserDefaultsAppModeOverrides: AppModeOverriding {
-
     private static let key = "AppModeOverrides"
     private let defaults: UserDefaults
 

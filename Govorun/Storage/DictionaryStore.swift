@@ -11,7 +11,6 @@ enum DictionaryStoreError: Error {
 // MARK: - DictionaryStore
 
 final class DictionaryStore {
-
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext) {

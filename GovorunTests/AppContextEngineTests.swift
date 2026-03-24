@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок WorkspaceProviding
 
@@ -33,7 +33,6 @@ final class MockAppModeOverrides: AppModeOverriding {
 // MARK: - Тесты AppContextEngine
 
 final class AppContextEngineTests: XCTestCase {
-
     private func makeEngine(
         bundleId: String? = nil,
         appName: String? = nil,
@@ -155,10 +154,10 @@ final class AppContextEngineTests: XCTestCase {
 
     // MARK: - 10. Промпт содержит текущую дату
 
-    func test_prompt_includes_current_date() {
+    func test_prompt_includes_current_date() throws {
         let calendar = Calendar(identifier: .gregorian)
-        let components = DateComponents(year: 2026, month: 3, day: 10)
-        let date = calendar.date(from: components)!
+        let components = DateComponents(year: 2_026, month: 3, day: 10)
+        let date = try XCTUnwrap(calendar.date(from: components))
 
         let prompt = TextMode.universal.systemPrompt(currentDate: date)
 

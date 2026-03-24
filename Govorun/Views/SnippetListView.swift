@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 extension Notification.Name {
     static let snippetsDidChange = Notification.Name("GovorunSnippetsDidChange")
@@ -19,7 +19,7 @@ struct SnippetListView: View {
         let query = searchText.lowercased()
         return snippets.filter {
             $0.trigger.lowercased().contains(query) ||
-            $0.content.lowercased().contains(query)
+                $0.content.lowercased().contains(query)
         }
     }
 
@@ -186,7 +186,7 @@ private struct AddSnippetSheet: View {
                 Button("Добавить") { addSnippet() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(trigger.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                              content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding()

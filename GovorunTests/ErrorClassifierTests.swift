@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class ErrorClassifierTests: XCTestCase {
-
     // MARK: - AudioCaptureError
 
     func test_permission_denied_maps_to_mic_permission() {

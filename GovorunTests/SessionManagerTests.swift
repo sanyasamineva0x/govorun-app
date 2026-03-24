@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок EventMonitoring
 
@@ -57,7 +57,7 @@ final class MockEventMonitoring: EventMonitoring, @unchecked Sendable {
         resetTapStateCallCount += 1
     }
 
-    // Симуляция событий
+    /// Симуляция событий
     func simulateOptionDown() {
         flagsHandlers.forEach { $0(.maskAlternate) }
     }
@@ -94,7 +94,6 @@ final class MockSessionDelegate: SessionManagerDelegate {
 
 @MainActor
 final class SessionManagerTests: XCTestCase {
-
     // MARK: - 1. Начальное состояние idle
 
     func test_initial_state_idle() {

@@ -21,7 +21,6 @@ protocol SessionManagerDelegate: AnyObject {
 
 @MainActor
 final class SessionManager {
-
     private(set) var state: SessionState = .idle {
         didSet {
             guard state != oldValue else { return }

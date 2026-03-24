@@ -1,0 +1,13 @@
+# Inferred from existing code style (54 files)
+--swiftversion 5.10
+--binary-grouping none
+--decimal-grouping 3,4
+--hex-grouping none
+--hex-literal-case lowercase
+--ifdef outdent
+--no-space-operators ...,..<,/
+--octal-grouping none
+--pattern-let inline
+--strip-unused-args closure-only
+--wrap-collections before-first
+--wrap-parameters before-first

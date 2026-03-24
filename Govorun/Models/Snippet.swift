@@ -3,7 +3,7 @@ import SwiftData
 
 // MARK: - Режим сопоставления
 
-enum MatchMode: String, Codable, Sendable {
+enum MatchMode: String, Codable {
     case exact
     case fuzzy
 }

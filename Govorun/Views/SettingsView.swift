@@ -343,22 +343,22 @@ private struct WorkerStatusCard: View {
     private var statusTitle: some View {
         switch workerState {
         case .ready:
-            return Text("Говорун готов к работе")
+            Text("Говорун готов к работе")
                 .font(.system(size: 13, weight: .medium))
         case .downloadingModel(let progress):
-            return Text("Качаю модель… \(progress)%")
+            Text("Качаю модель… \(progress)%")
                 .font(.system(size: 13, weight: .medium))
         case .loadingModel:
-            return Text("Загружаю модель…")
+            Text("Загружаю модель…")
                 .font(.system(size: 13, weight: .medium))
         case .error(let msg):
-            return Text(ErrorMessages.humanReadable(msg))
+            Text(ErrorMessages.humanReadable(msg))
                 .font(.system(size: 13, weight: .medium))
         case .settingUp:
-            return Text("Готовлюсь…")
+            Text("Готовлюсь…")
                 .font(.system(size: 13, weight: .medium))
         case .notStarted:
-            return Text("Запуск…")
+            Text("Запуск…")
                 .font(.system(size: 13, weight: .medium))
         }
     }
@@ -405,4 +405,3 @@ private struct WorkerStatusCard: View {
         }
     }
 }
-

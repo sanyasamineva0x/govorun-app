@@ -1,11 +1,10 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Тесты recreateMonitor / pendingActivationKey
 
 @MainActor
 final class RecreateMonitorTests: XCTestCase {
-
     private var defaults: UserDefaults!
     private var settings: SettingsStore!
 
@@ -154,7 +153,7 @@ final class RecreateMonitorTests: XCTestCase {
             bottomBar: BottomBarController(),
             audioCapture: AudioCapture(),
             settings: settings,
-            eventMonitor: nil  // нет eventMonitor
+            eventMonitor: nil // нет eventMonitor
         )
 
         appState.start()

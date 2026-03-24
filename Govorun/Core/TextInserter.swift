@@ -8,16 +8,16 @@ protocol TextInserting: Sendable {
 
 // MARK: - Метод вставки (для логирования)
 
-enum InsertionMethod: String, Sendable {
+enum InsertionMethod: String {
     case selectedText
     case composition
     case clipboard
 
     var asInsertionStrategy: InsertionStrategy {
         switch self {
-        case .selectedText: return .axSelectedText
-        case .composition: return .axValueComposition
-        case .clipboard: return .clipboard
+        case .selectedText: .axSelectedText
+        case .composition: .axValueComposition
+        case .clipboard: .clipboard
         }
     }
 }
@@ -61,7 +61,6 @@ protocol ClipboardProviding {
 // MARK: - Вставка с waterfall стратегиями
 
 final class TextInserterEngine: TextInserting, @unchecked Sendable {
-
     private let accessibility: AccessibilityProviding
     private let clipboard: ClipboardProviding
     private let lock = NSLock()
@@ -82,7 +81,8 @@ final class TextInserterEngine: TextInserting, @unchecked Sendable {
 
         // Стратегия 1: selectedText replacement
         if let element = accessibility.getFocusedElement(),
-           element.isSettable("AXSelectedText") {
+           element.isSettable("AXSelectedText")
+        {
             do {
                 try element.setAttribute("AXSelectedText", value: text)
                 lock.withLock { _lastInsertionMethod = .selectedText }
@@ -98,7 +98,8 @@ final class TextInserterEngine: TextInserting, @unchecked Sendable {
            let currentValue = element.getAttribute("AXValue") as? String,
            let range = element.getAttribute("AXSelectedTextRange") as? [String: Int],
            let location = range["location"],
-           let length = range["length"] {
+           let length = range["length"]
+        {
             let newValue = compose(currentValue, inserting: text, at: location, length: length)
             do {
                 try element.setAttribute("AXValue", value: newValue)

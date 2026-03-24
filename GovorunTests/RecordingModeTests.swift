@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class RecordingModeTests: XCTestCase {
-
     func test_default_is_pushToTalk() {
         let mode = RecordingMode.pushToTalk
         XCTAssertEqual(mode.rawValue, "pushToTalk")

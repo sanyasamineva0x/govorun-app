@@ -21,15 +21,15 @@ enum LLMError: Error, Equatable {
         case (.parsingFailed, .parsingFailed),
              (.rateLimited, .rateLimited),
              (.timeout, .timeout):
-            return true
+            true
         case (.networkError(let a), .networkError(let b)):
-            return a == b
+            a == b
         case (.invalidResponse(let a), .invalidResponse(let b)):
-            return a == b
+            a == b
         case (.serverError(let a), .serverError(let b)):
-            return a == b
+            a == b
         default:
-            return false
+            false
         }
     }
 }

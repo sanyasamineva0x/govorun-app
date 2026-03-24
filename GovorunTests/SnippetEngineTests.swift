@@ -1,11 +1,10 @@
-import XCTest
-import SwiftData
 @testable import Govorun
+import SwiftData
+import XCTest
 
 // MARK: - Тесты SnippetEngine
 
 final class SnippetEngineTests: XCTestCase {
-
     private func makeEngine(_ records: [SnippetRecord]) -> SnippetEngine {
         let engine = SnippetEngine()
         engine.updateSnippets(records)
@@ -25,7 +24,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_exact_match() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com")
+            record(trigger: "мой имейл", content: "sanya@example.com"),
         ])
 
         let match = engine.match("мой имейл")
@@ -37,7 +36,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_exact_match_case_insensitive() {
         let engine = makeEngine([
-            record(trigger: "Мой Имейл", content: "sanya@example.com")
+            record(trigger: "Мой Имейл", content: "sanya@example.com"),
         ])
 
         XCTAssertEqual(engine.match("мой имейл")?.content, "sanya@example.com")
@@ -47,7 +46,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_fuzzy_match() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy)
+            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy),
         ])
 
         // "мой мейл" — distance 1 от "мой имейл" (9 символов, порог ≤2)
@@ -58,7 +57,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_no_match() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com")
+            record(trigger: "мой имейл", content: "sanya@example.com"),
         ])
 
         XCTAssertNil(engine.match("привет как дела"))
@@ -68,7 +67,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_disabled_snippet_ignored() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com", isEnabled: false)
+            record(trigger: "мой имейл", content: "sanya@example.com", isEnabled: false),
         ])
 
         XCTAssertNil(engine.match("мой имейл"))
@@ -78,7 +77,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_levenshtein_threshold_exceeded() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy)
+            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy),
         ])
 
         // "мой адрес" — distance значительно больше порога
@@ -102,22 +101,22 @@ final class SnippetEngineTests: XCTestCase {
     func test_fuzzy_exact_threshold() {
         // Триггер "привет" — 6 символов, порог = ceil(6 * 0.3) = 2
         let engine = makeEngine([
-            record(trigger: "привет", content: "Здравствуйте!", matchMode: .fuzzy)
+            record(trigger: "привет", content: "Здравствуйте!", matchMode: .fuzzy),
         ])
 
         // distance 1 — в пределах порога → матчится
-        XCTAssertEqual(engine.match("приет")?.content, "Здравствуйте!")   // distance 1 ≤ 2
+        XCTAssertEqual(engine.match("приет")?.content, "Здравствуйте!") // distance 1 ≤ 2
         // distance 2 — ровно на пороге → матчится
-        XCTAssertEqual(engine.match("прет")?.content, "Здравствуйте!")    // distance 2 ≤ 2
+        XCTAssertEqual(engine.match("прет")?.content, "Здравствуйте!") // distance 2 ≤ 2
         // distance 3 — за порогом → не матчится
-        XCTAssertNil(engine.match("рет"))                        // distance 3 > 2
+        XCTAssertNil(engine.match("рет")) // distance 3 > 2
     }
 
     // MARK: - 9. Пустой текст → нет матча
 
     func test_empty_text_no_match() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy)
+            record(trigger: "мой имейл", content: "sanya@example.com", matchMode: .fuzzy),
         ])
 
         XCTAssertNil(engine.match(""))
@@ -128,7 +127,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_trimmed_match() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "sanya@example.com")
+            record(trigger: "мой имейл", content: "sanya@example.com"),
         ])
 
         XCTAssertEqual(engine.match("  мой имейл  ")?.content, "sanya@example.com")
@@ -140,12 +139,12 @@ final class SnippetEngineTests: XCTestCase {
         let engine = SnippetEngine()
 
         engine.updateSnippets([
-            record(trigger: "мой имейл", content: "old@test.com")
+            record(trigger: "мой имейл", content: "old@test.com"),
         ])
         XCTAssertEqual(engine.match("мой имейл")?.content, "old@test.com")
 
         engine.updateSnippets([
-            record(trigger: "мой телефон", content: "+7 000")
+            record(trigger: "мой телефон", content: "+7 000"),
         ])
         XCTAssertNil(engine.match("мой имейл"))
         XCTAssertEqual(engine.match("мой телефон")?.content, "+7 000")
@@ -155,7 +154,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_match_returns_trigger_and_content() {
         let engine = makeEngine([
-            record(trigger: "мой имейл", content: "test@example.com", matchMode: .exact)
+            record(trigger: "мой имейл", content: "test@example.com", matchMode: .exact),
         ])
 
         let match = engine.match("мой имейл")
@@ -203,7 +202,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_standalone_exact_with_trailing_question_mark() {
         let engine = makeEngine([
-            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .exact)
+            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .exact),
         ])
         let result = engine.match("мой адрес?")
         XCTAssertNotNil(result)
@@ -213,7 +212,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_standalone_exact_with_trailing_comma() {
         let engine = makeEngine([
-            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .exact)
+            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .exact),
         ])
         let result = engine.match("мой адрес,")
         XCTAssertNotNil(result)
@@ -222,7 +221,7 @@ final class SnippetEngineTests: XCTestCase {
 
     func test_standalone_fuzzy_with_punctuation() {
         let engine = makeEngine([
-            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .fuzzy)
+            record(trigger: "мой адрес", content: "Аминева 9", matchMode: .fuzzy),
         ])
         let result = engine.match("мой адрес!")
         XCTAssertNotNil(result)
@@ -301,7 +300,6 @@ final class SnippetEngineTests: XCTestCase {
 // MARK: - Levenshtein Distance тесты
 
 final class LevenshteinDistanceTests: XCTestCase {
-
     func test_identical_strings() {
         XCTAssertEqual(SnippetEngine.levenshteinDistance("привет", "привет"), 0)
     }
@@ -332,7 +330,6 @@ final class LevenshteinDistanceTests: XCTestCase {
 // MARK: - Тесты SnippetStore
 
 final class SnippetStoreTests: XCTestCase {
-
     private func makeStore() throws -> SnippetStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
@@ -514,7 +511,6 @@ final class SnippetStoreTests: XCTestCase {
 // MARK: - TextMode Snippet Prompt тесты
 
 final class TextModeSnippetPromptTests: XCTestCase {
-
     func test_systemPrompt_includes_snippet_placeholder_block() {
         let ctx = SnippetContext(trigger: "мой адрес")
         let prompt = TextMode.universal.systemPrompt(

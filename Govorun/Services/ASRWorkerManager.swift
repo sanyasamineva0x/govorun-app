@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - WorkerState
 
-enum WorkerState: Equatable, Sendable {
+enum WorkerState: Equatable {
     case notStarted
     case settingUp
     case downloadingModel(progress: Int)
@@ -56,7 +56,6 @@ protocol ASRWorkerManaging: AnyObject {
 // MARK: - ASRWorkerManager
 
 final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
-
     let socketPath: String
     let venvPath: String
     let maxRestartAttempts: Int
@@ -73,7 +72,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     private var _isStoppedManually: Bool = false
     private var _isStarting: Bool = false
     private var _launchWorkerOverride: (() -> Void)?
-    private var _launchAttemptId: UUID = UUID()
+    private var _launchAttemptId: UUID = .init()
 
     let versionUserDefaultsKey = "govorun.worker.installedVersion"
 
@@ -113,7 +112,9 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         return _state
     }
 
-    var isReady: Bool { state == .ready }
+    var isReady: Bool {
+        state == .ready
+    }
 
     /// Переопределение запуска worker для тестов (потокобезопасно)
     var launchWorkerOverride: (() -> Void)? {
@@ -211,8 +212,9 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         let path = (workerDirectory as NSString).appendingPathComponent("VERSION")
         guard let data = FileManager.default.contents(atPath: path),
               let version = String(data: data, encoding: .utf8)?
-                  .trimmingCharacters(in: .whitespacesAndNewlines),
-              !version.isEmpty else {
+              .trimmingCharacters(in: .whitespacesAndNewlines),
+              !version.isEmpty
+        else {
             return nil
         }
         return version
@@ -260,7 +262,8 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             // "DOWNLOADING 45%" → .downloadingModel(progress: 45)
             let parts = line.split(separator: " ")
             if parts.count >= 2,
-               let pct = Int(parts[1].replacingOccurrences(of: "%", with: "")) {
+               let pct = Int(parts[1].replacingOccurrences(of: "%", with: ""))
+            {
                 setState(.downloadingModel(progress: min(pct, 100)))
             }
         } else if line.hasPrefix("LOADING") {
@@ -294,15 +297,15 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             } else {
                 Task { [weak self] in
                     guard let self else { return }
-                    guard self.launchAttemptId == attemptId else {
+                    guard launchAttemptId == attemptId else {
                         print("[Worker] Перезапуск пропущен: attempt инвалидирован")
                         return
                     }
                     print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
                     do {
-                        try await self.launchWorker()
+                        try await launchWorker()
                     } catch {
-                        self.setState(.error("Перезапуск не удался: \(error.localizedDescription)"))
+                        setState(.error("Перезапуск не удался: \(error.localizedDescription)"))
                     }
                 }
             }
@@ -354,8 +357,13 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             final class OutputBuffer: @unchecked Sendable {
                 private let lock = NSLock()
                 private var data = Data()
-                func append(_ chunk: Data) { lock.lock(); data.append(chunk); lock.unlock() }
-                func string() -> String { lock.lock(); defer { lock.unlock() }; return String(data: data, encoding: .utf8) ?? "" }
+                func append(_ chunk: Data) {
+                    lock.lock(); data.append(chunk); lock.unlock()
+                }
+
+                func string() -> String {
+                    lock.lock(); defer { lock.unlock() }; return String(data: data, encoding: .utf8) ?? ""
+                }
             }
             let outputBuffer = OutputBuffer()
             pipe.fileHandleForReading.readabilityHandler = { handle in
@@ -371,9 +379,9 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                     return
                 }
                 // Очистить ссылку на setup process
-                self.lock.lock()
-                if self._setupProcess === proc { self._setupProcess = nil }
-                self.lock.unlock()
+                lock.lock()
+                if _setupProcess === proc { _setupProcess = nil }
+                lock.unlock()
 
                 if proc.terminationStatus == 0 {
                     resumeOnce(with: .success(()))
@@ -390,9 +398,9 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 try process.run()
             } catch {
                 if let self {
-                    self.lock.lock()
-                    self._setupProcess = nil
-                    self.lock.unlock()
+                    lock.lock()
+                    _setupProcess = nil
+                    lock.unlock()
                 }
                 pipe.fileHandleForReading.readabilityHandler = nil
                 resumeOnce(with: .failure(WorkerError.setupFailed(
@@ -429,7 +437,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         for path in [
             "/usr/bin/python3",
             "/usr/local/bin/python3",
-            "/opt/homebrew/bin/python3"
+            "/opt/homebrew/bin/python3",
         ] {
             if FileManager.default.isExecutableFile(atPath: path) {
                 return path
@@ -543,10 +551,10 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 let work = DispatchWorkItem { [weak self] in
                     guard let self else { return }
                     // Валидация: таймаут принадлежит текущей попытке запуска
-                    guard self.launchAttemptId == attemptId else { return }
+                    guard launchAttemptId == attemptId else { return }
                     // Пометить как остановленный — предотвратить zombie restart в handleTermination
-                    self.markStoppedManually()
-                    self.setState(.error("Таймаут загрузки модели"))
+                    markStoppedManually()
+                    setState(.error("Таймаут загрузки модели"))
                     resumeOnce(with: .failure(WorkerError.timeout))
                 }
                 currentTimeoutWork = work
@@ -595,11 +603,11 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
 
             do {
                 try process.run()
-                self.setState(.loadingModel)
+                setState(.loadingModel)
             } catch {
                 cancelTimeout()
                 let msg = "Не удалось запустить worker: \(error.localizedDescription)"
-                self.setState(.error(msg))
+                setState(.error(msg))
                 resumeOnce(with: .failure(WorkerError.setupFailed(msg)))
                 return
             }

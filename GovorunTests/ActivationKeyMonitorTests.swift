@@ -1,12 +1,11 @@
-import XCTest
 import CoreGraphics
 @testable import Govorun
+import XCTest
 
 // MARK: - ActivationKeyMonitor тесты
 
 @MainActor
 final class ActivationKeyMonitorTests: XCTestCase {
-
     // MARK: - Вспомогательные методы
 
     /// Ожидание на главной очереди с небольшим запасом

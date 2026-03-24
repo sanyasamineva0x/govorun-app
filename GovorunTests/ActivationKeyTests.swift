@@ -1,9 +1,8 @@
-import XCTest
 import CoreGraphics
 @testable import Govorun
+import XCTest
 
 final class ActivationKeyTests: XCTestCase {
-
     // MARK: - Equatable
 
     func test_modifier_equal() {

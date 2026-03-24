@@ -1,11 +1,10 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - BottomBarController тесты
 
 @MainActor
 final class BottomBarControllerTests: XCTestCase {
-
     // MARK: - 1. При recording → bar видим
 
     func test_bar_shows_on_recording() {
@@ -55,8 +54,8 @@ final class BottomBarControllerTests: XCTestCase {
         XCTAssertLessThanOrEqual(BottomBarMetrics.pillHeight, 52)
 
         // cornerRadius = height / 2 (pill shape)
-        let cornerRadius = BottomBarMetrics.pillHeight / 2
-        XCTAssertEqual(cornerRadius, BottomBarMetrics.pillHeight / 2)
+        let cornerRadius = BottomBarMetrics.pillHeight/2
+        XCTAssertEqual(cornerRadius, BottomBarMetrics.pillHeight/2)
 
         // Отступ от нижнего края
         XCTAssertGreaterThan(BottomBarMetrics.bottomOffset, 0)
@@ -111,7 +110,6 @@ final class BottomBarControllerTests: XCTestCase {
 // MARK: - BottomBarState тесты
 
 final class BottomBarStateTests: XCTestCase {
-
     func test_hidden_is_not_visible() {
         XCTAssertFalse(BottomBarState.hidden.isVisible)
     }
@@ -164,7 +162,6 @@ final class BottomBarStateTests: XCTestCase {
 
 @MainActor
 final class BrandColorsTests: XCTestCase {
-
     func test_brand_colors_exist() {
         XCTAssertNotNil(BrandColors.cottonCandy)
         XCTAssertNotNil(BrandColors.skyAqua)
@@ -176,7 +173,6 @@ final class BrandColorsTests: XCTestCase {
 // MARK: - Метрики pill (инварианты)
 
 final class BottomBarMetricsTests: XCTestCase {
-
     func test_max_pill_width_fits_all_states() {
         XCTAssertGreaterThanOrEqual(
             BottomBarMetrics.maxPillWidth,
@@ -215,7 +211,6 @@ final class BottomBarMetricsTests: XCTestCase {
 // MARK: - OrganicPillShape тесты
 
 final class OrganicPillShapeTests: XCTestCase {
-
     func test_zero_amplitude_produces_capsule() {
         let shape = OrganicPillShape(amplitude: 0, phase: 0, frequency: 3.0)
         let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
@@ -258,7 +253,7 @@ final class OrganicPillShapeTests: XCTestCase {
 
     func test_large_phase_values_produce_valid_path() {
         // Phase mod 2π — bounded, но shape должна работать и с большими значениями
-        let shape = OrganicPillShape(amplitude: 2.0, phase: 1000.0, frequency: 3.0)
+        let shape = OrganicPillShape(amplitude: 2.0, phase: 1_000.0, frequency: 3.0)
         let rect = CGRect(x: 0, y: 0, width: 260, height: 44)
         let path = shape.path(in: rect)
         XCTAssertFalse(path.isEmpty)

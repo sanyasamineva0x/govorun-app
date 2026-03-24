@@ -100,7 +100,7 @@ struct AppModeSettingsView: View {
 
     private func loadOverrides() {
         let dict = modeOverrides.allOverrides()
-        overrides = dict.compactMap { (bundleId, rawMode) in
+        overrides = dict.compactMap { bundleId, rawMode in
             guard let mode = TextMode(rawValue: rawMode) else { return nil }
             return AppModeEntry(bundleId: bundleId, mode: mode)
         }

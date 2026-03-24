@@ -182,15 +182,15 @@ final class StatusBarController: NSObject {
     private func statusInfo(for state: SessionState) -> (String, String) {
         switch state {
         case .idle:
-            return ("Готов", "mic.fill")
+            ("Готов", "mic.fill")
         case .recording:
-            return ("Записываю…", "mic.circle.fill")
+            ("Записываю…", "mic.circle.fill")
         case .processing:
-            return ("Обрабатываю…", "ellipsis.circle")
+            ("Обрабатываю…", "ellipsis.circle")
         case .inserting:
-            return ("Вставляю…", "doc.on.clipboard")
+            ("Вставляю…", "doc.on.clipboard")
         case .error(let msg):
-            return ("Ошибка: \(msg)", "exclamationmark.triangle.fill")
+            ("Ошибка: \(msg)", "exclamationmark.triangle.fill")
         }
     }
 
@@ -212,17 +212,17 @@ final class StatusBarController: NSObject {
     private func workerStatusInfo(for state: WorkerState) -> (String, String) {
         switch state {
         case .notStarted:
-            return ("Запускаюсь…", "circle.dotted")
+            ("Запускаюсь…", "circle.dotted")
         case .settingUp:
-            return ("Готовлюсь…", "gearshape")
+            ("Готовлюсь…", "gearshape")
         case .downloadingModel(let progress):
-            return ("Качаю модель… \(progress)%", "arrow.down.circle")
+            ("Качаю модель… \(progress)%", "arrow.down.circle")
         case .loadingModel:
-            return ("Загружаю модель…", "arrow.down.circle")
+            ("Загружаю модель…", "arrow.down.circle")
         case .ready:
-            return ("Готов", "mic.fill")
+            ("Готов", "mic.fill")
         case .error(let msg):
-            return ("Ошибка: \(msg)", "exclamationmark.triangle.fill")
+            ("Ошибка: \(msg)", "exclamationmark.triangle.fill")
         }
     }
 
@@ -266,8 +266,8 @@ final class StatusBarController: NSObject {
         pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.isPulseOn.toggle()
-                self.updatePulseIcon()
+                isPulseOn.toggle()
+                updatePulseIcon()
             }
         }
     }

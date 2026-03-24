@@ -9,7 +9,6 @@ import Foundation
 ///
 /// Один request за connection. Streaming не поддерживается.
 final class LocalSTTClient: STTClient, Sendable {
-
     private let socketPath: String
     private let timeout: TimeInterval
 
@@ -131,7 +130,7 @@ final class LocalSTTClient: STTClient, Sendable {
 
                 // Прочитать ответ
                 var responseData = Data()
-                let bufferSize = 65536
+                let bufferSize = 65_536
                 let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
                 defer { buffer.deallocate() }
 
@@ -215,11 +214,11 @@ final class LocalSTTClient: STTClient, Sendable {
 
     /// Добавить 44-байтный WAV-заголовок к сырым PCM данным
     /// Формат: PCM 16-bit, 16kHz, mono (совпадает с AudioCapture.outputFormat)
-    static func addWAVHeader(to pcmData: Data, sampleRate: Int = 16000, channels: Int = 1, bitsPerSample: Int = 16) -> Data {
+    static func addWAVHeader(to pcmData: Data, sampleRate: Int = 16_000, channels: Int = 1, bitsPerSample: Int = 16) -> Data {
         let dataSize = UInt32(pcmData.count)
         let fileSize = dataSize + 36
-        let byteRate = UInt32(sampleRate * channels * bitsPerSample / 8)
-        let blockAlign = UInt16(channels * bitsPerSample / 8)
+        let byteRate = UInt32(sampleRate * channels * bitsPerSample/8)
+        let blockAlign = UInt16(channels * bitsPerSample/8)
 
         var header = Data()
         header.append(contentsOf: "RIFF".utf8)
@@ -227,7 +226,7 @@ final class LocalSTTClient: STTClient, Sendable {
         header.append(contentsOf: "WAVE".utf8)
         header.append(contentsOf: "fmt ".utf8)
         header.append(contentsOf: withUnsafeBytes(of: UInt32(16).littleEndian) { Array($0) }) // chunk size
-        header.append(contentsOf: withUnsafeBytes(of: UInt16(1).littleEndian) { Array($0) })  // PCM
+        header.append(contentsOf: withUnsafeBytes(of: UInt16(1).littleEndian) { Array($0) }) // PCM
         header.append(contentsOf: withUnsafeBytes(of: UInt16(channels).littleEndian) { Array($0) })
         header.append(contentsOf: withUnsafeBytes(of: UInt32(sampleRate).littleEndian) { Array($0) })
         header.append(contentsOf: withUnsafeBytes(of: byteRate.littleEndian) { Array($0) })
@@ -238,5 +237,4 @@ final class LocalSTTClient: STTClient, Sendable {
         header.append(pcmData)
         return header
     }
-
 }

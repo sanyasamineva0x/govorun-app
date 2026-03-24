@@ -2,7 +2,6 @@ import Foundation
 
 /// Русские сообщения об ошибках для пользователя (bottom bar, menu bar)
 enum ErrorMessages {
-
     static func userFacing(for error: Error) -> String {
         // Сетевые ошибки
         if let urlError = error as? URLError {
@@ -47,71 +46,71 @@ enum ErrorMessages {
     private static func urlErrorMessage(_ error: URLError) -> String {
         switch error.code {
         case .notConnectedToInternet, .networkConnectionLost:
-            return "Нет интернета"
+            "Нет интернета"
         case .timedOut:
-            return "Сервер не отвечает"
+            "Сервер не отвечает"
         case .cannotFindHost, .cannotConnectToHost:
-            return "Сервер недоступен"
+            "Сервер недоступен"
         case .secureConnectionFailed:
-            return "Ошибка SSL-соединения"
+            "Ошибка SSL-соединения"
         default:
-            return "Ошибка сети"
+            "Ошибка сети"
         }
     }
 
     private static func pipelineMessage(_ error: PipelineError) -> String {
         switch error {
         case .cancelled:
-            return "Отменено"
+            "Отменено"
         case .sttFailed(let detail):
-            return "Ошибка распознавания: \(detail)"
+            "Ошибка распознавания: \(detail)"
         case .audioCaptureFailed:
-            return "Ошибка микрофона"
+            "Ошибка микрофона"
         }
     }
 
     private static func sttMessage(_ error: STTError) -> String {
         switch error {
         case .noAudioData:
-            return "Нет аудио"
+            "Нет аудио"
         case .noResult:
-            return "Не удалось распознать"
+            "Не удалось распознать"
         case .connectionFailed:
-            return "Распознавание недоступно"
+            "Распознавание недоступно"
         case .recognitionFailed:
-            return "Ошибка распознавания"
+            "Ошибка распознавания"
         }
     }
 
     private static func llmMessage(_ error: LLMError) -> String {
         switch error {
         case .networkError:
-            return "Ошибка сети"
+            "Ошибка сети"
         case .invalidResponse:
-            return "Ошибка ответа сервера"
+            "Ошибка ответа сервера"
         case .parsingFailed:
-            return "Ошибка обработки ответа"
+            "Ошибка обработки ответа"
         case .rateLimited:
-            return "Слишком много запросов"
+            "Слишком много запросов"
         case .serverError:
-            return "Ошибка сервера"
+            "Ошибка сервера"
         case .timeout:
-            return "Сервер не отвечает"
+            "Сервер не отвечает"
         }
     }
 
     private static func audioMessage(_ error: AudioCaptureError) -> String {
         switch error {
         case .microphoneNotAvailable:
-            return "Микрофон не найден"
+            "Микрофон не найден"
         case .permissionDenied:
-            return "Нет доступа к микрофону"
+            "Нет доступа к микрофону"
         case .engineStartFailed:
-            return "Ошибка микрофона"
+            "Ошибка микрофона"
         case .alreadyRecording:
-            return "Уже записываю"
+            "Уже записываю"
         case .notRecording:
-            return "Запись не активна"
+            "Запись не активна"
         }
     }
 
@@ -122,7 +121,7 @@ enum ErrorMessages {
     private static func insertionMessage(_ error: TextInsertionError) -> String {
         switch error {
         case .allStrategiesFailed:
-            return "Не удалось вставить текст"
+            "Не удалось вставить текст"
         }
     }
 
@@ -131,14 +130,13 @@ enum ErrorMessages {
     /// Маппинг сырых строк из WorkerState.error → понятные сообщения.
     /// Используется в Settings/Onboarding, где state содержит String, а не typed Error.
     static func humanReadable(_ raw: String) -> String {
-        let mapped: String?
-        if raw.contains("упал") || raw.contains("Не удалось запустить") { mapped = "Не удалось запустить распознавание" }
-        else if raw.contains("setup.sh") { mapped = "Ошибка подготовки" }
-        else if raw.lowercased().contains("python") { mapped = "Внутренняя ошибка. Переустановите Говоруна" }
-        else if raw.contains("Таймаут") { mapped = "Загрузка прервалась" }
-        else if raw.contains("VERSION") { mapped = "Обновите приложение" }
-        else if raw.contains("отменена") { mapped = nil }
-        else { mapped = nil }
+        let mapped: String? = if raw.contains("упал") || raw.contains("Не удалось запустить") { "Не удалось запустить распознавание" }
+        else if raw.contains("setup.sh") { "Ошибка подготовки" }
+        else if raw.lowercased().contains("python") { "Внутренняя ошибка. Переустановите Говоруна" }
+        else if raw.contains("Таймаут") { "Загрузка прервалась" }
+        else if raw.contains("VERSION") { "Обновите приложение" }
+        else if raw.contains("отменена") { nil }
+        else { nil }
 
         if let mapped {
             print("[Govorun] Ошибка worker: \(raw) → UI: \(mapped)")
@@ -146,5 +144,4 @@ enum ErrorMessages {
         }
         return raw
     }
-
 }

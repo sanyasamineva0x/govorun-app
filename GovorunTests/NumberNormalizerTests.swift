@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class NumberParserTests: XCTestCase {
-
     // MARK: - parseNumber: единицы
 
     func test_parse_ноль() {
@@ -109,19 +108,19 @@ final class NumberParserTests: XCTestCase {
 
     func test_parse_тысяча() {
         let r = NumberNormalizer.parseNumber(["тысяча"])
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumedCount, 1)
     }
 
     func test_parse_две_тысячи() {
         let r = NumberNormalizer.parseNumber(["две", "тысячи"])
-        XCTAssertEqual(r?.value, 2000)
+        XCTAssertEqual(r?.value, 2_000)
         XCTAssertEqual(r?.consumedCount, 2)
     }
 
     func test_parse_двадцать_пять_тысяч() {
         let r = NumberNormalizer.parseNumber(["двадцать", "пять", "тысяч"])
-        XCTAssertEqual(r?.value, 25000)
+        XCTAssertEqual(r?.value, 25_000)
         XCTAssertEqual(r?.consumedCount, 3)
     }
 
@@ -173,7 +172,7 @@ final class NumberParserTests: XCTestCase {
 
     func test_parse_полторы_тысячи() {
         let r = NumberNormalizer.parseNumber(["полторы", "тысячи"])
-        XCTAssertEqual(r?.value, 1500)
+        XCTAssertEqual(r?.value, 1_500)
         XCTAssertEqual(r?.consumedCount, 2)
     }
 
@@ -200,11 +199,11 @@ final class NumberParserTests: XCTestCase {
     }
 
     func test_format_thousand() {
-        XCTAssertEqual(NumberNormalizer.formatNumber(1000), "1 000")
+        XCTAssertEqual(NumberNormalizer.formatNumber(1_000), "1 000")
     }
 
     func test_format_large() {
-        XCTAssertEqual(NumberNormalizer.formatNumber(25000), "25 000")
+        XCTAssertEqual(NumberNormalizer.formatNumber(25_000), "25 000")
     }
 
     func test_format_million() {
@@ -217,14 +216,13 @@ final class NumberParserTests: XCTestCase {
 
     func test_format_poltysy_is_integer() {
         // полторы тысячи = 1500.0 → целое
-        XCTAssertEqual(NumberNormalizer.formatNumber(1500), "1 500")
+        XCTAssertEqual(NumberNormalizer.formatNumber(1_500), "1 500")
     }
 }
 
 // MARK: - Проценты
 
 final class PercentageNormalizerTests: XCTestCase {
-
     func test_двадцать_пять_процентов() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять процентов"), "25%")
     }
@@ -249,7 +247,6 @@ final class PercentageNormalizerTests: XCTestCase {
 // MARK: - Валюты
 
 final class CurrencyNormalizerTests: XCTestCase {
-
     func test_тысяча_рублей() {
         XCTAssertEqual(NumberNormalizer.normalize("тысяча рублей"), "1 000 рублей")
     }
@@ -274,8 +271,7 @@ final class CurrencyNormalizerTests: XCTestCase {
 // MARK: - Время
 
 final class TimeNormalizerTests: XCTestCase {
-
-    // Время (H:MM) — с явным контекстом
+    /// Время (H:MM) — с явным контекстом
     func test_в_пять_часов() {
         XCTAssertEqual(NumberNormalizer.normalize("в пять часов"), "в 5:00")
     }
@@ -288,7 +284,7 @@ final class TimeNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("к трём часам"), "к 3:00")
     }
 
-    // Длительность — НЕ H:MM
+    /// Длительность — НЕ H:MM
     func test_пять_часов_end_of_sentence_is_duration() {
         XCTAssertEqual(NumberNormalizer.normalize("пять часов"), "5 часов")
     }
@@ -301,7 +297,7 @@ final class TimeNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("три часа ожидания"), "3 часа ожидания")
     }
 
-    // Минуты
+    /// Минуты
     func test_двадцать_минут() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать минут"), "20 минут")
     }
@@ -310,7 +306,7 @@ final class TimeNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("полчаса"), "30 минут")
     }
 
-    // Не трогаем
+    /// Не трогаем
     func test_без_четверти_три_untouched() {
         XCTAssertEqual(NumberNormalizer.normalize("без четверти три"), "без четверти три")
     }
@@ -323,7 +319,6 @@ final class TimeNormalizerTests: XCTestCase {
 // MARK: - Даты
 
 final class DateNormalizerTests: XCTestCase {
-
     func test_тринадцатое_марта() {
         XCTAssertEqual(NumberNormalizer.normalize("тринадцатое марта"), "13 марта")
     }
@@ -352,7 +347,6 @@ final class DateNormalizerTests: XCTestCase {
 // MARK: - Порядковые (без месяца)
 
 final class OrdinalNormalizerTests: XCTestCase {
-
     func test_двадцать_пятое() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пятое"), "25-е")
     }
@@ -381,7 +375,6 @@ final class OrdinalNormalizerTests: XCTestCase {
 // MARK: - Кардиналы
 
 final class CardinalNormalizerTests: XCTestCase {
-
     func test_двадцать_пять() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять"), "25")
     }
@@ -394,7 +387,7 @@ final class CardinalNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("три тысячи двести"), "3 200")
     }
 
-    // ≤ 9 без контекста — оставить словом
+    /// ≤ 9 без контекста — оставить словом
     func test_три_кота_stays() {
         XCTAssertEqual(NumberNormalizer.normalize("три кота"), "три кота")
     }
@@ -403,12 +396,12 @@ final class CardinalNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("пять"), "пять")
     }
 
-    // ≥ 10 — всегда нормализуем
+    /// ≥ 10 — всегда нормализуем
     func test_десять_always() {
         XCTAssertEqual(NumberNormalizer.normalize("десять"), "10")
     }
 
-    // ≤ 9 с trigger-словом — нормализуем
+    /// ≤ 9 с trigger-словом — нормализуем
     func test_пять_метров() {
         XCTAssertEqual(NumberNormalizer.normalize("пять метров"), "5 метров")
     }
@@ -417,12 +410,12 @@ final class CardinalNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("три килограмма"), "3 килограмма")
     }
 
-    // Уже цифры — не трогаем
+    /// Уже цифры — не трогаем
     func test_digit_passthrough() {
         XCTAssertEqual(NumberNormalizer.normalize("у меня 3 кошки"), "у меня 3 кошки")
     }
 
-    // Идемпотентность
+    /// Идемпотентность
     func test_idempotent() {
         let once = NumberNormalizer.normalize("двадцать пять процентов")
         let twice = NumberNormalizer.normalize(once)
@@ -433,7 +426,6 @@ final class CardinalNormalizerTests: XCTestCase {
 // MARK: - Смешанные предложения
 
 final class MixedSentenceNormalizerTests: XCTestCase {
-
     func test_mixed_time_and_currency() {
         XCTAssertEqual(
             NumberNormalizer.normalize("встреча в пять часов стоит триста рублей"),
@@ -459,7 +451,6 @@ final class MixedSentenceNormalizerTests: XCTestCase {
 // MARK: - Интеграция через DeterministicNormalizer
 
 final class NumberNormalizerIntegrationTests: XCTestCase {
-
     func test_deterministic_normalizer_converts_numbers() {
         // DeterministicNormalizer adds capitalization + period
         XCTAssertEqual(
@@ -487,8 +478,7 @@ final class NumberNormalizerIntegrationTests: XCTestCase {
 // MARK: - Edge cases (test gaps from review)
 
 final class NumberNormalizerEdgeCaseTests: XCTestCase {
-
-    // Gap 1: Empty input
+    /// Gap 1: Empty input
     func test_normalize_empty_string() {
         XCTAssertEqual(NumberNormalizer.normalize(""), "")
     }
@@ -497,7 +487,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertNil(NumberNormalizer.parseNumber([]))
     }
 
-    // Gap 2: четверть
+    /// Gap 2: четверть
     func test_parse_четверть() {
         let r = NumberNormalizer.parseNumber(["четверть"])
         XCTAssertEqual(r?.value, 0.25)
@@ -512,7 +502,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.formatNumber(0), "0")
     }
 
-    // Gap 3: Спецформы — самодостаточные (fix verification)
+    /// Gap 3: Спецформы — самодостаточные (fix verification)
     func test_полтора_два_stops_after_полтора() {
         let r = NumberNormalizer.parseNumber(["полтора", "два"])
         XCTAssertEqual(r?.value, 1.5)
@@ -525,7 +515,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(r?.consumedCount, 1)
     }
 
-    // Gap 4: ноль terminal (fix verification)
+    /// Gap 4: ноль terminal (fix verification)
     func test_ноль_пять_stops_after_ноль() {
         let r = NumberNormalizer.parseNumber(["ноль", "пять"])
         XCTAssertEqual(r?.value, 0)
@@ -538,30 +528,30 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(r?.consumedCount, 1)
     }
 
-    // Gap 5: Multiplier ordering (fix verification)
+    /// Gap 5: Multiplier ordering (fix verification)
     func test_тысяча_тысяча_stops() {
         let r = NumberNormalizer.parseNumber(["тысяча", "тысяча"])
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumedCount, 1)
     }
 
     func test_тысяча_миллион_stops() {
         let r = NumberNormalizer.parseNumber(["тысяча", "миллион"])
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumedCount, 1)
     }
 
-    // Gap 6: четверть часа (fix verification)
+    /// Gap 6: четверть часа (fix verification)
     func test_четверть_часа_untouched() {
         XCTAssertEqual(NumberNormalizer.normalize("четверть часа"), "четверть часа")
     }
 
-    // Gap 7: Time range validation (fix verification)
+    /// Gap 7: Time range validation (fix verification)
     func test_двести_часов_not_time() {
         XCTAssertEqual(NumberNormalizer.normalize("в двести часов"), "в 200 часов")
     }
 
-    // Gap 8: Time prepositions — до/с/после
+    /// Gap 8: Time prepositions — до/с/после
     func test_до_пяти_часов() {
         XCTAssertEqual(NumberNormalizer.normalize("до пяти часов"), "до 5:00")
     }
@@ -574,7 +564,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("с трёх часов"), "с 3:00")
     }
 
-    // Gap 9: Trailing punctuation on triggers
+    /// Gap 9: Trailing punctuation on triggers
     func test_percent_with_trailing_period() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять процентов."), "25%.")
     }
@@ -583,7 +573,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("тринадцатое марта."), "13 марта.")
     }
 
-    // Gap 10: tensCardinals 40-90 (fix verification)
+    /// Gap 10: tensCardinals 40-90 (fix verification)
     func test_сорок_пятый_ordinal() {
         XCTAssertEqual(NumberNormalizer.normalize("сорок пятый"), "45-й")
     }
@@ -592,7 +582,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("пятьдесят второй"), "52-й")
     }
 
-    // Gap 11: Idempotency — все трансформации
+    /// Gap 11: Idempotency — все трансформации
     func test_idempotent_currency() {
         let once = NumberNormalizer.normalize("тысяча рублей")
         let twice = NumberNormalizer.normalize(once)
@@ -617,7 +607,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         XCTAssertEqual(once, twice)
     }
 
-    // Gap 12: Transformation ordering — число после валюты
+    /// Gap 12: Transformation ordering — число после валюты
     func test_number_after_currency_still_normalizes() {
         XCTAssertEqual(
             NumberNormalizer.normalize("сто рублей двадцать"),
@@ -625,7 +615,7 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
         )
     }
 
-    // Gap 13: пять часов без контекста = длительность
+    /// Gap 13: пять часов без контекста = длительность
     func test_пять_часов_alone_is_duration() {
         XCTAssertEqual(NumberNormalizer.normalize("пять часов"), "5 часов")
     }
@@ -634,7 +624,6 @@ final class NumberNormalizerEdgeCaseTests: XCTestCase {
 // MARK: - Token layer (v2) roundtrip
 
 final class TokenLayerTests: XCTestCase {
-
     func test_roundtrip_plain_text() {
         XCTAssertEqual(
             NumberNormalizer.tokenizeRoundtrip("привет мир"),
@@ -730,8 +719,7 @@ final class TokenLayerTests: XCTestCase {
 // MARK: - Numeric parser (v2)
 
 final class NumericParserTests: XCTestCase {
-
-    // Простое целое число
+    /// Простое целое число
     func test_simple_integer() {
         let r = NumberNormalizer.testParseNumeric("42")
         XCTAssertEqual(r?.value, 42)
@@ -739,10 +727,10 @@ final class NumericParserTests: XCTestCase {
         XCTAssertNil(r?.currency)
     }
 
-    // Пробельно-разделённое число: 1 000
+    /// Пробельно-разделённое число: 1 000
     func test_space_grouped_1000() {
         let r = NumberNormalizer.testParseNumeric("1 000")
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumed, 2)
     }
 
@@ -753,44 +741,44 @@ final class NumericParserTests: XCTestCase {
         XCTAssertEqual(r?.consumed, 3)
     }
 
-    // Дробное с запятой: 2,5
+    /// Дробное с запятой: 2,5
     func test_decimal_comma() {
         let r = NumberNormalizer.testParseNumeric("2,5")
         XCTAssertEqual(r?.value, 2.5)
         XCTAssertEqual(r?.consumed, 1)
     }
 
-    // Слитное большое число: 2000000
+    /// Слитное большое число: 2000000
     func test_large_solid_number() {
         let r = NumberNormalizer.testParseNumeric("2000000")
         XCTAssertEqual(r?.value, 2_000_000)
         XCTAssertEqual(r?.consumed, 1)
     }
 
-    // Число + символ рубля: 1000₽
+    /// Число + символ рубля: 1000₽
     func test_currency_symbol_rub() {
         let r = NumberNormalizer.testParseNumeric("1000\u{20BD}")
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumed, 1)
         XCTAssertEqual(r?.currency, "rub")
     }
 
-    // Пробельное + символ рубля: 1 000₽
+    /// Пробельное + символ рубля: 1 000₽
     func test_space_grouped_with_currency() {
         let r = NumberNormalizer.testParseNumeric("1 000\u{20BD}")
-        XCTAssertEqual(r?.value, 1000)
+        XCTAssertEqual(r?.value, 1_000)
         XCTAssertEqual(r?.consumed, 2)
         XCTAssertEqual(r?.currency, "rub")
     }
 
-    // Число + $ символ
+    /// Число + $ символ
     func test_currency_symbol_usd() {
         let r = NumberNormalizer.testParseNumeric("500$")
         XCTAssertEqual(r?.value, 500)
         XCTAssertEqual(r?.currency, "usd")
     }
 
-    // Число + € символ
+    /// Число + € символ
     func test_currency_symbol_eur() {
         let r = NumberNormalizer.testParseNumeric("200\u{20AC}")
         XCTAssertEqual(r?.value, 200)
@@ -820,26 +808,26 @@ final class NumericParserTests: XCTestCase {
         XCTAssertEqual(r?.consumed, 2)
     }
 
-    // Не число — nil
+    /// Не число — nil
     func test_non_numeric_returns_nil() {
         let r = NumberNormalizer.testParseNumeric("привет")
         XCTAssertNil(r)
     }
 
-    // Слово, начинающееся не с цифры
+    /// Слово, начинающееся не с цифры
     func test_word_starting_with_letter_returns_nil() {
         let r = NumberNormalizer.testParseNumeric("abc123")
         XCTAssertNil(r)
     }
 
-    // Число без trailing группы не склеивает
+    /// Число без trailing группы не склеивает
     func test_number_followed_by_word() {
         let r = NumberNormalizer.testParseNumeric("100 рублей")
         XCTAssertEqual(r?.value, 100)
         XCTAssertEqual(r?.consumed, 1)
     }
 
-    // 25 (маленькое число)
+    /// 25 (маленькое число)
     func test_small_two_digit() {
         let r = NumberNormalizer.testParseNumeric("25")
         XCTAssertEqual(r?.value, 25)
@@ -850,17 +838,16 @@ final class NumericParserTests: XCTestCase {
 // MARK: - Span conflict resolution (v2)
 
 final class SpanConflictTests: XCTestCase {
-
-    // money (100) побеждает cardinal (40) при пересечении
+    /// money (100) побеждает cardinal (40) при пересечении
     func test_money_beats_cardinal() {
         let result = NumberNormalizer.testResolveConflicts([
-            (0, 3, 40, "cardinal"),   // "тысяча" как кардинал (tokens 0-2)
-            (0, 3, 100, "money"),     // "тысяча рублей" как деньги (tokens 0-2)
+            (0, 3, 40, "cardinal"), // "тысяча" как кардинал (tokens 0-2)
+            (0, 3, 100, "money"), // "тысяча рублей" как деньги (tokens 0-2)
         ])
         XCTAssertEqual(result, ["money"])
     }
 
-    // Непересекающиеся спаны — оба принимаются
+    /// Непересекающиеся спаны — оба принимаются
     func test_non_overlapping_both_accepted() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 2, 80, "percent"),
@@ -869,7 +856,7 @@ final class SpanConflictTests: XCTestCase {
         XCTAssertEqual(result, ["percent", "money"])
     }
 
-    // time (90) побеждает duration (55)
+    /// time (90) побеждает duration (55)
     func test_time_beats_duration() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 3, 55, "duration"),
@@ -878,7 +865,7 @@ final class SpanConflictTests: XCTestCase {
         XCTAssertEqual(result, ["time"])
     }
 
-    // date (85) побеждает ordinal (60)
+    /// date (85) побеждает ordinal (60)
     func test_date_beats_ordinal() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 2, 60, "ordinal"),
@@ -887,7 +874,7 @@ final class SpanConflictTests: XCTestCase {
         XCTAssertEqual(result, ["date"])
     }
 
-    // ordinal (60) побеждает cardinal (40)
+    /// ordinal (60) побеждает cardinal (40)
     func test_ordinal_beats_cardinal() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 2, 40, "cardinal"),
@@ -896,7 +883,7 @@ final class SpanConflictTests: XCTestCase {
         XCTAssertEqual(result, ["ordinal"])
     }
 
-    // percent (80) побеждает cardinal (40)
+    /// percent (80) побеждает cardinal (40)
     func test_percent_beats_cardinal() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 3, 40, "cardinal"),
@@ -905,23 +892,23 @@ final class SpanConflictTests: XCTestCase {
         XCTAssertEqual(result, ["percent"])
     }
 
-    // Три спана: высокий поглощает средний, низкий непересекающийся — принят
+    /// Три спана: высокий поглощает средний, низкий непересекающийся — принят
     func test_three_spans_partial_overlap() {
         let result = NumberNormalizer.testResolveConflicts([
-            (0, 3, 100, "money"),     // tokens 0-2
-            (1, 3, 40, "cardinal"),   // tokens 1-2, пересекается с money
-            (4, 6, 60, "ordinal"),    // tokens 4-5, не пересекается
+            (0, 3, 100, "money"), // tokens 0-2
+            (1, 3, 40, "cardinal"), // tokens 1-2, пересекается с money
+            (4, 6, 60, "ordinal"), // tokens 4-5, не пересекается
         ])
         XCTAssertEqual(result, ["money", "ordinal"])
     }
 
-    // Пустой вход
+    /// Пустой вход
     func test_empty_spans() {
         let result = NumberNormalizer.testResolveConflicts([])
         XCTAssertEqual(result, [])
     }
 
-    // Один спан
+    /// Один спан
     func test_single_span() {
         let result = NumberNormalizer.testResolveConflicts([
             (0, 2, 40, "cardinal"),
@@ -933,8 +920,7 @@ final class SpanConflictTests: XCTestCase {
 // MARK: - CanonicalFormatter (v2)
 
 final class CanonicalFormatterTests: XCTestCase {
-
-    // formatPercent
+    /// formatPercent
     func test_format_percent_integer() {
         XCTAssertEqual(NumberNormalizer.testFormatPercent(25), "25%")
     }
@@ -947,9 +933,9 @@ final class CanonicalFormatterTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.testFormatPercent(100), "100%")
     }
 
-    // formatMoney
+    /// formatMoney
     func test_format_money_rub() {
-        XCTAssertEqual(NumberNormalizer.testFormatMoney(1000, currency: "rub"), "1 000 рублей")
+        XCTAssertEqual(NumberNormalizer.testFormatMoney(1_000, currency: "rub"), "1 000 рублей")
     }
 
     func test_format_money_usd() {
@@ -964,7 +950,7 @@ final class CanonicalFormatterTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.testFormatMoney(2_000_000, currency: "rub"), "2 000 000 рублей")
     }
 
-    // formatTime
+    /// formatTime
     func test_format_time_full_hour() {
         XCTAssertEqual(NumberNormalizer.testFormatTime(5, 0), "5:00")
     }
@@ -977,7 +963,7 @@ final class CanonicalFormatterTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.testFormatTime(10, 5), "10:05")
     }
 
-    // formatOrdinal
+    /// formatOrdinal
     func test_format_ordinal_basic() {
         XCTAssertEqual(NumberNormalizer.testFormatOrdinal(25, "-й"), "25-й")
     }
@@ -994,8 +980,7 @@ final class CanonicalFormatterTests: XCTestCase {
 // MARK: - v2 проценты + деньги через Span
 
 final class V2PercentMoneySpanTests: XCTestCase {
-
-    // Spoken проценты с пунктуацией
+    /// Spoken проценты с пунктуацией
     func test_percent_trailing_period() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять процентов."), "25%.")
     }
@@ -1050,12 +1035,12 @@ final class V2PercentMoneySpanTests: XCTestCase {
         )
     }
 
-    // Число + валютное слово: 100 рублей
+    /// Число + валютное слово: 100 рублей
     func test_numeric_plus_currency_word() {
         XCTAssertEqual(NumberNormalizer.normalize("100 рублей"), "100 рублей")
     }
 
-    // Символ валюты с пунктуацией: 1000₽.
+    /// Символ валюты с пунктуацией: 1000₽.
     func test_currency_symbol_with_trailing_period() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}."), "1 000 рублей.")
     }
@@ -1064,8 +1049,7 @@ final class V2PercentMoneySpanTests: XCTestCase {
 // MARK: - v2 время + даты через Span
 
 final class V2TimeDateSpanTests: XCTestCase {
-
-    // Время с предлогом + пунктуация
+    /// Время с предлогом + пунктуация
     func test_time_with_trailing_comma() {
         XCTAssertEqual(
             NumberNormalizer.normalize("в пять часов, на встрече"),
@@ -1073,7 +1057,7 @@ final class V2TimeDateSpanTests: XCTestCase {
         )
     }
 
-    // Длительность с пунктуацией
+    /// Длительность с пунктуацией
     func test_duration_trailing_period() {
         XCTAssertEqual(
             NumberNormalizer.normalize("пять часов."),
@@ -1081,7 +1065,7 @@ final class V2TimeDateSpanTests: XCTestCase {
         )
     }
 
-    // Дата с пунктуацией
+    /// Дата с пунктуацией
     func test_date_trailing_period() {
         XCTAssertEqual(
             NumberNormalizer.normalize("тринадцатое марта."),
@@ -1089,7 +1073,7 @@ final class V2TimeDateSpanTests: XCTestCase {
         )
     }
 
-    // Скобочная дата
+    /// Скобочная дата
     func test_date_in_parentheses() {
         XCTAssertEqual(
             NumberNormalizer.normalize("(первое сентября)"),
@@ -1097,7 +1081,7 @@ final class V2TimeDateSpanTests: XCTestCase {
         )
     }
 
-    // Время в скобках
+    /// Время в скобках
     func test_time_in_parentheses() {
         XCTAssertEqual(
             NumberNormalizer.normalize("(до пяти часов)"),
@@ -1105,7 +1089,7 @@ final class V2TimeDateSpanTests: XCTestCase {
         )
     }
 
-    // Полчаса
+    /// Полчаса
     func test_polchasa() {
         XCTAssertEqual(NumberNormalizer.normalize("полчаса"), "30 минут")
     }
@@ -1114,7 +1098,6 @@ final class V2TimeDateSpanTests: XCTestCase {
 // MARK: - Property tests (v2)
 
 final class NumberNormalizerPropertyTests: XCTestCase {
-
     // Идемпотентность: normalize(normalize(x)) == normalize(x)
     func test_idempotent_percent() {
         let once = NumberNormalizer.normalize("двадцать пять процентов")
@@ -1156,7 +1139,7 @@ final class NumberNormalizerPropertyTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize(once), once)
     }
 
-    // Пунктуация сохраняется
+    /// Пунктуация сохраняется
     func test_punctuation_preserved_period() {
         let result = NumberNormalizer.normalize("двадцать пятое.")
         XCTAssertTrue(result.hasSuffix("."), "Точка потеряна: \(result)")
@@ -1177,7 +1160,7 @@ final class NumberNormalizerPropertyTests: XCTestCase {
         XCTAssertTrue(result.hasPrefix("(") && result.hasSuffix(")"), "Скобки потеряны: \(result)")
     }
 
-    // Unsupported input → unchanged
+    /// Unsupported input → unchanged
     func test_unsupported_unchanged() {
         XCTAssertEqual(NumberNormalizer.normalize("привет мир"), "привет мир")
     }
@@ -1190,8 +1173,7 @@ final class NumberNormalizerPropertyTests: XCTestCase {
 // MARK: - GigaAM tabular tests (v2)
 
 final class GigaAMTabularTests: XCTestCase {
-
-    // Канонический формат: GigaAM цифры → каноническое представление
+    /// Канонический формат: GigaAM цифры → каноническое представление
     func test_gigaam_1000_rub() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}"), "1 000 рублей")
     }
@@ -1216,7 +1198,7 @@ final class GigaAMTabularTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("25%"), "25%")
     }
 
-    // Canonical equivalence: spoken == numeric
+    /// Canonical equivalence: spoken == numeric
     func test_canonical_money_equivalence() {
         let spoken = NumberNormalizer.normalize("тысяча рублей")
         let numeric = NumberNormalizer.normalize("1000\u{20BD}")
@@ -1229,7 +1211,7 @@ final class GigaAMTabularTests: XCTestCase {
         XCTAssertEqual(abbrev, full)
     }
 
-    // Сложные GigaAM-реальные фразы
+    /// Сложные GigaAM-реальные фразы
     func test_gigaam_trailing_punctuation_period() {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пятое."), "25-е.")
     }
@@ -1273,7 +1255,6 @@ final class GigaAMTabularTests: XCTestCase {
 // MARK: - Склонение валют
 
 final class CurrencyDeclensionTests: XCTestCase {
-
     func test_один_рубль() {
         XCTAssertEqual(NumberNormalizer.normalize("один рубль"), "1 рубль")
     }

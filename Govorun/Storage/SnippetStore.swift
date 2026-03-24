@@ -10,7 +10,6 @@ enum SnippetStoreError: Error {
 // MARK: - SnippetStore
 
 final class SnippetStore {
-
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext) {
@@ -81,7 +80,7 @@ final class SnippetStore {
     }
 
     func seedDefaultsIfNeeded() throws {
-        guard (try allSnippets()).isEmpty else { return }
+        guard try (allSnippets()).isEmpty else { return }
 
         let defaults: [(String, String, MatchMode)] = [
             ("мой имейл", "example@email.com", .fuzzy),
@@ -107,8 +106,8 @@ final class SnippetStore {
 
     // MARK: - Private
 
-    // SwiftData #Predicate не поддерживает .lowercased() — in-memory фильтрация.
-    // При типичных 5-50 сниппетах производительность не проблема.
+    /// SwiftData #Predicate не поддерживает .lowercased() — in-memory фильтрация.
+    /// При типичных 5-50 сниппетах производительность не проблема.
     private func findByTrigger(_ trigger: String) throws -> Snippet? {
         let lowered = trigger.lowercased()
         let all = try modelContext.fetch(FetchDescriptor<Snippet>())

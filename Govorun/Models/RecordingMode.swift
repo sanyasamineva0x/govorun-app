@@ -1,6 +1,6 @@
 // MARK: - Режим записи
 
-enum RecordingMode: String, Codable, Sendable, CaseIterable {
+enum RecordingMode: String, Codable, CaseIterable {
     case pushToTalk
     case toggle
 

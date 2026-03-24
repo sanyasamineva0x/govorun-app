@@ -1,9 +1,8 @@
-import XCTest
-import SwiftData
 @testable import Govorun
+import SwiftData
+import XCTest
 
 final class MetricsAggregatorTests: XCTestCase {
-
     private var context: ModelContext!
     private var aggregator: MetricsAggregator!
 
@@ -57,7 +56,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.manualEditDetected, sessionId: s1) // одна правка
 
         let rate = try aggregator.zeroEditRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 2.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 2.0/3.0, accuracy: 0.001)
     }
 
     func test_zero_edit_rate_undo_counts_as_bad() throws {
@@ -67,7 +66,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.undoDetected, sessionId: s2) // undo
 
         let rate = try aggregator.zeroEditRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 0.5, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 0.5, accuracy: 0.001)
     }
 
     func test_zero_edit_rate_empty_returns_nil() throws {
@@ -98,7 +97,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.insertionSucceeded, sessionId: s3)
 
         let rate = try aggregator.insertionSuccessRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 2.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 2.0/3.0, accuracy: 0.001)
     }
 
     func test_insertion_success_rate_empty_returns_nil() throws {
@@ -113,7 +112,7 @@ final class MetricsAggregatorTests: XCTestCase {
         for i in 1...10 {
             let sessionId = UUID()
             insertEvent(.insertionSucceeded, sessionId: sessionId, metadata: [
-                AnalyticsMetadataKey.e2eLatencyMs: "\(i * 100)"
+                AnalyticsMetadataKey.e2eLatencyMs: "\(i * 100)",
             ])
         }
 
@@ -121,7 +120,7 @@ final class MetricsAggregatorTests: XCTestCase {
         XCTAssertNotNil(result)
 
         // p50 sorted: [100,200,...,1000], index 4.5 → interpolation between 500 and 600
-        XCTAssertEqual(result!.p50, 550)
+        XCTAssertEqual(result?.p50, 550)
     }
 
     func test_latency_percentiles_empty_returns_nil() throws {
@@ -131,13 +130,13 @@ final class MetricsAggregatorTests: XCTestCase {
 
     func test_latency_percentiles_single_event() throws {
         insertEvent(.insertionSucceeded, sessionId: UUID(), metadata: [
-            AnalyticsMetadataKey.e2eLatencyMs: "300"
+            AnalyticsMetadataKey.e2eLatencyMs: "300",
         ])
 
         let result = try aggregator.latencyPercentiles(from: windowStart, to: windowEnd)
-        XCTAssertEqual(result!.p50, 300)
-        XCTAssertEqual(result!.p90, 300)
-        XCTAssertEqual(result!.p95, 300)
+        XCTAssertEqual(result?.p50, 300)
+        XCTAssertEqual(result?.p90, 300)
+        XCTAssertEqual(result?.p95, 300)
     }
 
     // MARK: - Undo Rate
@@ -151,7 +150,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.undoDetected, sessionId: s2)
 
         let rate = try aggregator.undoRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 0.25, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 0.25, accuracy: 0.001)
     }
 
     func test_undo_rate_no_undos() throws {
@@ -172,7 +171,7 @@ final class MetricsAggregatorTests: XCTestCase {
 
         let rate = try aggregator.retryRate(from: windowStart, to: windowEnd)
         // 1 retry из 3 starts
-        XCTAssertEqual(rate!, 1.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 1.0/3.0, accuracy: 0.001)
     }
 
     func test_retry_rate_no_retries() throws {
@@ -202,7 +201,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.dictationStarted, timestamp: Date(timeIntervalSince1970: 161)) // 31s → not retry
 
         let rate = try aggregator.retryRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 1.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 1.0/3.0, accuracy: 0.001)
     }
 
     // MARK: - Fallback Rate
@@ -215,7 +214,7 @@ final class MetricsAggregatorTests: XCTestCase {
         insertEvent(.clipboardFallbackUsed, sessionId: s1)
 
         let rate = try aggregator.clipboardFallbackRate(from: windowStart, to: windowEnd)
-        XCTAssertEqual(rate!, 1.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(rate), 1.0/3.0, accuracy: 0.001)
     }
 
     func test_clipboard_fallback_rate_no_fallbacks() throws {
@@ -244,12 +243,12 @@ final class MetricsAggregatorTests: XCTestCase {
         // [100, 200, 300, 400, 500] → p50=300, p90=460, p95=480
         for latency in [100, 200, 300, 400, 500] {
             insertEvent(.insertionSucceeded, sessionId: UUID(), metadata: [
-                AnalyticsMetadataKey.e2eLatencyMs: "\(latency)"
+                AnalyticsMetadataKey.e2eLatencyMs: "\(latency)",
             ])
         }
 
         let result = try aggregator.latencyPercentiles(from: windowStart, to: windowEnd)
         XCTAssertNotNil(result)
-        XCTAssertEqual(result!.p50, 300)
+        XCTAssertEqual(result?.p50, 300)
     }
 }

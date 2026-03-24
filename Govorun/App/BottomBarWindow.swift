@@ -59,7 +59,6 @@ enum BottomBarMetrics {
 
 @MainActor
 final class BottomBarController: ObservableObject {
-
     @Published private(set) var state: BottomBarState = .hidden
 
     private var panel: BottomBarWindow?
@@ -124,8 +123,8 @@ final class BottomBarController: ObservableObject {
         scheduleAutoDismiss(after: BottomBarMetrics.errorAutoDismissDelay)
     }
 
-    // Минимальный показ processing гарантируется AppState (minProcessingDisplay).
-    // Контроллер не дублирует — dismiss мгновенный.
+    /// Минимальный показ processing гарантируется AppState (minProcessingDisplay).
+    /// Контроллер не дублирует — dismiss мгновенный.
     func dismiss() {
         cancelAutoDismiss()
         hidePanel { [weak self] in
@@ -138,7 +137,7 @@ final class BottomBarController: ObservableObject {
     private func ensurePanel() {
         guard panel == nil else { return }
         let window = BottomBarWindow(controller: self)
-        self.panel = window
+        panel = window
     }
 
     private func showPanel() {
@@ -169,14 +168,14 @@ final class BottomBarController: ObservableObject {
             return
         }
 
-        NSAnimationContext.runAnimationGroup({ context in
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = BottomBarMetrics.dismissDuration
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        } completionHandler: { [weak self] in
             panel.orderOut(nil)
             self?.panel = nil
             completion()
-        })
+        }
     }
 
     // MARK: - Таймеры
@@ -202,7 +201,6 @@ final class BottomBarController: ObservableObject {
 // MARK: - BottomBarWindow (NSPanel)
 
 final class BottomBarWindow: NSPanel {
-
     private let windowWidth: CGFloat
 
     init(controller: BottomBarController) {
@@ -254,14 +252,14 @@ final class BottomBarWindow: NSPanel {
             hasShadow = true
             addLegacyBackground(hostingView: hostingView, to: contentView)
             contentView.wantsLayer = true
-            contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+            contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight/2
             contentView.layer?.masksToBounds = true
         }
 #else
         hasShadow = true
         addLegacyBackground(hostingView: hostingView, to: contentView)
         contentView.wantsLayer = true
-        contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+        contentView.layer?.cornerRadius = BottomBarMetrics.pillHeight/2
         contentView.layer?.masksToBounds = true
 #endif
     }
@@ -269,7 +267,7 @@ final class BottomBarWindow: NSPanel {
     func positionAtBottom() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.midX - windowWidth / 2
+        let x = screenFrame.midX - windowWidth/2
         let y = screenFrame.origin.y + BottomBarMetrics.bottomOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
@@ -281,7 +279,7 @@ final class BottomBarWindow: NSPanel {
         visualEffect.blendingMode = .behindWindow
         visualEffect.autoresizingMask = [.width, .height]
         visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight / 2
+        visualEffect.layer?.cornerRadius = BottomBarMetrics.pillHeight/2
         visualEffect.layer?.masksToBounds = true
 
         hostingView.frame = visualEffect.bounds
@@ -289,6 +287,11 @@ final class BottomBarWindow: NSPanel {
         contentView.addSubview(visualEffect)
     }
 
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
+    override var canBecomeKey: Bool {
+        false
+    }
+
+    override var canBecomeMain: Bool {
+        false
+    }
 }

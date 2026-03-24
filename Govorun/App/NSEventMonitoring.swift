@@ -3,7 +3,6 @@ import Cocoa
 // MARK: - Реализация EventMonitoring через CGEventTap + NSEvent
 
 final class NSEventMonitoring: EventMonitoring {
-
     var activationKey: ActivationKey = .default
     var recordingMode: RecordingMode = .pushToTalk
 
@@ -111,7 +110,6 @@ final class NSEventMonitoring: EventMonitoring {
 /// 3. keyUp -> окончание записи
 /// 4. Модификатор отпущен до keyDown -> сброс
 final class ActivationEventTap {
-
     private let context: ActivationTapContext
     private var machPort: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -124,7 +122,7 @@ final class ActivationEventTap {
         keyUpHandler: @escaping (UInt16) -> Void,
         onTapReset: @escaping () -> Void = {}
     ) {
-        self.context = ActivationTapContext(
+        context = ActivationTapContext(
             activationKey: activationKey,
             recordingMode: recordingMode,
             flagsHandler: flagsHandler,
@@ -137,15 +135,14 @@ final class ActivationEventTap {
     func start() -> Bool {
         let refcon = Unmanaged.passUnretained(context).toOpaque()
 
-        let eventMask: CGEventMask
-        switch context.activationKey {
+        let eventMask = switch context.activationKey {
         case .modifier:
-            eventMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+            CGEventMask(1 << CGEventType.flagsChanged.rawValue)
         case .keyCode:
-            eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+            CGEventMask(1 << CGEventType.keyDown.rawValue)
                 | CGEventMask(1 << CGEventType.keyUp.rawValue)
         case .combo:
-            eventMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+            CGEventMask(1 << CGEventType.flagsChanged.rawValue)
                 | CGEventMask(1 << CGEventType.keyDown.rawValue)
                 | CGEventMask(1 << CGEventType.keyUp.rawValue)
         }
@@ -242,8 +239,8 @@ private final class ActivationTapContext {
         let timer = DispatchWorkItem { [weak self] in
             guard let self else { return }
             // 200ms прошло, клавиша всё ещё зажата -> активация Говоруна
-            self.pendingDown = nil
-            self.activated = true
+            pendingDown = nil
+            activated = true
         }
         delayTimer = timer
         DispatchQueue.main.asyncAfter(
@@ -360,7 +357,7 @@ private func handleModifierTap(
     }
 
     if context.activated {
-        if context.recordingMode == .toggle && !context.toggleRecording {
+        if context.recordingMode == .toggle, !context.toggleRecording {
             // Toggle: первое отпускание → начинаем запись, подавляем
             context.toggleRecording = true
             return nil
@@ -424,7 +421,7 @@ private func handleKeyCodeTap(
         }
 
         if context.activated {
-            if context.recordingMode == .toggle && !context.toggleRecording {
+            if context.recordingMode == .toggle, !context.toggleRecording {
                 // Toggle: первое отпускание → начинаем запись
                 context.toggleRecording = true
                 context.keyUpHandler(keyCode)
@@ -456,7 +453,6 @@ private func handleComboTap(
     targetModifiers: CGEventFlags,
     targetCode: UInt16
 ) -> Unmanaged<CGEvent>? {
-
     if type == .flagsChanged {
         let flags = event.flags
         let modDown = flags.rawValue & targetModifiers.rawValue == targetModifiers.rawValue
@@ -476,8 +472,9 @@ private func handleComboTap(
                 context.cancelTimer()
                 context.replayPendingDown()
                 context.activated = false
-            } else if context.activated
-                        && !(context.recordingMode == .toggle && context.toggleRecording) {
+            } else if context.activated,
+                      !(context.recordingMode == .toggle && context.toggleRecording)
+            {
                 // Push-to-talk или toggle до начала записи -> сброс
                 context.activated = false
                 context.toggleRecording = false
@@ -525,7 +522,7 @@ private func handleComboTap(
         }
 
         if context.activated {
-            if context.recordingMode == .toggle && !context.toggleRecording {
+            if context.recordingMode == .toggle, !context.toggleRecording {
                 // Toggle: первое отпускание → начинаем запись
                 context.toggleRecording = true
                 context.keyUpHandler(keyCode)

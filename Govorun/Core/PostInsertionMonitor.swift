@@ -35,7 +35,6 @@ protocol FocusedTextReading: AnyObject {
 /// Метрика намеренно завышена для MVP. Коррекция через human evaluation (§10 метрик-спеки).
 @MainActor
 final class PostInsertionMonitor: PostInsertionMonitoring {
-
     static let monitoringWindowSeconds: TimeInterval = 60
     static let pollingIntervalSeconds: TimeInterval = 2
 
@@ -72,13 +71,13 @@ final class PostInsertionMonitor: PostInsertionMonitoring {
     ) {
         stopMonitoring()
 
-        self.currentSessionId = sessionId
+        currentSessionId = sessionId
         // Читаем полное содержимое поля как baseline — не только вставленный фрагмент.
         // Иначе в непустых полях (чаты, письма) первый poll сразу даёт false positive.
-        self.lastKnownText = focusedTextReader.readFocusedText() ?? insertedText
+        lastKnownText = focusedTextReader.readFocusedText() ?? insertedText
         self.targetBundleId = targetBundleId
         self.analytics = analytics
-        self.editAlreadyDetected = false
+        editAlreadyDetected = false
 
         startPolling()
         startCmdZMonitor()
@@ -124,7 +123,7 @@ final class PostInsertionMonitor: PostInsertionMonitoring {
     private func checkForEdit() {
         guard !editAlreadyDetected,
               let sessionId = currentSessionId,
-              let analytics = analytics else { return }
+              let analytics else { return }
 
         guard let currentText = focusedTextReader.readFocusedText() else { return }
 
@@ -154,12 +153,13 @@ final class PostInsertionMonitor: PostInsertionMonitoring {
               !event.modifierFlags.contains(.shift) else { return }
 
         guard let sessionId = currentSessionId,
-              let analytics = analytics else { return }
+              let analytics else { return }
 
         // Только если Cmd+Z нажат в целевом приложении
         if let target = targetBundleId,
            let frontmost = frontmostAppProvider.frontmostBundleId(),
-           frontmost != target {
+           frontmost != target
+        {
             return
         }
 
@@ -175,10 +175,10 @@ final class PostInsertionMonitor: PostInsertionMonitoring {
     private func startAppActivationObserver() {
         appActivationObserver = frontmostAppProvider.addActivationObserver { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self, let target = self.targetBundleId else { return }
-                let frontmost = self.frontmostAppProvider.frontmostBundleId()
+                guard let self, let target = targetBundleId else { return }
+                let frontmost = frontmostAppProvider.frontmostBundleId()
                 if frontmost != target {
-                    self.stopMonitoring()
+                    stopMonitoring()
                 }
             }
         }

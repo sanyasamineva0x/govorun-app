@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct DictionaryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -15,7 +15,7 @@ struct DictionaryView: View {
         let query = searchText.lowercased()
         return entries.filter {
             $0.word.lowercased().contains(query) ||
-            $0.alternatives.contains { $0.lowercased().contains(query) }
+                $0.alternatives.contains { $0.lowercased().contains(query) }
         }
     }
 

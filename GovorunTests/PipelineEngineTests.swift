@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок AudioRecording
 
@@ -9,7 +9,7 @@ final class MockAudioRecording: AudioRecording, @unchecked Sendable {
     var currentLevel: Float = 0
     weak var delegate: AudioCaptureDelegate?
 
-    var audioData = Data(repeating: 0xAB, count: 3200)
+    var audioData = Data(repeating: 0xab, count: 3_200)
     var startError: Error?
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
@@ -54,7 +54,7 @@ final class MockSnippetEngine: SnippetMatching, @unchecked Sendable {
     }
 
     func match(_ text: String) -> SnippetMatch? {
-        return matchResults[text.lowercased()]
+        matchResults[text.lowercased()]
     }
 }
 
@@ -78,7 +78,6 @@ private func makePipeline(
 // MARK: - Тесты PipelineEngine
 
 final class PipelineEngineTests: XCTestCase {
-
     // MARK: - 1. start начинает запись
 
     func test_start_begins_audio_capture() throws {
@@ -266,7 +265,7 @@ final class PipelineEngineTests: XCTestCase {
         stt.recognizeResult = STTResult(text: "давай сделаем это")
 
         let llm = MockLLMClient()
-        llm.normalizeResult = ""  // LLM выкинул всё
+        llm.normalizeResult = "" // LLM выкинул всё
 
         let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
 
@@ -278,7 +277,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.normalizationPath, .llm)
     }
 
-    // 11b. LLM вернул safety refusal → fallback на deterministicText
+    /// 11b. LLM вернул safety refusal → fallback на deterministicText
     func test_llm_safety_refusal_falls_back_to_deterministic() async throws {
         let stt = MockSTTClient()
         stt.recognizeResult = STTResult(text: "федя ты дурачок")
@@ -449,7 +448,7 @@ final class PipelineEngineTests: XCTestCase {
         stt.recognizeResult = STTResult(text: "привет вот мой адрес")
 
         let llm = MockLLMClient()
-        llm.normalizeResult = "Привет, мой адрес — Аминева 9."  // без placeholder
+        llm.normalizeResult = "Привет, мой адрес — Аминева 9." // без placeholder
 
         let snippets = MockSnippetEngine()
         snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "привет вот мой адрес")
@@ -671,7 +670,6 @@ final class PipelineEngineTests: XCTestCase {
 // MARK: - DeterministicNormalizer тесты (расширенный)
 
 final class DeterministicNormalizerTests: XCTestCase {
-
     // MARK: - Базовые (одно слово)
 
     func test_capitalize_and_period() {
@@ -906,7 +904,6 @@ final class DeterministicNormalizerTests: XCTestCase {
 // MARK: - LLMResponseGuard тесты
 
 final class LLMResponseGuardTests: XCTestCase {
-
     func test_normal_response_is_usable() {
         XCTAssertTrue(LLMResponseGuard.isUsable("Привет, Федя.", rawTranscript: "привет федя"))
     }
@@ -928,32 +925,32 @@ final class LLMResponseGuardTests: XCTestCase {
     }
 
     func test_disproportionate_length_not_usable() {
-        let input = "федя ты дурачок"  // 3 слова
+        let input = "федя ты дурачок" // 3 слова
         let longOutput = "Федя, ты дурачок. Однако хочу заметить что такие выражения не стоит использовать в деловой переписке потому что они могут обидеть собеседника"
         XCTAssertFalse(LLMResponseGuard.isUsable(longOutput, rawTranscript: input))
     }
 
     func test_proportionate_response_usable() {
-        let input = "ну привет саня давай встретимся"  // 5 слов
-        let output = "Привет, Саня, давай встретимся."  // 4 слова
+        let input = "ну привет саня давай встретимся" // 5 слов
+        let output = "Привет, Саня, давай встретимся." // 4 слова
         XCTAssertTrue(LLMResponseGuard.isUsable(output, rawTranscript: input))
     }
 
     func test_slightly_longer_response_usable() {
         // Нормализация может добавить пару слов (даты, пунктуация) — это ОК
-        let input = "встретимся завтра в пять"  // 4 слова
-        let output = "Встретимся завтра, 12 марта, в 17:00."  // 6 слов — допустимо
+        let input = "встретимся завтра в пять" // 4 слова
+        let output = "Встретимся завтра, 12 марта, в 17:00." // 6 слов — допустимо
         XCTAssertTrue(LLMResponseGuard.isUsable(output, rawTranscript: input))
     }
 
     func test_short_response_under_threshold_always_usable() {
         // Даже если ratio > 3x, но outputWords ≤ 10 — это нормально
-        let input = "да"  // 1 слово
-        let output = "Да."  // 1 слово
+        let input = "да" // 1 слово
+        let output = "Да." // 1 слово
         XCTAssertTrue(LLMResponseGuard.isUsable(output, rawTranscript: input))
     }
 
-    // Пользователь диктует фразу, начинающуюся с refusal-префикса — НЕ блокируем
+    /// Пользователь диктует фразу, начинающуюся с refusal-префикса — НЕ блокируем
     func test_user_dictates_k_sozhaleniyu_not_blocked() {
         let input = "к сожалению встреча отменяется"
         let output = "К сожалению, встреча отменяется."
@@ -977,7 +974,6 @@ final class LLMResponseGuardTests: XCTestCase {
 // MARK: - isTrivial тесты
 
 final class IsTrivialTests: XCTestCase {
-
     func test_single_word_is_trivial() {
         XCTAssertTrue(isTrivial("ок"))
         XCTAssertTrue(isTrivial("привет"))

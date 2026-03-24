@@ -1,9 +1,8 @@
-import XCTest
-import SwiftData
 @testable import Govorun
+import SwiftData
+import XCTest
 
 final class HistoryStoreTests: XCTestCase {
-
     private func makeStore() throws -> HistoryStore {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

@@ -1,18 +1,22 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Mocks
 
 final class MockFocusedTextReader: FocusedTextReading {
     var textToReturn: String?
-    func readFocusedText() -> String? { textToReturn }
+    func readFocusedText() -> String? {
+        textToReturn
+    }
 }
 
 final class MockFrontmostAppProvider: FrontmostAppProviding {
     var bundleIdToReturn: String?
     private var activationHandler: (() -> Void)?
 
-    func frontmostBundleId() -> String? { bundleIdToReturn }
+    func frontmostBundleId() -> String? {
+        bundleIdToReturn
+    }
 
     func addActivationObserver(_ handler: @escaping @Sendable () -> Void) -> NSObjectProtocol {
         activationHandler = handler
@@ -68,7 +72,6 @@ final class MockAnalyticsCollector: AnalyticsEmitting, @unchecked Sendable {
 
 @MainActor
 final class PostInsertionMonitorTests: XCTestCase {
-
     private var textReader: MockFocusedTextReader!
     private var appProvider: MockFrontmostAppProvider!
     private var keyMonitor: MockGlobalKeyMonitorProvider!
@@ -232,7 +235,7 @@ final class PostInsertionMonitorTests: XCTestCase {
         let expectation = XCTestExpectation(description: "undo emitted for second session")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             let undos = self.analytics.events.filter { $0.0 == .undoDetected }
-            if undos.count == 1 && undos[0].1 == secondSessionId {
+            if undos.count == 1, undos[0].1 == secondSessionId {
                 expectation.fulfill()
             }
         }

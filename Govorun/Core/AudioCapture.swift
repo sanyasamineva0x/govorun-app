@@ -15,11 +15,11 @@ enum AudioCaptureError: Error, Equatable {
              (.permissionDenied, .permissionDenied),
              (.alreadyRecording, .alreadyRecording),
              (.notRecording, .notRecording):
-            return true
+            true
         case (.engineStartFailed(let a), .engineStartFailed(let b)):
-            return a == b
+            a == b
         default:
-            return false
+            false
         }
     }
 }
@@ -47,7 +47,6 @@ protocol AudioRecording: AnyObject {
 // MARK: - Реализация
 
 final class AudioCapture: AudioRecording {
-
     // Формат для ASR: PCM 16-bit, 16kHz, mono
     static let sampleRate: Double = 16_000
     static let channels: AVAudioChannelCount = 1
@@ -116,12 +115,12 @@ final class AudioCapture: AudioRecording {
         let outputFormat = Self.outputFormat
 
         // Конвертер если микрофон не в нужном формате
-        let converter: AVAudioConverter?
-        if inputFormat.sampleRate != outputFormat.sampleRate ||
-           inputFormat.channelCount != outputFormat.channelCount {
-            converter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        let converter: AVAudioConverter? = if inputFormat.sampleRate != outputFormat.sampleRate ||
+            inputFormat.channelCount != outputFormat.channelCount
+        {
+            AVAudioConverter(from: inputFormat, to: outputFormat)
         } else {
-            converter = nil
+            nil
         }
 
         lock.lock()
@@ -133,7 +132,7 @@ final class AudioCapture: AudioRecording {
         // Устанавливаем tap на input node
         inputNode.installTap(onBus: 0, bufferSize: Self.bufferSize, format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
-            self.processBuffer(buffer, converter: converter, outputFormat: outputFormat)
+            processBuffer(buffer, converter: converter, outputFormat: outputFormat)
         }
 
         do {
@@ -178,7 +177,7 @@ final class AudioCapture: AudioRecording {
         if let converter {
             // Конвертация в 16kHz mono
             let frameCapacity = AVAudioFrameCount(
-                Double(buffer.frameLength) * outputFormat.sampleRate / buffer.format.sampleRate
+                Double(buffer.frameLength) * outputFormat.sampleRate/buffer.format.sampleRate
             )
             guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCapacity) else {
                 return
@@ -217,7 +216,7 @@ final class AudioCapture: AudioRecording {
 
 extension AVAudioPCMBuffer {
     func toData() -> Data {
-        let audioBuffer = self.audioBufferList.pointee.mBuffers
+        let audioBuffer = audioBufferList.pointee.mBuffers
         guard let mData = audioBuffer.mData else {
             print("[AudioCapture] mData is nil — повреждённый буфер, пропускаем")
             return Data()
@@ -237,10 +236,10 @@ extension AVAudioPCMBuffer {
             sum += sample * sample
         }
 
-        let rms = sqrt(sum / Float(count))
+        let rms = sqrt(sum/Float(count))
         // Конвертируем в dB, нормализуем в 0...1
         let db = 20 * log10(max(rms, 0.000_001))
         // -60 dB → 0.0, 0 dB → 1.0
-        return max(0, min(1, (db + 60) / 60))
+        return max(0, min(1, (db + 60)/60))
     }
 }

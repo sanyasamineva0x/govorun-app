@@ -3,7 +3,7 @@ import SwiftData
 
 // MARK: - Имена событий аналитики (§3 metrics-spec)
 
-enum AnalyticsEventName: String, Sendable, CaseIterable {
+enum AnalyticsEventName: String, CaseIterable {
     case dictationStarted = "dictation_started"
     case dictationCancelled = "dictation_cancelled"
     case dictationStopped = "dictation_stopped"
@@ -23,16 +23,16 @@ enum AnalyticsEventName: String, Sendable, CaseIterable {
 
 // MARK: - Стратегия вставки (§5.2 metrics-spec)
 
-enum InsertionStrategy: String, Sendable {
+enum InsertionStrategy: String {
     case axSelectedText = "ax_selected_text"
     case axValueComposition = "ax_value_composition"
-    case clipboard = "clipboard"
-    case none = "none"
+    case clipboard
+    case none
 }
 
 // MARK: - Тип ошибки (§5.3 metrics-spec)
 
-enum AnalyticsErrorType: String, Sendable {
+enum AnalyticsErrorType: String {
     case micPermission = "mic_permission"
     case audioCapture = "audio_capture"
     case sttTimeout = "stt_timeout"
@@ -47,7 +47,7 @@ enum AnalyticsErrorType: String, Sendable {
     case workerCrash = "worker_crash"
     case workerSetup = "worker_setup"
     case pythonNotFound = "python_not_found"
-    case unknown = "unknown"
+    case unknown
 }
 
 // MARK: - Ключи metadata

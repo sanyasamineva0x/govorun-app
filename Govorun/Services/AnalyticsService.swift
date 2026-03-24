@@ -2,19 +2,19 @@ import Foundation
 import SwiftData
 
 // MARK: - AnalyticsService (actor)
+
 //
 // Аналитика пишется в отдельный SQLite файл (analytics.store)
 // через отдельную ModelConfiguration в едином AppModelContainer.
 // Actor изолирует все записи — thread-safe без deadlock.
 
 actor AnalyticsService: AnalyticsEmitting {
-
     static let maxEvents = 10_000
 
     private let modelContext: ModelContext
 
     init(modelContainer: ModelContainer) {
-        self.modelContext = ModelContext(modelContainer)
+        modelContext = ModelContext(modelContainer)
     }
 
     nonisolated func emit(_ event: AnalyticsEventName, sessionId: UUID?, metadata: [String: String]) async {

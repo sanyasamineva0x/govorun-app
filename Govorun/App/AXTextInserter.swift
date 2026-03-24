@@ -1,5 +1,5 @@
-import Cocoa
 import ApplicationServices
+import Cocoa
 
 // MARK: - AXUIElement обёртка
 
@@ -41,7 +41,8 @@ final class AXFocusedElement: AXFocusedElementProtocol {
         if attribute == "AXSelectedTextRange",
            let range = value as? [String: Int],
            let location = range["location"],
-           let length = range["length"] {
+           let length = range["length"]
+        {
             var cfRange = CFRange(location: location, length: length)
             guard let axValue = AXValueCreate(.cfRange, &cfRange) else {
                 throw TextInsertionError.allStrategiesFailed
@@ -120,7 +121,7 @@ final class SystemClipboardProvider: ClipboardProviding {
         guard !items.isEmpty else { return }
 
         let grouped = Dictionary(grouping: items, by: \.itemIndex)
-        let pbItems = grouped.sorted { $0.key < $1.key }.map { (_, groupItems) -> NSPasteboardItem in
+        let pbItems = grouped.sorted { $0.key < $1.key }.map { _, groupItems -> NSPasteboardItem in
             let pbItem = NSPasteboardItem()
             for item in groupItems {
                 pbItem.setData(item.data, forType: NSPasteboard.PasteboardType(rawValue: item.type))

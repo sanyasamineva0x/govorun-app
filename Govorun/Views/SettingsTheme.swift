@@ -19,12 +19,14 @@ extension Color {
 
 enum SettingsSection: String, Identifiable {
     case general
-    case appModes  // Скрыт до Фазы 5 (LocalLLMClient) — TextMode без LLM не работает
+    case appModes // Скрыт до Фазы 5 (LocalLLMClient) — TextMode без LLM не работает
     case dictionary
     case snippets
     case history
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// Секции видимые в UI (appModes скрыт до Фазы 5)
     static let visibleCases: [SettingsSection] = [.general, .dictionary, .snippets, .history]

@@ -1,9 +1,8 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 @MainActor
 final class ModelManagerTests: XCTestCase {
-
     private var tempDir: String!
 
     override func setUp() {
@@ -43,9 +42,9 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(sut.modelSizeBytes, 0)
     }
 
-    func test_checkModelStatus_no_snapshots_returns_notDownloaded() {
+    func test_checkModelStatus_no_snapshots_returns_notDownloaded() throws {
         // snapshots/ есть, но пустая
-        try! FileManager.default.createDirectory(
+        try FileManager.default.createDirectory(
             atPath: tempDir + "/snapshots",
             withIntermediateDirectories: true
         )
@@ -59,7 +58,7 @@ final class ModelManagerTests: XCTestCase {
     func test_checkModelStatus_partial_download_returns_notDownloaded() {
         // Только 2 из 3 файлов
         let snapshotDir = createSnapshotDir()
-        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1000)
+        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1_000)
         createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_decoder.onnx", size: 500)
         // v3_e2e_rnnt_joint.onnx отсутствует
 
@@ -72,7 +71,7 @@ final class ModelManagerTests: XCTestCase {
 
     func test_checkModelStatus_all_files_present_returns_downloaded() {
         let snapshotDir = createSnapshotDir()
-        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1000)
+        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1_000)
         createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_decoder.onnx", size: 500)
         createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_joint.onnx", size: 200)
 
@@ -81,12 +80,12 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertEqual(sut.downloadState, .downloaded)
         XCTAssertTrue(sut.isModelDownloaded)
-        XCTAssertEqual(sut.modelSizeBytes, 1700)
+        XCTAssertEqual(sut.modelSizeBytes, 1_700)
     }
 
     func test_checkModelStatus_zero_size_file_returns_notDownloaded() {
         let snapshotDir = createSnapshotDir()
-        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1000)
+        createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_encoder.onnx", size: 1_000)
         createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_decoder.onnx", size: 0)
         createFakeONNX(in: snapshotDir, name: "v3_e2e_rnnt_joint.onnx", size: 200)
 

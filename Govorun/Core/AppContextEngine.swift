@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - AppContext
 
-struct AppContext: Sendable, Equatable {
+struct AppContext: Equatable {
     let bundleId: String
     let appName: String
     let textMode: TextMode
@@ -59,7 +59,6 @@ private let defaultAppModes: [String: TextMode] = [
 // MARK: - AppContextEngine
 
 final class AppContextEngine {
-
     private let workspace: WorkspaceProviding
     private let modeOverrides: AppModeOverriding
 
@@ -90,7 +89,8 @@ final class AppContextEngine {
     private func resolveTextMode(for bundleId: String) -> TextMode {
         // Пользовательский override приоритетнее
         if let overrideRaw = modeOverrides.modeOverride(for: bundleId),
-           let mode = TextMode(rawValue: overrideRaw) {
+           let mode = TextMode(rawValue: overrideRaw)
+        {
             return mode
         }
 

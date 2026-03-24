@@ -1,16 +1,16 @@
-import XCTest
 import CoreGraphics
 @testable import Govorun
+import XCTest
 
 // MARK: - Equatable для тестов
 
 extension KeyRecorderLogic.FlagsResult: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         switch (lhs, rhs) {
-        case (.awaitingRelease(let a), .awaitingRelease(let b)): return a.rawValue == b.rawValue
-        case (.finalized, .finalized): return true
-        case (.ignored, .ignored): return true
-        default: return false
+        case (.awaitingRelease(let a), .awaitingRelease(let b)): a.rawValue == b.rawValue
+        case (.finalized, .finalized): true
+        case (.ignored, .ignored): true
+        default: false
         }
     }
 }
@@ -18,11 +18,11 @@ extension KeyRecorderLogic.FlagsResult: Equatable {
 extension KeyRecorderLogic.KeyResult: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         switch (lhs, rhs) {
-        case (.keyCode(let a), .keyCode(let b)): return a == b
-        case (.combo(let am, let ak), .combo(let bm, let bk)): return am.rawValue == bm.rawValue && ak == bk
-        case (.cancel, .cancel): return true
-        case (.ignored, .ignored): return true
-        default: return false
+        case (.keyCode(let a), .keyCode(let b)): a == b
+        case (.combo(let am, let ak), .combo(let bm, let bk)): am.rawValue == bm.rawValue && ak == bk
+        case (.cancel, .cancel): true
+        case (.ignored, .ignored): true
+        default: false
         }
     }
 }
@@ -30,7 +30,6 @@ extension KeyRecorderLogic.KeyResult: Equatable {
 // MARK: - Тесты логики
 
 final class KeyRecorderTests: XCTestCase {
-
     func test_flags_option_awaits_release() {
         let result = KeyRecorderLogic.mapFlagsChanged(flags: .maskAlternate, hasPendingModifier: false)
         XCTAssertEqual(result, .awaitingRelease(.maskAlternate))

@@ -31,7 +31,6 @@ enum ActivationKeyConstants {
 /// Работает только на main thread (NSEvent мониторы, таймеры на main queue).
 @MainActor
 final class ActivationKeyMonitor {
-
     var onActivated: (() -> Void)?
     var onDeactivated: (() -> Void)?
     var onCancelled: (() -> Void)?
@@ -154,13 +153,13 @@ final class ActivationKeyMonitor {
     private func handleModifierFlagsChanged(flags: CGEventFlags, target: CGEventFlags) {
         let isDown = flags.rawValue & target.rawValue == target.rawValue && target.rawValue != 0
 
-        if isDown && !isKeyDown {
+        if isDown, !isKeyDown {
             // Модификатор нажат
             isKeyDown = true
             if !isActivated {
                 scheduleActivation()
             }
-        } else if !isDown && isKeyDown {
+        } else if !isDown, isKeyDown {
             // Модификатор отпущен
             isKeyDown = false
             cancelActivation()
@@ -202,7 +201,7 @@ final class ActivationKeyMonitor {
         let modDown = flags.rawValue & targetModifiers.rawValue == targetModifiers.rawValue
             && targetModifiers.rawValue != 0
 
-        if !modDown && comboModifiersDown {
+        if !modDown, comboModifiersDown {
             // Модификатор отпущен
             comboModifiersDown = false
 
@@ -240,7 +239,7 @@ final class ActivationKeyMonitor {
 
     /// Вызывается при отпускании клавиши активации (после cancelActivation)
     private func handleRelease() {
-        if recordingMode == .toggle && isArmed {
+        if recordingMode == .toggle, isArmed {
             // Toggle: первое отпускание после armed → активация
             isArmed = false
             isActivated = true
@@ -259,12 +258,12 @@ final class ActivationKeyMonitor {
         cancelActivation()
 
         let timer = DispatchWorkItem { [weak self] in
-            guard let self, self.activationTimer?.isCancelled == false, self.isKeyDown else { return }
-            if self.recordingMode == .toggle {
-                self.isArmed = true
+            guard let self, activationTimer?.isCancelled == false, isKeyDown else { return }
+            if recordingMode == .toggle {
+                isArmed = true
             } else {
-                self.isActivated = true
-                self.onActivated?()
+                isActivated = true
+                onActivated?()
             }
         }
         activationTimer = timer

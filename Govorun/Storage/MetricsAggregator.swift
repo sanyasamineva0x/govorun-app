@@ -12,7 +12,6 @@ struct LatencyPercentiles {
 /// Читает аналитические события для построения дашборда.
 /// ModelContext из AppModelContainer.shared — analytics в отдельной конфигурации.
 struct MetricsAggregator {
-
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext) {
@@ -31,7 +30,7 @@ struct MetricsAggregator {
         let badSessions = edited.union(undone)
 
         let clean = succeeded.subtracting(badSessions).count
-        return Double(clean) / Double(succeeded.count)
+        return Double(clean)/Double(succeeded.count)
     }
 
     // MARK: - §6.3 Insertion Success Rate
@@ -43,7 +42,7 @@ struct MetricsAggregator {
 
         let succeeded = try sessionsWithEvent(.insertionSucceeded, from: from, to: to)
         let successInWindow = started.intersection(succeeded).count
-        return Double(successInWindow) / Double(started.count)
+        return Double(successInWindow)/Double(started.count)
     }
 
     // MARK: - §6.4 Median End-to-End Latency
@@ -74,7 +73,7 @@ struct MetricsAggregator {
 
         let undone = try sessionsWithEvent(.undoDetected, from: from, to: to)
         let undoneInWindow = succeeded.intersection(undone).count
-        return Double(undoneInWindow) / Double(succeeded.count)
+        return Double(undoneInWindow)/Double(succeeded.count)
     }
 
     // MARK: - §6.6 Retry Rate
@@ -95,7 +94,7 @@ struct MetricsAggregator {
                 retries += 1
             }
         }
-        return Double(retries) / Double(starts.count)
+        return Double(retries)/Double(starts.count)
     }
 
     // MARK: - Fallback Rate
@@ -107,7 +106,7 @@ struct MetricsAggregator {
 
         let fallbacks = try sessionsWithEvent(.clipboardFallbackUsed, from: from, to: to)
         let fallbackInWindow = succeeded.intersection(fallbacks).count
-        return Double(fallbackInWindow) / Double(succeeded.count)
+        return Double(fallbackInWindow)/Double(succeeded.count)
     }
 
     // MARK: - Private
@@ -129,7 +128,7 @@ struct MetricsAggregator {
     /// Nearest-rank percentile
     private func percentile(_ sorted: [Int], p: Int) -> Int {
         guard !sorted.isEmpty else { return 0 }
-        let rank = Double(p) / 100.0 * Double(sorted.count - 1)
+        let rank = Double(p)/100.0 * Double(sorted.count - 1)
         let lower = Int(rank.rounded(.down))
         let upper = min(lower + 1, sorted.count - 1)
         let fraction = rank - Double(lower)

@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 enum AppModelContainer {
     @MainActor
@@ -72,9 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             modelContainer: AppModelContainer.shared,
             appState: state
         )
-        self.appState = state
+        appState = state
         self.settingsWindowController = settingsWindowController
-        self.statusBarController = StatusBarController(
+        statusBarController = StatusBarController(
             appState: state,
             settingsWindowController: settingsWindowController
         )
@@ -91,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.onboardingWindowController = nil
             state.start()
         }
-        self.onboardingWindowController = controller
+        onboardingWindowController = controller
         controller.present()
     }
 

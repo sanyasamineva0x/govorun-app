@@ -4,7 +4,6 @@ import ServiceManagement
 // MARK: - SettingsStore
 
 final class SettingsStore: ObservableObject {
-
     private let defaults: UserDefaults
 
     // MARK: - Keys
@@ -124,14 +123,16 @@ final class SettingsStore: ObservableObject {
         get {
             guard let jsonString = defaults.string(forKey: Keys.activationKey),
                   let data = jsonString.data(using: .utf8),
-                  let key = try? JSONDecoder().decode(ActivationKey.self, from: data) else {
+                  let key = try? JSONDecoder().decode(ActivationKey.self, from: data)
+            else {
                 return .default
             }
             return key
         }
         set {
             if let data = try? JSONEncoder().encode(newValue),
-               let jsonString = String(data: data, encoding: .utf8) {
+               let jsonString = String(data: data, encoding: .utf8)
+            {
                 defaults.set(jsonString, forKey: Keys.activationKey)
                 objectWillChange.send()
             } else {

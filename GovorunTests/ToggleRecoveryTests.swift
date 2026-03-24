@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Helper для toggle recovery тестов
 
@@ -52,7 +52,6 @@ private func makeToggleAppState(
 
 @MainActor
 final class ActivationKeyMonitorResetStateTests: XCTestCase {
-
     private func waitMain(_ seconds: TimeInterval) {
         let exp = expectation(description: "wait")
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exp.fulfill() }
@@ -149,7 +148,6 @@ final class ActivationKeyMonitorResetStateTests: XCTestCase {
 
 @MainActor
 final class ToggleCancelRecoveryTests: XCTestCase {
-
     // MARK: - 1. Toggle → cancel (Esc) → следующий tap снова активирует
 
     func test_toggle_cancel_esc_then_reactivate() async throws {
@@ -169,7 +167,7 @@ final class ToggleCancelRecoveryTests: XCTestCase {
         appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .recording,
-            "После cancel следующий tap должен стартовать новую запись")
+                       "После cancel следующий tap должен стартовать новую запись")
     }
 
     // MARK: - 2. Toggle → worker not ready → следующий tap снова активирует
@@ -181,7 +179,7 @@ final class ToggleCancelRecoveryTests: XCTestCase {
         appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .idle,
-            "Запись не должна начаться пока worker не ready")
+                       "Запись не должна начаться пока worker не ready")
 
         // Worker готов
         appState.updateWorkerState(.ready)
@@ -190,7 +188,7 @@ final class ToggleCancelRecoveryTests: XCTestCase {
         appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .recording,
-            "После rejected activation следующий tap должен быть новой активацией")
+                       "После rejected activation следующий tap должен быть новой активацией")
     }
 
     // MARK: - 3. Toggle → worker error → следующий tap снова активирует
@@ -259,7 +257,6 @@ final class ToggleCancelRecoveryTests: XCTestCase {
 
 @MainActor
 final class ToggleComboModifierReleaseTests: XCTestCase {
-
     private func waitMain(_ seconds: TimeInterval) {
         let exp = expectation(description: "wait")
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exp.fulfill() }
@@ -292,14 +289,14 @@ final class ToggleComboModifierReleaseTests: XCTestCase {
         // Отпускаем модификаторы (⌘ up) — НЕ должно завершать запись
         mock.simulateFlagsChanged(CGEventFlags())
         XCTAssertEqual(deactivatedCount, 0,
-            "Отпускание модификаторов после toggle start не должно деактивировать")
+                       "Отпускание модификаторов после toggle start не должно деактивировать")
 
         // Второй combo tap → деактивация (модификаторы снова зажаты)
         mock.simulateFlagsChanged(.maskCommand)
         mock.simulateKeyDown(keyCode: 40)
         mock.simulateKeyUp(keyCode: 40)
         XCTAssertEqual(deactivatedCount, 1,
-            "Второй combo tap должен деактивировать toggle")
+                       "Второй combo tap должен деактивировать toggle")
     }
 
     // MARK: - 7. Toggle combo: modifier release + re-press + stop работает
@@ -370,12 +367,11 @@ final class ToggleComboModifierReleaseTests: XCTestCase {
 
 @MainActor
 final class ToggleToPushToTalkTransitionTests: XCTestCase {
-
     // MARK: - 9. Toggle → pushToTalk while recording → применяется после завершения сессии
 
     func test_toggle_to_ptt_while_recording_deferred() async throws {
         let eventMonitor = MockEventMonitoring()
-        let testDefaults = UserDefaults(suiteName: "com.govorun.t2p.\(UUID().uuidString)")!
+        let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.t2p.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
         settings.recordingMode = .toggle
 
@@ -423,7 +419,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
         // effectiveRecordingMode всё ещё toggle (pending)
         XCTAssertEqual(appState.effectiveRecordingMode, .toggle,
-            "Во время сессии effectiveRecordingMode должен оставаться toggle")
+                       "Во время сессии effectiveRecordingMode должен оставаться toggle")
 
         // Отменяем запись → idle → pending применяется
         appState.activationKeyMonitor.onCancelled?()
@@ -431,7 +427,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertEqual(appState.effectiveRecordingMode, .pushToTalk,
-            "После завершения сессии режим должен стать pushToTalk")
+                       "После завершения сессии режим должен стать pushToTalk")
         XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .pushToTalk)
 
         appState.stop()
@@ -441,7 +437,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
     func test_toggle_to_ptt_after_error_applies() async throws {
         let eventMonitor = MockEventMonitoring()
-        let testDefaults = UserDefaults(suiteName: "com.govorun.t2pe.\(UUID().uuidString)")!
+        let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.t2pe.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
         settings.recordingMode = .toggle
 
@@ -494,7 +490,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertEqual(appState.effectiveRecordingMode, .pushToTalk,
-            "После auto-dismiss error режим должен стать pushToTalk")
+                       "После auto-dismiss error режим должен стать pushToTalk")
         XCTAssertEqual(appState.activationKeyMonitor.recordingMode, .pushToTalk)
 
         appState.stop()
@@ -504,7 +500,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
     func test_effectiveRecordingMode_reflects_runtime() async throws {
         let eventMonitor = MockEventMonitoring()
-        let testDefaults = UserDefaults(suiteName: "com.govorun.erm.\(UUID().uuidString)")!
+        let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.erm.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
 
         let stt = MockSTTClient()
@@ -556,7 +552,6 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
 
 @MainActor
 final class ErrorAutoDismissTests: XCTestCase {
-
     // MARK: - 12. Error auto-dismiss переводит в idle
 
     func test_error_auto_dismisses_to_idle() async throws {
@@ -571,14 +566,14 @@ final class ErrorAutoDismissTests: XCTestCase {
         try await Task.sleep(nanoseconds: 3_500_000_000)
 
         XCTAssertEqual(appState.sessionManager.state, .idle,
-            "Error state должен auto-dismiss в idle через 3 секунды")
+                       "Error state должен auto-dismiss в idle через 3 секунды")
     }
 
     // MARK: - 13. Error auto-dismiss → pending settings применяются
 
     func test_error_auto_dismiss_applies_pending_settings() async throws {
         let eventMonitor = MockEventMonitoring()
-        let testDefaults = UserDefaults(suiteName: "com.govorun.ead.\(UUID().uuidString)")!
+        let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.ead.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
 
         let stt = MockSTTClient()
@@ -627,7 +622,7 @@ final class ErrorAutoDismissTests: XCTestCase {
         try await Task.sleep(nanoseconds: 3_500_000_000)
 
         XCTAssertEqual(appState.effectiveRecordingMode, .toggle,
-            "Pending recordingMode должен примениться после auto-dismiss error")
+                       "Pending recordingMode должен примениться после auto-dismiss error")
 
         appState.stop()
     }
@@ -649,7 +644,7 @@ final class ErrorAutoDismissTests: XCTestCase {
         appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .recording,
-            "Активация должна работать после auto-dismiss error")
+                       "Активация должна работать после auto-dismiss error")
     }
 }
 
@@ -657,7 +652,6 @@ final class ErrorAutoDismissTests: XCTestCase {
 
 @MainActor
 final class ToggleKeyCodeRecoveryTests: XCTestCase {
-
     private func waitMain(_ seconds: TimeInterval) {
         let exp = expectation(description: "wait")
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exp.fulfill() }
@@ -734,7 +728,6 @@ final class ToggleKeyCodeRecoveryTests: XCTestCase {
 
 @MainActor
 final class ToggleModifierOtherKeysTests: XCTestCase {
-
     private func waitMain(_ seconds: TimeInterval) {
         let exp = expectation(description: "wait")
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exp.fulfill() }
@@ -810,7 +803,6 @@ final class ToggleModifierOtherKeysTests: XCTestCase {
 
 @MainActor
 final class StartRecordingErrorRecoveryTests: XCTestCase {
-
     func test_toggle_startRecording_error_then_reactivate() async throws {
         let mockAudio = MockAudioRecording()
         mockAudio.startError = AudioCaptureError.microphoneNotAvailable
@@ -839,7 +831,7 @@ final class StartRecordingErrorRecoveryTests: XCTestCase {
         appState.activationKeyMonitor.onActivated?()
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(appState.sessionManager.state, .recording,
-            "После починки audio повторная активация должна работать")
+                       "После починки audio повторная активация должна работать")
     }
 }
 
@@ -847,7 +839,6 @@ final class StartRecordingErrorRecoveryTests: XCTestCase {
 
 @MainActor
 final class ResetTapStateTests: XCTestCase {
-
     func test_resetState_calls_resetTapState_on_eventMonitor() {
         let mock = MockEventMonitoring()
         let sut = ActivationKeyMonitor(
@@ -859,7 +850,7 @@ final class ResetTapStateTests: XCTestCase {
         XCTAssertEqual(mock.resetTapStateCallCount, 0)
         sut.resetState()
         XCTAssertEqual(mock.resetTapStateCallCount, 1,
-            "resetState() должен вызывать resetTapState() на eventMonitor")
+                       "resetState() должен вызывать resetTapState() на eventMonitor")
     }
 
     func test_stopMonitoring_calls_resetTapState() {
@@ -887,7 +878,7 @@ final class ResetTapStateTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertGreaterThan(eventMonitor.resetTapStateCallCount, before,
-            "handleCancelled должен сбрасывать tap state")
+                             "handleCancelled должен сбрасывать tap state")
     }
 }
 
@@ -895,7 +886,6 @@ final class ResetTapStateTests: XCTestCase {
 
 @MainActor
 final class CancellableErrorDismissTests: XCTestCase {
-
     func test_second_error_gets_full_3_seconds() async throws {
         let (appState, _, _) = makeToggleAppState()
 
@@ -912,7 +902,7 @@ final class CancellableErrorDismissTests: XCTestCase {
         // Через 2 секунды после второго error — ещё не dismiss
         try await Task.sleep(nanoseconds: 2_000_000_000)
         XCTAssertEqual(appState.sessionState, .error("ошибка 2"),
-            "Второй error не должен быть dismiss'нут преждевременно")
+                       "Второй error не должен быть dismiss'нут преждевременно")
 
         // Через ещё 1.5s — dismiss
         try await Task.sleep(nanoseconds: 1_500_000_000)

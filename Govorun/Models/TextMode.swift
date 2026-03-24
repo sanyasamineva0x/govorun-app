@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Режимы текста
 
-enum TextMode: String, CaseIterable, Codable, Sendable {
+enum TextMode: String, CaseIterable, Codable {
     case chat
     case email
     case document
@@ -14,7 +14,6 @@ enum TextMode: String, CaseIterable, Codable, Sendable {
 // MARK: - Промпт-генерация
 
 extension TextMode {
-
     /// Базовый system prompt (design-doc 5.4)
     static func basePrompt(currentDate: Date, personalDictionary: [String: String] = [:]) -> String {
         let formatter = DateFormatter()
@@ -96,25 +95,25 @@ extension TextMode {
     var styleBlock: String {
         switch self {
         case .chat:
-            return "Стиль: разговорный, краткий. Регистр \"ты\". " +
+            "Стиль: разговорный, краткий. Регистр \"ты\". " +
                 "ПЕРЕОПРЕДЕЛЕНИЕ регистра: НЕ ставь заглавную букву в начале предложения. Пиши всё строчными, как в мессенджере. Без точки в конце. " +
                 "ПЕРЕОПРЕДЕЛЕНИЕ транслитерации: бренды → кириллица строчными (слак, зум, жира, гитхаб, ноушн). " +
                 "Пример: «скинь в слак» → «скинь в слак», «открой ноушн» → «открой ноушн»."
         case .email:
-            return "Стиль: деловой, вежливый. Регистр \"Вы\". " +
+            "Стиль: деловой, вежливый. Регистр \"Вы\". " +
                 "Полные предложения. Транслитерация: бренды → оригинал (Slack, Zoom)."
         case .document:
-            return "Стиль: формальный, структурированный. Регистр \"Вы\". " +
+            "Стиль: формальный, структурированный. Регистр \"Вы\". " +
                 "Абзацы где уместно. Транслитерация: бренды → оригинал."
         case .note:
-            return "Стиль: свободный, лаконичный. Регистр \"ты\". " +
+            "Стиль: свободный, лаконичный. Регистр \"ты\". " +
                 "Если перечисление — оформи списком. " +
                 "Транслитерация: бренды → оригинал (Slack, Zoom, Jira)."
         case .code:
-            return "Минимальная обработка. Технические термины не трогать. " +
+            "Минимальная обработка. Технические термины не трогать. " +
                 "Транслитерация: всё → оригинал (pull request, staging, deploy)."
         case .universal:
-            return "Регистр \"ты\" по умолчанию. Чистый текст. " +
+            "Регистр \"ты\" по умолчанию. Чистый текст. " +
                 "Транслитерация: бренды → оригинал (Slack, Zoom, Jira)."
         }
     }
@@ -166,13 +165,13 @@ enum SnippetPlaceholder {
 
 // MARK: - Snippet Context
 
-struct SnippetContext: Sendable, Equatable {
+struct SnippetContext: Equatable {
     let trigger: String
 }
 
 // MARK: - Хинты для нормализации
 
-struct NormalizationHints: Sendable, Equatable {
+struct NormalizationHints: Equatable {
     let personalDictionary: [String: String]
     let appName: String?
     let textMode: TextMode

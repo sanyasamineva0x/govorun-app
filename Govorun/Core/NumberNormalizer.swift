@@ -1,27 +1,26 @@
 import Foundation
 
-// Детерминистическая нормализация русских числительных
+/// Детерминистическая нормализация русских числительных
 enum NumberNormalizer {
-
     // MARK: - Token (v2)
 
     private struct Token: Equatable {
-        var leading: String   // «, (, [, "
-        var core: String      // слово, число, символ
-        var trailing: String  // ., ,, !, ?, ;, :, ), ], », "
+        var leading: String // «, (, [, "
+        var core: String // слово, число, символ
+        var trailing: String // ., ,, !, ?, ;, :, ), ], », "
     }
 
-    // Символы-ведущая пунктуация
+    /// Символы-ведущая пунктуация
     private static let leadingPunctuation: Set<Character> = [
         "«", "(", "[", "\"", "'", "\u{201E}", "\u{201C}", "\u{2039}", "\u{2014}",
     ]
 
-    // Символы-замыкающая пунктуация
+    /// Символы-замыкающая пунктуация
     private static let trailingPunctuation: Set<Character> = [
         ".", ",", "!", "?", ";", ":", ")", "]", "»", "\"", "'", "\u{201D}", "\u{203A}", "\u{2026}", "\u{2014}",
     ]
 
-    // Контентные символы — остаются в core
+    /// Контентные символы — остаются в core
     private static let contentSymbols: Set<Character> = ["%", "₽", "$", "€", "№", "-"]
 
     private static func tokenize(_ text: String) -> [Token] {
@@ -33,14 +32,16 @@ enum NumberNormalizer {
 
             // Отделить leading пунктуацию
             while let first = chars.first,
-                  leadingPunctuation.contains(first) && !contentSymbols.contains(first) {
+                  leadingPunctuation.contains(first), !contentSymbols.contains(first)
+            {
                 leading.append(first)
                 chars.removeFirst()
             }
 
             // Отделить trailing пунктуацию
             while let last = chars.last,
-                  trailingPunctuation.contains(last) && !contentSymbols.contains(last) {
+                  trailingPunctuation.contains(last), !contentSymbols.contains(last)
+            {
                 trailing.insert(last, at: trailing.startIndex)
                 chars.removeLast()
             }
@@ -53,7 +54,7 @@ enum NumberNormalizer {
         tokens.map { $0.leading + $0.core + $0.trailing }.joined(separator: " ")
     }
 
-    // Roundtrip для тестирования: tokenize → render
+    /// Roundtrip для тестирования: tokenize → render
     static func tokenizeRoundtrip(_ text: String) -> String {
         render(tokenize(text))
     }
@@ -69,7 +70,8 @@ enum NumberNormalizer {
         guard range.lowerBound >= 0,
               range.upperBound < tokens.count,
               lastIdx >= 0,
-              lastIdx < tokens.count else {
+              lastIdx < tokens.count
+        else {
             print("[Govorun] replace() out of bounds: range=\(range), lastIdx=\(lastIdx), count=\(tokens.count)")
             assertionFailure("replace() out of bounds")
             return
@@ -106,7 +108,7 @@ enum NumberNormalizer {
         let priority: Int
     }
 
-    // Приоритеты — выше = побеждает при конфликте
+    /// Приоритеты — выше = побеждает при конфликте
     private enum SpanPriority {
         static let money = 100
         static let time = 90
@@ -173,15 +175,14 @@ enum NumberNormalizer {
             let lastTwo = int % 100
             let lastOne = int % 10
 
-            let idx: Int
-            if lastTwo >= 11 && lastTwo <= 14 {
-                idx = 2
+            let idx = if lastTwo >= 11, lastTwo <= 14 {
+                2
             } else if lastOne == 1 {
-                idx = 0
-            } else if lastOne >= 2 && lastOne <= 4 {
-                idx = 1
+                0
+            } else if lastOne >= 2, lastOne <= 4 {
+                1
             } else {
-                idx = 2
+                2
             }
 
             switch self {
@@ -202,8 +203,8 @@ enum NumberNormalizer {
 
     // MARK: - Numeric parser (v2)
 
-    // Парсит цифровой токен из потока Token: 1 000, 2,5, 2000000, 1 000₽, 2 млн
-    // Возвращает (value, consumed, currency?, isAbbreviated?)
+    /// Парсит цифровой токен из потока Token: 1 000, 2,5, 2000000, 1 000₽, 2 млн
+    /// Возвращает (value, consumed, currency?, isAbbreviated?)
     private struct NumericParseResult {
         let value: Double
         let consumed: Int
@@ -240,7 +241,8 @@ enum NumberNormalizer {
         if embeddedCurrency == nil {
             // Попробовать склеить пробельно-разделённое число: 1 000, 1 000 000
             if let spaceGrouped = tryParseSpaceGroupedNumber(tokens, startIdx: start, baseStr: numericPart),
-               spaceGrouped.consumed > 1 {
+               spaceGrouped.consumed > 1
+            {
                 value = spaceGrouped.value
                 consumed = spaceGrouped.consumed
 
@@ -251,7 +253,7 @@ enum NumberNormalizer {
                     // Пересчитать без символа
                     let cleanLast = String(lastCore.dropLast())
                     if let cleanVal = parseDecimalString(cleanLast) {
-                        let prefix = tokens[start..<(start + consumed - 1)].map { $0.core }.joined()
+                        let prefix = tokens[start..<(start + consumed - 1)].map(\.core).joined()
                         if let fullVal = parseDecimalString(prefix + cleanLast) {
                             value = fullVal
                         } else {
@@ -272,7 +274,7 @@ enum NumberNormalizer {
             }
 
             // Проверить валютный символ как отдельный токен после числа
-            if currency == nil && start + consumed < tokens.count {
+            if currency == nil, start + consumed < tokens.count {
                 let nextCore = tokens[start + consumed].core
                 if let curr = Currency.symbols[nextCore] {
                     currency = curr
@@ -284,14 +286,14 @@ enum NumberNormalizer {
         return NumericParseResult(value: value, consumed: consumed, currency: currency, isAbbreviated: isAbbreviated)
     }
 
-    // Парсить строку как число (запятая = десятичный разделитель)
+    /// Парсить строку как число (запятая = десятичный разделитель)
     private static func parseDecimalString(_ s: String) -> Double? {
         guard !s.isEmpty else { return nil }
         let normalized = s.replacingOccurrences(of: ",", with: ".")
         return Double(normalized)
     }
 
-    // Склеить пробельно-разделённое число: "1" "000" "000" → 1000000
+    /// Склеить пробельно-разделённое число: "1" "000" "000" → 1000000
     private static func tryParseSpaceGroupedNumber(
         _ tokens: [Token], startIdx: Int, baseStr: String
     ) -> (value: Double, consumed: Int)? {
@@ -306,7 +308,7 @@ enum NumberNormalizer {
             if let last = digits.last, Currency.symbols[String(last)] != nil {
                 digits = String(digits.dropLast())
             }
-            guard digits.count == 3, digits.allSatisfy({ $0.isNumber }) else { break }
+            guard digits.count == 3, digits.allSatisfy(\.isNumber) else { break }
             // Предыдущий токен не должен иметь trailing пунктуацию
             guard tokens[idx - 1].trailing.isEmpty else { break }
             accumulated += digits
@@ -323,7 +325,7 @@ enum NumberNormalizer {
         // но возвращаем корректное значение а не nil для forward compatibility
     }
 
-    // Тестовый доступ для numeric parser
+    /// Тестовый доступ для numeric parser
     static func testParseNumeric(_ text: String) -> (value: Double, consumed: Int, currency: String?, abbreviated: Bool)? {
         let tokens = tokenize(text)
         guard let result = parseNumericNumber(tokens, at: 0) else { return nil }
@@ -334,7 +336,7 @@ enum NumberNormalizer {
     // spans: [(lowerBound, upperBound, priority, label)]
     // Возвращает labels принятых спанов в порядке позиции
     static func testResolveConflicts(_ spans: [(Int, Int, Int, String)]) -> [String] {
-        let testSpans = spans.map { (lb, ub, prio, _) in
+        let testSpans = spans.map { lb, ub, prio, _ in
             Span(range: lb..<ub, kind: .cardinal(0), priority: prio)
         }
         let resolved = resolveConflicts(testSpans)
@@ -374,18 +376,27 @@ enum NumberNormalizer {
         }
     }
 
-    // Тестовый доступ к CanonicalFormatter
-    static func testFormatPercent(_ value: Double) -> String { CanonicalFormatter.formatPercent(value) }
+    /// Тестовый доступ к CanonicalFormatter
+    static func testFormatPercent(_ value: Double) -> String {
+        CanonicalFormatter.formatPercent(value)
+    }
+
     static func testFormatMoney(_ value: Double, currency: String) -> String? {
         guard let curr = Currency(rawValue: currency) else { return nil }
         return CanonicalFormatter.formatMoney(value, curr)
     }
-    static func testFormatTime(_ hour: Int, _ minute: Int) -> String { CanonicalFormatter.formatTime(hour, minute) }
-    static func testFormatOrdinal(_ value: Int, _ suffix: String) -> String { CanonicalFormatter.formatOrdinal(value, suffix) }
+
+    static func testFormatTime(_ hour: Int, _ minute: Int) -> String {
+        CanonicalFormatter.formatTime(hour, minute)
+    }
+
+    static func testFormatOrdinal(_ value: Int, _ suffix: String) -> String {
+        CanonicalFormatter.formatOrdinal(value, suffix)
+    }
 
     // MARK: - Span parsers (v2)
 
-    // Парсить слово-число из токена (кардинал, спецформа, множитель)
+    /// Парсить слово-число из токена (кардинал, спецформа, множитель)
     private static func parseSpokenNumber(_ tokens: [Token], at start: Int) -> (value: Double, consumedCount: Int)? {
         guard start >= 0, start < tokens.count else { return nil }
         let words = tokens[start...].map { $0.core.lowercased() }
@@ -488,12 +499,12 @@ enum NumberNormalizer {
         return spans
     }
 
-    // Abbreviation spans: 2 млн → 2 000 000
+    /// Abbreviation spans: 2 млн → 2 000 000
     private static func parseAbbreviationSpans(_ tokens: [Token]) -> [Span] {
         var spans: [Span] = []
         var i = 0
         while i < tokens.count {
-            if let numResult = parseNumericNumber(tokens, at: i), numResult.isAbbreviated && numResult.currency == nil {
+            if let numResult = parseNumericNumber(tokens, at: i), numResult.isAbbreviated, numResult.currency == nil {
                 spans.append(Span(
                     range: i..<(i + numResult.consumed),
                     kind: .expandedAbbreviation(numResult.value),
@@ -507,7 +518,7 @@ enum NumberNormalizer {
         return spans
     }
 
-    // Время и длительность
+    /// Время и длительность
     private static func parseTimeSpans(_ tokens: [Token]) -> [Span] {
         var spans: [Span] = []
         var i = 0
@@ -527,21 +538,22 @@ enum NumberNormalizer {
             let lower = tokens[i].core.lowercased()
 
             // Паттерн 1: предлог + число + час (+ число + минут) → time
-            if timePrepositions.contains(lower) && i + 1 < tokens.count {
+            if timePrepositions.contains(lower), i + 1 < tokens.count {
                 if let hourResult = parseSpokenNumber(tokens, at: i + 1) {
                     let hourIdx = i + 1 + hourResult.consumedCount
-                    if hourIdx < tokens.count && hourWords.contains(tokens[hourIdx].core.lowercased()) {
+                    if hourIdx < tokens.count, hourWords.contains(tokens[hourIdx].core.lowercased()) {
                         let hour = Int(hourResult.value)
-                        guard hour >= 0 && hour <= 23 else { i += 1; continue }
+                        guard hour >= 0, hour <= 23 else { i += 1; continue }
 
                         // Проверяем минуты
                         let afterHourIdx = hourIdx + 1
                         if afterHourIdx < tokens.count,
-                           let minResult = parseSpokenNumber(tokens, at: afterHourIdx) {
+                           let minResult = parseSpokenNumber(tokens, at: afterHourIdx)
+                        {
                             let minWordIdx = afterHourIdx + minResult.consumedCount
-                            if minWordIdx < tokens.count && minuteWords.contains(tokens[minWordIdx].core.lowercased()) {
+                            if minWordIdx < tokens.count, minuteWords.contains(tokens[minWordIdx].core.lowercased()) {
                                 let minutes = Int(minResult.value)
-                                if minutes >= 0 && minutes <= 59 {
+                                if minutes >= 0, minutes <= 59 {
                                     // предлог + H часов M минут → span НЕ включает предлог (он остаётся)
                                     spans.append(Span(
                                         range: (i + 1)..<(minWordIdx + 1),
@@ -576,12 +588,12 @@ enum NumberNormalizer {
 
                     if hourWords.contains(unitWord) {
                         // Дробные (четверть часа) — не трогаем
-                        guard numResult.value >= 1 && numResult.value == numResult.value.rounded(.down) else {
+                        guard numResult.value >= 1, numResult.value == numResult.value.rounded(.down) else {
                             i += 1
                             continue
                         }
                         let hourInt = Int(numResult.value)
-                        guard hourInt >= 0 && hourInt <= 23 else { i += 1; continue }
+                        guard hourInt >= 0, hourInt <= 23 else { i += 1; continue }
 
                         spans.append(Span(
                             range: i..<(unitIdx + 1),
@@ -622,7 +634,7 @@ enum NumberNormalizer {
                 if let ord = ordinalForms[nextLower], ord.value <= 9 {
                     let dayValue = tens + ord.value
                     let monthIdx = i + 2
-                    if monthIdx < tokens.count && months.contains(tokens[monthIdx].core.lowercased()) {
+                    if monthIdx < tokens.count, months.contains(tokens[monthIdx].core.lowercased()) {
                         spans.append(Span(
                             range: i..<(monthIdx + 1),
                             kind: .date(day: dayValue, month: tokens[monthIdx].core),
@@ -653,7 +665,7 @@ enum NumberNormalizer {
         return spans
     }
 
-    // Порядковые числительные (без месяца — даты обрабатываются parseDateSpans)
+    /// Порядковые числительные (без месяца — даты обрабатываются parseDateSpans)
     private static func parseOrdinalSpans(_ tokens: [Token]) -> [Span] {
         var spans: [Span] = []
         var i = 0
@@ -691,7 +703,7 @@ enum NumberNormalizer {
         return spans
     }
 
-    // Кардиналы
+    /// Кардиналы
     private static func parseCardinalSpans(_ tokens: [Token]) -> [Span] {
         var spans: [Span] = []
         var i = 0
@@ -699,10 +711,10 @@ enum NumberNormalizer {
             // Цифровой токен — пропускаем
             if let first = tokens[i].core.first, first.isNumber {
                 // GigaAM большие числа: 2000000 → formatted
-                if let numResult = parseNumericNumber(tokens, at: i), numResult.currency == nil && !numResult.isAbbreviated {
+                if let numResult = parseNumericNumber(tokens, at: i), numResult.currency == nil, !numResult.isAbbreviated {
                     guard numResult.value <= Double(Int.max) else { i += numResult.consumed; continue }
                     let intVal = Int(numResult.value)
-                    if intVal >= 1000 && numResult.consumed == 1 && Double(intVal) == numResult.value {
+                    if intVal >= 1_000, numResult.consumed == 1, Double(intVal) == numResult.value {
                         let formatted = formatNumber(numResult.value)
                         let currentCore = tokens[i].core
                         if formatted != currentCore {
@@ -723,7 +735,7 @@ enum NumberNormalizer {
                 let nextWord = afterIdx < tokens.count ? tokens[afterIdx].core.lowercased() : nil
 
                 // ≤ 9 без триггера — оставить словом
-                if spoken.value <= 9 && spoken.value >= 0 {
+                if spoken.value <= 9, spoken.value >= 0 {
                     if let next = nextWord, cardinalTriggers.contains(next) {
                         spans.append(Span(
                             range: i..<afterIdx,
@@ -738,9 +750,9 @@ enum NumberNormalizer {
                 }
 
                 // "три тридцать" — потенциальное время, не трогаем
-                if spoken.consumedCount == 1 && spoken.value >= 10 && spoken.value <= 59 && i > 0 {
+                if spoken.consumedCount == 1, spoken.value >= 10, spoken.value <= 59, i > 0 {
                     let prevLower = tokens[i - 1].core.lowercased()
-                    if let prevVal = cardinals[prevLower], prevVal >= 1 && prevVal <= 12 {
+                    if let prevVal = cardinals[prevLower], prevVal >= 1, prevVal <= 12 {
                         i += 1
                         continue
                     }
@@ -781,9 +793,10 @@ enum NumberNormalizer {
             case .expandedAbbreviation(let val):
                 // Точка аббревиатуры (тыс., млн., млрд.) — не пунктуация предложения
                 let abbrevCore = tokens[lastIdx].core.lowercased()
-                if multiplierAbbreviations[abbrevCore] != nil
-                    && multiplierAbbreviations[abbrevCore + "."] != nil
-                    && tokens[lastIdx].trailing.hasPrefix(".") {
+                if multiplierAbbreviations[abbrevCore] != nil,
+                   multiplierAbbreviations[abbrevCore + "."] != nil,
+                   tokens[lastIdx].trailing.hasPrefix(".")
+                {
                     tokens[lastIdx].trailing = String(tokens[lastIdx].trailing.dropFirst())
                 }
                 formatted = CanonicalFormatter.formatInteger(val)
@@ -901,14 +914,14 @@ enum NumberNormalizer {
         "девятьсот": 900, "девятисот": 900,
     ]
 
-    // Множители
+    /// Множители
     private static let multipliers: [String: Double] = [
         "тысяча": 1_000, "тысячи": 1_000, "тысяч": 1_000, "тысячам": 1_000, "тысячами": 1_000, "тысячах": 1_000,
         "миллион": 1_000_000, "миллиона": 1_000_000, "миллионов": 1_000_000, "миллионам": 1_000_000,
         "миллиард": 1_000_000_000, "миллиарда": 1_000_000_000, "миллиардов": 1_000_000_000, "миллиардам": 1_000_000_000,
     ]
 
-    // Спецформы
+    /// Спецформы
     private static let specialForms: [String: Double] = [
         "полтора": 1.5, "полторы": 1.5,
         "четверть": 0.25,
@@ -928,8 +941,8 @@ enum NumberNormalizer {
         var consumed = 0
         var lastMultiplier: Double = 0
         // Трекинг порядка внутри группы: единицы после десятков — ок, десятки после единиц — стоп
-        var groupHasUnit = false   // 1-9
-        var groupHasTens = false   // 10-90 (включая подростки)
+        var groupHasUnit = false // 1-9
+        var groupHasTens = false // 10-90 (включая подростки)
         var groupHasHundred = false // 100-900
 
         var i = 0
@@ -937,7 +950,7 @@ enum NumberNormalizer {
             let word = words[i].lowercased()
 
             // Спецформа "с половиной" (два слова)
-            if word == "с" && i + 1 < words.count && words[i + 1].lowercased() == "половиной" {
+            if word == "с", i + 1 < words.count, words[i + 1].lowercased() == "половиной" {
                 guard consumed > 0 else { break }
                 group += 0.5
                 consumed += 2
@@ -1013,21 +1026,21 @@ enum NumberNormalizer {
                 return "\(value)"
             }
             let intVal = Int(value)
-            if abs(intVal) < 1000 {
+            if abs(intVal) < 1_000 {
                 return "\(intVal)"
             }
             // Разбиваем на группы по 3 с пробелом
             let s = "\(abs(intVal))"
             var result = ""
             for (idx, ch) in s.reversed().enumerated() {
-                if idx > 0 && idx % 3 == 0 { result.append(" ") }
+                if idx > 0, idx % 3 == 0 { result.append(" ") }
                 result.append(ch)
             }
             let formatted = String(result.reversed())
             return intVal < 0 ? "-\(formatted)" : formatted
         } else {
             // Дробное: запятая. Округляем до 2 знаков для защиты от floating-point артефактов
-            let rounded = (value * 100).rounded() / 100
+            let rounded = (value * 100).rounded()/100
             let absRounded = abs(rounded)
             let intPart = Int(absRounded)
             let fracRaw = absRounded - Double(intPart)
@@ -1035,7 +1048,7 @@ enum NumberNormalizer {
             let sign = value < 0 ? "-" : ""
             // Убрать trailing zero: 1,50 → 1,5
             if fracDigits % 10 == 0 {
-                return "\(sign)\(intPart),\(fracDigits / 10)"
+                return "\(sign)\(intPart),\(fracDigits/10)"
             }
             return "\(sign)\(intPart),\(fracDigits)"
         }
@@ -1059,7 +1072,7 @@ enum NumberNormalizer {
 
     // MARK: - Порядковые числительные (полный словарь форм)
 
-    // (value, suffix) — суффикс для записи "N-й", "N-е", "N-го" и т.д.
+    /// (value, suffix) — суффикс для записи "N-й", "N-е", "N-го" и т.д.
     private static let ordinalForms: [String: (value: Int, suffix: String)] = [
         // 1
         "первый": (1, "-й"), "первая": (1, "-я"), "первое": (1, "-е"),
@@ -1141,14 +1154,14 @@ enum NumberNormalizer {
         "сотого": (100, "-го"), "сотом": (100, "-м"),
     ]
 
-    // Десятки-кардиналы для составных порядковых ("двадцать" + "пятое")
+    /// Десятки-кардиналы для составных порядковых ("двадцать" + "пятое")
     private static let tensCardinals: [String: Int] = [
         "двадцать": 20, "тридцать": 30, "сорок": 40,
         "пятьдесят": 50, "шестьдесят": 60, "семьдесят": 70,
         "восемьдесят": 80, "девяносто": 90,
     ]
 
-    // Месяцы (родительный падеж)
+    /// Месяцы (родительный падеж)
     private static let months: Set<String> = [
         "января", "февраля", "марта", "апреля", "мая", "июня",
         "июля", "августа", "сентября", "октября", "ноября", "декабря",

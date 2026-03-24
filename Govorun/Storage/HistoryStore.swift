@@ -4,7 +4,6 @@ import SwiftData
 // MARK: - HistoryStore
 
 final class HistoryStore {
-
     static let maxItems = 100
 
     private let modelContext: ModelContext

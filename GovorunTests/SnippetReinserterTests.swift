@@ -1,8 +1,7 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class SnippetReinserterTests: XCTestCase {
-
     // MARK: - reinsert: happy path
 
     func test_reinsert_single_placeholder() {

@@ -2,7 +2,6 @@ import AppKit
 
 /// Воспроизведение фирменных звуков из бандла приложения
 final class SystemSoundPlayer: SoundPlaying, @unchecked Sendable {
-
     private let lock = NSLock()
     private var _enabled: Bool
     private let defaults: UserDefaults
@@ -16,7 +15,7 @@ final class SystemSoundPlayer: SoundPlaying, @unchecked Sendable {
     }
 
     init(enabled: Bool = true, defaults: UserDefaults = .standard) {
-        self._enabled = enabled
+        _enabled = enabled
         self.defaults = defaults
     }
 
@@ -27,7 +26,7 @@ final class SystemSoundPlayer: SoundPlaying, @unchecked Sendable {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            let sound = self.sound(for: event)
+            let sound = sound(for: event)
             sound?.stop() // прервать предыдущее воспроизведение
             sound?.play()
         }
@@ -43,23 +42,21 @@ final class SystemSoundPlayer: SoundPlaying, @unchecked Sendable {
         }
         lock.unlock()
 
-        let fileName: String
-        switch event {
+        let fileName = switch event {
         case .recordingStarted:
-            fileName = "recording_started"
+            "recording_started"
         case .recordingFinished:
-            fileName = "recording_finished"
+            "recording_finished"
         case .error:
-            fileName = "error"
+            "error"
         }
 
         guard let url = Bundle.main.url(forResource: fileName, withExtension: "aiff") else {
             // Fallback на системные звуки если файл не найден
-            let fallbackName: String
-            switch event {
-            case .recordingStarted: fallbackName = "Tink"
-            case .recordingFinished: fallbackName = "Pop"
-            case .error: fallbackName = "Basso"
+            let fallbackName = switch event {
+            case .recordingStarted: "Tink"
+            case .recordingFinished: "Pop"
+            case .error: "Basso"
             }
             return NSSound(named: NSSound.Name(fallbackName))
         }

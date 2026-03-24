@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Потокобезопасный коллектор состояний
 
@@ -23,7 +23,6 @@ private final class StateCollector: @unchecked Sendable {
 // MARK: - ASRWorkerManager тесты
 
 final class ASRWorkerManagerTests: XCTestCase {
-
     // MARK: - Начальное состояние
 
     func test_initialState_isNotStarted() {
@@ -197,7 +196,7 @@ final class ASRWorkerManagerTests: XCTestCase {
 
     // MARK: - Защита от двойного start
 
-    func test_doubleStart_stopsExistingProcess() throws {
+    func test_doubleStart_stopsExistingProcess() {
         let socketPath = NSTemporaryDirectory() + "govorun_double_start_\(UUID()).sock"
         FileManager.default.createFile(atPath: socketPath, contents: nil)
 
@@ -312,7 +311,7 @@ final class ASRWorkerManagerTests: XCTestCase {
         XCTAssertEqual(manager.state, .ready)
     }
 
-    func test_stop_removesSocketFile() throws {
+    func test_stop_removesSocketFile() {
         let socketPath = NSTemporaryDirectory() + "govorun_test_\(UUID()).sock"
         FileManager.default.createFile(atPath: socketPath, contents: nil)
 
@@ -381,9 +380,9 @@ final class ASRWorkerManagerTests: XCTestCase {
 
     // MARK: - VERSION → start() flow
 
-    func test_start_missingVersion_setsError_and_throws() async {
+    func test_start_missingVersion_setsError_and_throws() async throws {
         let dir = NSTemporaryDirectory() + "govorun_ver_test_\(UUID())"
-        try! FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
 
         // Нет VERSION файла
@@ -562,7 +561,7 @@ final class ASRWorkerManagerTests: XCTestCase {
         XCTAssertEqual(launchCount, 0, "После stop() restart не должен происходить")
     }
 
-    func test_stop_terminatesSetupProcess() throws {
+    func test_stop_terminatesSetupProcess() {
         // Проверяем что stop() очищает _setupProcess (реальный terminate тестируем косвенно)
         let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
         // После stop() setupProcess = nil, attemptId изменён
@@ -600,7 +599,9 @@ final class ASRWorkerManagerTests: XCTestCase {
 final class MockASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     var state: WorkerState = .ready
     let socketPath: String = "/tmp/govorun-mock-\(UUID().uuidString).sock"
-    var isReady: Bool { state == .ready }
+    var isReady: Bool {
+        state == .ready
+    }
 
     private(set) var startCalled = false
     private(set) var stopCalled = false

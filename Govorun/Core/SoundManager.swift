@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Событие звука
 
-enum SoundEvent: String, Sendable {
+enum SoundEvent: String {
     case recordingStarted
     case recordingFinished
     case error

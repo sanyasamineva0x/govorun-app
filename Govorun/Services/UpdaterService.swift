@@ -1,6 +1,6 @@
+import Combine
 import Foundation
 import Sparkle
-import Combine
 
 // MARK: - Протокол для тестируемости
 
@@ -32,7 +32,6 @@ private final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
 
 @MainActor
 final class UpdaterService: NSObject, ObservableObject, UpdateChecking {
-
     private let updater: SPUUpdater
     private let delegateProxy: UpdaterDelegate
     @Published private(set) var updateAvailable = false
@@ -40,7 +39,7 @@ final class UpdaterService: NSObject, ObservableObject, UpdateChecking {
 
     override init() {
         let proxy = UpdaterDelegate()
-        self.delegateProxy = proxy
+        delegateProxy = proxy
 
         let userDriver = SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil)
         updater = SPUUpdater(

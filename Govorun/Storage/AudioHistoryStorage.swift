@@ -1,7 +1,6 @@
 import Foundation
 
 enum AudioHistoryStorage {
-
     private static let directoryName = "AudioHistory"
 
     static var directory: URL {
