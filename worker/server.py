@@ -137,9 +137,13 @@ def main():
 
     print("READY", flush=True)
 
+    # Таймаут на connection: защита от зависших/неполных клиентов
+    CONNECTION_TIMEOUT = 30  # секунд
+
     while True:
         conn, _ = sock.accept()
         try:
+            conn.settimeout(CONNECTION_TIMEOUT)
             # Читаем до закрытия write-стороны клиентом (shutdown SHUT_WR)
             chunks = []
             while True:
@@ -196,6 +200,16 @@ def main():
 
             conn.sendall(json.dumps({"text": text}).encode())
 
+        except socket.timeout:
+            # Клиент завис — не отправил данные в течение CONNECTION_TIMEOUT
+            print("WARNING: connection timeout, dropping client", file=sys.stderr, flush=True)
+            try:
+                conn.sendall(json.dumps({
+                    "error": "internal",
+                    "message": f"Connection timeout: client did not send data within {CONNECTION_TIMEOUT}s"
+                }).encode())
+            except Exception:
+                pass
         except MemoryError:
             try:
                 conn.sendall(json.dumps({

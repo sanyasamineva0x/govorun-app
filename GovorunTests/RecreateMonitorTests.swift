@@ -9,17 +9,17 @@ final class RecreateMonitorTests: XCTestCase {
     private var defaults: UserDefaults!
     private var settings: SettingsStore!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         let suiteName = "com.govorun.tests.recreate.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)!
         settings = SettingsStore(defaults: defaults)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults = nil
         settings = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     /// Хелпер: создаём AppState с тестовыми зависимостями

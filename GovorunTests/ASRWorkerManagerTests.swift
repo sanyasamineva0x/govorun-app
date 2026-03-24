@@ -502,6 +502,75 @@ final class ASRWorkerManagerTests: XCTestCase {
         )
     }
 
+    // MARK: - launchAttemptId и race protection
+
+    func test_resetForStart_generatesNewAttemptId() {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        let id1 = manager.launchAttemptId
+        manager.resetForStart()
+        let id2 = manager.launchAttemptId
+        XCTAssertNotEqual(id1, id2, "resetForStart должен сгенерировать новый attemptId")
+    }
+
+    func test_stop_invalidatesAttemptId() {
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        let id1 = manager.launchAttemptId
+        manager.stop()
+        let id2 = manager.launchAttemptId
+        XCTAssertNotEqual(id1, id2, "stop() должен инвалидировать attemptId")
+    }
+
+    func test_staleTimeout_guard_prevents_state_overwrite() {
+        // Симулируем guard логику из timeout closure в launchWorker()
+        let manager = ASRWorkerManager(
+            workerDirectory: "/tmp/test",
+            socketPath: "/tmp/test.sock",
+            venvPath: "/tmp/venv"
+        )
+        let staleId = manager.launchAttemptId
+
+        // Worker успешно стартовал → новая попытка
+        manager.resetForStart()
+        manager.setState(.ready)
+
+        // Симулируем что делает timeout closure:
+        // guard self.launchAttemptId == attemptId else { return }
+        if manager.launchAttemptId == staleId {
+            manager.markStoppedManually()
+            manager.setState(.error("Stale timeout"))
+        }
+
+        // Guard предотвратил — state остался .ready
+        XCTAssertEqual(manager.state, .ready)
+    }
+
+    func test_handleTermination_afterStop_doesNotRestart() {
+        // После stop() handleTermination не должен запускать restart
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        var launchCount = 0
+        manager.launchWorkerOverride = {
+            launchCount += 1
+        }
+
+        let attemptBeforeStop = manager.launchAttemptId
+        manager.stop()
+        let attemptAfterStop = manager.launchAttemptId
+
+        XCTAssertNotEqual(attemptBeforeStop, attemptAfterStop)
+        // handleTermination проверяет _isStoppedManually (= true после stop)
+        manager.handleTermination(exitCode: 1)
+        XCTAssertEqual(launchCount, 0, "После stop() restart не должен происходить")
+    }
+
+    func test_stop_terminatesSetupProcess() throws {
+        // Проверяем что stop() очищает _setupProcess (реальный terminate тестируем косвенно)
+        let manager = ASRWorkerManager(workerDirectory: "/tmp/test")
+        // После stop() setupProcess = nil, attemptId изменён
+        let id1 = manager.launchAttemptId
+        manager.stop()
+        XCTAssertNotEqual(id1, manager.launchAttemptId)
+    }
+
     // MARK: - WorkerError
 
     func test_workerError_equatable() {

@@ -28,6 +28,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.defaultTextMode, "universal")
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
+        XCTAssertFalse(store.saveAudioHistory, "По умолчанию аудио не сохраняется (privacy)")
         // launchAtLogin: SMAppService, зависит от системного состояния
         XCTAssertFalse(store.onboardingCompleted)
     }
@@ -97,6 +98,23 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         // launchAtLogin: SMAppService, resetToDefaults не влияет
+    }
+
+    // MARK: - 5a. Audio history default (privacy)
+
+    func test_saveAudioHistory_default_false() {
+        XCTAssertFalse(store.saveAudioHistory)
+    }
+
+    func test_saveAudioHistory_opt_in_works() {
+        store.saveAudioHistory = true
+        XCTAssertTrue(store.saveAudioHistory)
+    }
+
+    func test_saveAudioHistory_reset_to_defaults() {
+        store.saveAudioHistory = true
+        store.resetToDefaults()
+        XCTAssertFalse(store.saveAudioHistory)
     }
 
     // MARK: - 6. Onboarding

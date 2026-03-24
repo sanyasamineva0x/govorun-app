@@ -68,10 +68,12 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     private let lock = NSLock()
     private var _state: WorkerState = .notStarted
     private var _process: Process?
+    private var _setupProcess: Process?
     private var _restartCount: Int = 0
     private var _isStoppedManually: Bool = false
     private var _isStarting: Bool = false
     private var _launchWorkerOverride: (() -> Void)?
+    private var _launchAttemptId: UUID = UUID()
 
     let versionUserDefaultsKey = "govorun.worker.installedVersion"
 
@@ -133,6 +135,13 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         return _restartCount
     }
 
+    /// Текущий ID попытки запуска (для валидации таймаутов/callbacks)
+    var launchAttemptId: UUID {
+        lock.lock()
+        defer { lock.unlock() }
+        return _launchAttemptId
+    }
+
     func start() async throws {
         // Guard: только один start() одновременно
         lock.lock()
@@ -178,10 +187,16 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
     func stop() {
         lock.lock()
         _isStoppedManually = true
+        _launchAttemptId = UUID() // инвалидировать все таймауты/callbacks текущей попытки
         let process = _process
         _process = nil
+        let setupProcess = _setupProcess
+        _setupProcess = nil
         lock.unlock()
 
+        if let setupProcess, setupProcess.isRunning {
+            setupProcess.terminate()
+        }
         if let process, process.isRunning {
             process.terminate()
         }
@@ -228,6 +243,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         lock.lock()
         _isStoppedManually = false
         _restartCount = 0
+        _launchAttemptId = UUID()
         lock.unlock()
     }
 
@@ -261,6 +277,7 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         lock.lock()
         let wasManual = _isStoppedManually
         let count = _restartCount
+        let attemptId = _launchAttemptId
         lock.unlock()
 
         guard !wasManual else { return }
@@ -271,16 +288,21 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             let override = _launchWorkerOverride
             lock.unlock()
 
-            print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
-
             if let override {
+                print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
                 override()
             } else {
                 Task { [weak self] in
+                    guard let self else { return }
+                    guard self.launchAttemptId == attemptId else {
+                        print("[Worker] Перезапуск пропущен: attempt инвалидирован")
+                        return
+                    }
+                    print("[Worker] Упал (exit \(exitCode)), перезапуск \(count + 1)/\(maxRestartAttempts)")
                     do {
-                        try await self?.launchWorker()
+                        try await self.launchWorker()
                     } catch {
-                        self?.setState(.error("Перезапуск не удался: \(error.localizedDescription)"))
+                        self.setState(.error("Перезапуск не удался: \(error.localizedDescription)"))
                     }
                 }
             }
@@ -309,7 +331,12 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
         process.standardOutput = pipe
         process.standardError = pipe
 
-        return try await withCheckedThrowingContinuation { continuation in
+        // Сохраняем setup process для отмены через stop()
+        lock.lock()
+        _setupProcess = process
+        lock.unlock()
+
+        return try await withCheckedThrowingContinuation { [weak self] continuation in
             var resumed = false
             let resumeLock = NSLock()
 
@@ -337,10 +364,21 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 outputBuffer.append(data)
             }
 
-            process.terminationHandler = { proc in
+            process.terminationHandler = { [weak self] proc in
                 pipe.fileHandleForReading.readabilityHandler = nil
+                guard let self else {
+                    resumeOnce(with: .failure(WorkerError.setupFailed("Manager deallocated")))
+                    return
+                }
+                // Очистить ссылку на setup process
+                self.lock.lock()
+                if self._setupProcess === proc { self._setupProcess = nil }
+                self.lock.unlock()
+
                 if proc.terminationStatus == 0 {
                     resumeOnce(with: .success(()))
+                } else if proc.terminationStatus == 15 /* SIGTERM */ {
+                    resumeOnce(with: .failure(WorkerError.setupFailed("Setup отменён")))
                 } else {
                     resumeOnce(with: .failure(WorkerError.setupFailed(
                         "setup.sh завершился с кодом \(proc.terminationStatus): \(outputBuffer.string())"
@@ -351,6 +389,11 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             do {
                 try process.run()
             } catch {
+                if let self {
+                    self.lock.lock()
+                    self._setupProcess = nil
+                    self.lock.unlock()
+                }
                 pipe.fileHandleForReading.readabilityHandler = nil
                 resumeOnce(with: .failure(WorkerError.setupFailed(
                     "Не удалось запустить setup.sh: \(error.localizedDescription)"
@@ -466,6 +509,11 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
             self?.handleTermination(exitCode: proc.terminationStatus)
         }
 
+        // Запомнить attemptId для валидации таймаутов
+        lock.lock()
+        let attemptId = _launchAttemptId
+        lock.unlock()
+
         // Ожидание READY из stdout
         return try await withCheckedThrowingContinuation { [weak self] continuation in
             guard let self else {
@@ -493,9 +541,12 @@ final class ASRWorkerManager: ASRWorkerManaging, @unchecked Sendable {
                 timeoutLock.lock()
                 currentTimeoutWork?.cancel()
                 let work = DispatchWorkItem { [weak self] in
+                    guard let self else { return }
+                    // Валидация: таймаут принадлежит текущей попытке запуска
+                    guard self.launchAttemptId == attemptId else { return }
                     // Пометить как остановленный — предотвратить zombie restart в handleTermination
-                    self?.markStoppedManually()
-                    self?.setState(.error("Таймаут загрузки модели"))
+                    self.markStoppedManually()
+                    self.setState(.error("Таймаут загрузки модели"))
                     resumeOnce(with: .failure(WorkerError.timeout))
                 }
                 currentTimeoutWork = work

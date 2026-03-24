@@ -52,6 +52,9 @@ final class AppState: ObservableObject {
     /// Состояние Python worker (для Cold start UI)
     @Published private(set) var workerState: WorkerState = .notStarted
 
+    /// Текущее состояние сессии (для live menubar updates)
+    @Published fileprivate(set) var sessionState: SessionState = .idle
+
     /// Флаг — приложение готово к работе
     @Published private(set) var isReady = false
 
@@ -519,6 +522,7 @@ final class AppState: ObservableObject {
 
         pipelineEngine.textMode = context.textMode
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
+        pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
             personalDictionary: dictionary.llmReplacements,
             appName: context.appName,
@@ -787,6 +791,8 @@ private final class SessionManagerBridge: SessionManagerDelegate {
     weak var appState: AppState?
 
     func sessionManager(_ manager: SessionManager, didChangeState state: SessionState) {
+        appState?.sessionState = state
+
         switch state {
         case .processing:
             appState?.startEscMonitor()

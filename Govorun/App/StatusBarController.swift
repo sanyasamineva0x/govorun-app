@@ -99,8 +99,6 @@ final class StatusBarController: NSObject {
     private func observeState() {
         guard let appState else { return }
 
-        // SessionManager.state не @Published — обновляем в menuWillOpen
-        // lastResult @Published — подписываемся через Combine
         appState.$lastResult
             .receive(on: DispatchQueue.main)
             .sink { [weak self] result in
@@ -113,6 +111,14 @@ final class StatusBarController: NSObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 self?.handleWorkerStateChange(state)
+            }
+            .store(in: &cancellables)
+
+        // Session state → live menubar icon (recording, processing, inserting, error)
+        appState.$sessionState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateStatusDisplay()
             }
             .store(in: &cancellables)
     }
@@ -129,7 +135,7 @@ final class StatusBarController: NSObject {
             return
         }
 
-        let state = appState.sessionManager.state
+        let state = appState.sessionState
         if case .idle = state {
             let key = appState.settings.activationKey.displayName
             statusMenuItem?.title = appState.settings.recordingMode.hint(key: key)

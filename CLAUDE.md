@@ -306,5 +306,4 @@ brew install --cask govorun
 - **Sparkle обновления сохраняют Accessibility** — replace in place, signature та же.
 - **Python.framework и wheels в .gitignore** — скачивать через scripts/.
 - **Flaky тест** `test_stop_then_start_relaunches_worker` — race condition на CI, не блокер.
-- **Xcode 26** — objectVersion 77 native, не нужен perl hack.
-- **Xcode 15.4** — нужен `perl -pi -e 's/objectVersion = 77/objectVersion = 56/'` после xcodegen.
+- **Xcode 26.3** — objectVersion 77 native, perl hack не нужен.

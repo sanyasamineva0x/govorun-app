@@ -346,6 +346,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = NormalizationHints()
     private var _terminalPeriodEnabled: Bool = true
+    private var _saveAudioHistory: Bool = false
     private var _sessionId: UUID?
 
     var textMode: TextMode {
@@ -359,6 +360,10 @@ final class PipelineEngine: @unchecked Sendable {
     var terminalPeriodEnabled: Bool {
         get { lock.lock(); defer { lock.unlock() }; return _terminalPeriodEnabled }
         set { lock.lock(); defer { lock.unlock() }; _terminalPeriodEnabled = newValue }
+    }
+    var saveAudioHistory: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _saveAudioHistory }
+        set { lock.lock(); defer { lock.unlock() }; _saveAudioHistory = newValue }
     }
     init(
         audioCapture: AudioRecording,
@@ -398,7 +403,7 @@ final class PipelineEngine: @unchecked Sendable {
 
         // Сохраняем аудио на диск для истории (если включено в настройках)
         let audioFileName: String?
-        if !audioData.isEmpty && UserDefaults.standard.bool(forKey: "saveAudioHistory") {
+        if !audioData.isEmpty && saveAudioHistory {
             audioFileName = try? AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
         } else {
             audioFileName = nil

@@ -33,7 +33,7 @@ final class SettingsStore: ObservableObject {
             Keys.defaultTextMode: "universal",
             Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
-            Keys.saveAudioHistory: true,
+            Keys.saveAudioHistory: false,
             Keys.terminalPeriodEnabled: true,
         ])
     }
