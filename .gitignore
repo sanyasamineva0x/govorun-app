@@ -47,3 +47,6 @@ Frameworks/Python.framework/
 
 # Vendored wheels (downloaded via scripts/download-wheels.sh)
 worker/wheels/
+
+# Internal strategy docs (не для публичного репо)
+docs/llm-normalization-roadmap.md
