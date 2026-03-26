@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
         help="Sampling temperature.",
     )
     parser.add_argument(
+        "--stop",
+        nargs="*",
+        default=None,
+        help="Stop sequences (e.g. --stop '\\n\\n').",
+    )
+    parser.add_argument(
         "--warmup",
         type=int,
         default=1,
@@ -104,6 +110,7 @@ def request_completion(
     timeout: float,
     max_tokens: int,
     temperature: float,
+    stop: list[str] | None = None,
 ) -> tuple[str, float | None, float]:
     payload = {
         "model": model,
@@ -112,6 +119,8 @@ def request_completion(
         "max_tokens": max_tokens,
         "messages": [],
     }
+    if stop:
+        payload["stop"] = stop
 
     if system_prompt:
         payload["messages"].append({"role": "system", "content": system_prompt})
@@ -254,6 +263,58 @@ def summarize(rows: list[dict]) -> dict:
             "mean": round(statistics.fmean(rss_values), 2),
         }
 
+    # Quality metrics: exact match and period-tolerant match
+    total_with_expected = 0
+    exact_matches = 0
+    period_matches = 0
+    failures: list[dict] = []
+    for row in rows:
+        expected = row.get("expected")
+        output = row.get("output")
+        if expected is None or output is None:
+            continue
+        total_with_expected += 1
+        if output == expected:
+            exact_matches += 1
+            period_matches += 1
+        elif output + "." == expected or output + "." == expected.rstrip(".") + ".":
+            period_matches += 1
+        else:
+            failures.append({
+                "id": row.get("id", "?"),
+                "bucket": row.get("bucket", "?"),
+                "expected": expected,
+                "output": output,
+            })
+
+    if total_with_expected > 0:
+        summary["quality"] = {
+            "total": total_with_expected,
+            "exact_match": exact_matches,
+            "exact_match_pct": round(100.0 * exact_matches / total_with_expected, 1),
+            "period_tolerant_match": period_matches,
+            "period_tolerant_pct": round(100.0 * period_matches / total_with_expected, 1),
+            "failures": failures,
+        }
+
+        # Per-bucket quality
+        for bucket in buckets:
+            bucket_rows = [r for r in rows if r.get("bucket") == bucket]
+            b_total = 0
+            b_period = 0
+            for r in bucket_rows:
+                exp = r.get("expected")
+                out = r.get("output")
+                if exp is None or out is None:
+                    continue
+                b_total += 1
+                if out == exp or out + "." == exp or out + "." == exp.rstrip(".") + ".":
+                    b_period += 1
+            if b_total > 0:
+                summary["buckets"][bucket]["period_tolerant_pct"] = round(
+                    100.0 * b_period / b_total, 1
+                )
+
     return summary
 
 
@@ -278,6 +339,10 @@ def main() -> int:
         for index, sample in enumerate(dataset):
             rss_before_kb = read_rss_kb(args.server_pid)
 
+            stop_sequences = None
+            if args.stop:
+                stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
+
             try:
                 output_text, first_token_ms, total_latency_ms = request_completion(
                     base_url=args.base_url,
@@ -287,6 +352,7 @@ def main() -> int:
                     timeout=args.timeout,
                     max_tokens=args.max_tokens,
                     temperature=args.temperature,
+                    stop=stop_sequences,
                 )
             except Exception as exc:  # noqa: BLE001
                 result = {
@@ -335,9 +401,31 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    print(f"Saved raw results to {output_path}")
+    print(f"\nSaved raw results to {output_path}")
     print(f"Saved summary to {summary_path}")
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+    # Print quality report
+    quality = summary.get("quality")
+    if quality:
+        print(f"\n{'='*60}")
+        print(f"QUALITY: {quality['period_tolerant_pct']}% period-tolerant match "
+              f"({quality['period_tolerant_match']}/{quality['total']})")
+        print(f"         {quality['exact_match_pct']}% exact match "
+              f"({quality['exact_match']}/{quality['total']})")
+        for bucket_name in sorted(summary.get("buckets", {})):
+            pct = summary["buckets"][bucket_name].get("period_tolerant_pct", "?")
+            cnt = summary["buckets"][bucket_name].get("samples", "?")
+            print(f"  {bucket_name:8s}: {pct}% ({cnt} samples)")
+        if quality["failures"]:
+            print(f"\nFAILURES ({len(quality['failures'])}):")
+            for f in quality["failures"]:
+                print(f"  [{f['id']}] {f['bucket']}")
+                print(f"    expected: {f['expected']}")
+                print(f"    got:      {f['output']}")
+        print(f"{'='*60}")
+    else:
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+
     return 0
 
 

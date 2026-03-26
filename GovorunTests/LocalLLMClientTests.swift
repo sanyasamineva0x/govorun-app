@@ -50,7 +50,7 @@ final class LocalLLMClientTests: XCTestCase {
         let body = try requestBodyData(from: chatRequest)
         let payload = try JSONDecoder().decode(ChatPayload.self, from: body)
         XCTAssertEqual(payload.model, "gigachat-gguf")
-        XCTAssertEqual(payload.maxTokens, 192)
+        XCTAssertEqual(payload.maxTokens, 128)
         XCTAssertEqual(payload.messages.count, 2)
         XCTAssertEqual(payload.messages[0].role, "system")
         XCTAssertTrue(payload.messages[0].content.contains("Сегодня:"))
@@ -162,7 +162,7 @@ final class LocalLLMClientTests: XCTestCase {
                 healthcheckTimeout: 0.5,
                 healthcheckSuccessTTL: 30,
                 failureCooldown: 60,
-                maxOutputTokens: 192,
+                maxOutputTokens: 64,
                 temperature: 0
             )
         )
