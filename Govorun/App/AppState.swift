@@ -22,6 +22,8 @@ final class AppState: ObservableObject {
 
     /// Python worker — управляет жизненным циклом процесса
     private let workerManager: ASRWorkerManaging?
+    /// Локальный LLM runtime — поднимает llama-server при локальном endpoint
+    private let llmRuntimeManager: LLMRuntimeManaging?
 
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
@@ -60,6 +62,8 @@ final class AppState: ObservableObject {
 
     /// Состояние Python worker (для Cold start UI)
     @Published private(set) var workerState: WorkerState = .notStarted
+    /// Состояние локального LLM runtime
+    @Published private(set) var llmRuntimeState: LLMRuntimeState = .notStarted
 
     /// Текущее состояние сессии (для live menubar updates)
     @Published fileprivate(set) var sessionState: SessionState = .idle
@@ -100,7 +104,10 @@ final class AppState: ObservableObject {
 
         let stt: STTClient = LocalSTTClient(socketPath: manager.socketPath)
         let llmConfiguration = Self.resolveLLMConfiguration(settings: settings)
+        let llmRuntimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
         currentLLMConfiguration = llmConfiguration
+        let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
+        self.llmRuntimeManager = llmRuntimeManager
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -162,6 +169,7 @@ final class AppState: ObservableObject {
         wireAudioCapture()
         wireSnippetNotifications()
         wireWorkerManager()
+        wireLLMRuntimeManager()
         wireSettingsChange()
         wireSleepNotification()
     }
@@ -180,12 +188,15 @@ final class AppState: ObservableObject {
         analytics: AnalyticsEmitting = NoOpAnalyticsService(),
         postInsertionMonitor: PostInsertionMonitoring? = nil,
         workerManager: ASRWorkerManaging? = nil,
+        llmRuntimeManager: LLMRuntimeManaging? = nil,
         initialWorkerState: WorkerState = .ready,
+        initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
         eventMonitor: EventMonitoring? = nil,
         updaterService: UpdaterService? = nil
     ) {
         self.workerManager = workerManager
+        self.llmRuntimeManager = llmRuntimeManager
         self.activationKeyMonitor = activationKeyMonitor
         self.sessionManager = sessionManager
         self.pipelineEngine = pipelineEngine
@@ -214,11 +225,13 @@ final class AppState: ObservableObject {
         self.updaterService = updaterService
 
         workerState = initialWorkerState
+        llmRuntimeState = initialLLMRuntimeState
 
         wireActivationKeyMonitor()
         wireSessionManager()
         wireAudioCapture()
         wireSnippetNotifications()
+        wireLLMRuntimeManager()
         wireSettingsChange()
     }
 
@@ -226,6 +239,10 @@ final class AppState: ObservableObject {
 
     func updateWorkerState(_ state: WorkerState) {
         workerState = state
+    }
+
+    func updateLLMRuntimeState(_ state: LLMRuntimeState) {
+        llmRuntimeState = state
     }
 
     // MARK: - Start / Stop
@@ -260,6 +277,16 @@ final class AppState: ObservableObject {
                 }
             }
         }
+
+        if let llmRuntimeManager {
+            Task {
+                do {
+                    try await llmRuntimeManager.start()
+                } catch {
+                    print("[Govorun] LLM runtime не запустился: \(error)")
+                }
+            }
+        }
     }
 
     func stop() {
@@ -267,6 +294,7 @@ final class AppState: ObservableObject {
         stopEscMonitor()
         postInsertionMonitor.stopMonitoring()
         workerManager?.stop()
+        llmRuntimeManager?.stop()
         if let snippetsObserver {
             NotificationCenter.default.removeObserver(snippetsObserver)
         }
@@ -441,6 +469,17 @@ final class AppState: ObservableObject {
         pipelineEngine.updateLLMClient(LocalLLMClient(configuration: configuration))
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
+
+        if let llmRuntimeManager {
+            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
+            Task {
+                do {
+                    try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
+                } catch {
+                    print("[Govorun] LLM runtime не обновился: \(error)")
+                }
+            }
+        }
     }
 
     private static func resolveLLMConfiguration(settings: SettingsStore) -> LocalLLMConfiguration {
@@ -449,6 +488,13 @@ final class AppState: ObservableObject {
             model: settings.llmModel,
             requestTimeout: settings.llmRequestTimeout,
             healthcheckTimeout: settings.llmHealthcheckTimeout
+        )
+    }
+
+    private static func resolveLLMRuntimeConfiguration(settings: SettingsStore) -> LocalLLMRuntimeConfiguration {
+        LocalLLMRuntimeConfiguration.resolved(
+            baseURLString: settings.llmBaseURL,
+            modelAlias: settings.llmModel
         )
     }
 
@@ -499,6 +545,14 @@ final class AppState: ObservableObject {
         manager.onStateChanged = { [weak self] state in
             Task { @MainActor [weak self] in
                 self?.updateWorkerState(state)
+            }
+        }
+    }
+
+    private func wireLLMRuntimeManager() {
+        llmRuntimeManager?.onStateChanged = { [weak self] state in
+            Task { @MainActor [weak self] in
+                self?.updateLLMRuntimeState(state)
             }
         }
     }
