@@ -86,7 +86,7 @@ struct NormalizationGateResult: Equatable {
 // MARK: - Gate
 
 enum NormalizationGate {
-    private static let correctionMarkers = [
+    private static let correctionPhraseMarkers = [
         "ой точнее",
         "точнее",
         "то есть",
@@ -97,8 +97,18 @@ enum NormalizationGate {
         "или нет",
         "хотя нет",
         "а нет",
-        " нет ",
     ]
+
+    private static let standaloneNetRegex: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(
+                pattern: #"(?<![\p{L}\p{N}_])нет(?![\p{L}\p{N}_])"#,
+                options: [.caseInsensitive]
+            )
+        } catch {
+            preconditionFailure("Невалидный regex correction marker: \(error)")
+        }
+    }()
 
     private static let protectedTokenPatterns = [
         #"https?://\S+"#,
@@ -247,9 +257,7 @@ enum NormalizationGate {
     }
 
     private static func correctionAwareProtectedSource(in input: String) -> String {
-        guard let marker = correctionMarkers
-            .compactMap({ input.range(of: $0, options: [.caseInsensitive, .backwards]) })
-            .max(by: { $0.lowerBound < $1.lowerBound })
+        guard let marker = lastCorrectionMarkerRange(in: input)
         else {
             return input
         }
@@ -311,8 +319,28 @@ enum NormalizationGate {
     }
 
     private static func hasCorrectionCue(_ input: String) -> Bool {
-        let lowered = " " + input.lowercased() + " "
-        return correctionMarkers.contains(where: { lowered.contains($0) })
+        lastCorrectionMarkerRange(in: input) != nil
+    }
+
+    private static func lastCorrectionMarkerRange(in input: String) -> Range<String.Index>? {
+        let phraseRanges = correctionPhraseMarkers.compactMap {
+            input.range(of: $0, options: [.caseInsensitive, .backwards])
+        }
+        let standaloneRanges = matchRanges(of: standaloneNetRegex, in: input).filter { standaloneRange in
+            !phraseRanges.contains(where: { $0.overlaps(standaloneRange) })
+        }
+
+        return (phraseRanges + standaloneRanges).max(by: { $0.lowerBound < $1.lowerBound })
+    }
+
+    private static func matchRanges(
+        of regex: NSRegularExpression,
+        in text: String
+    ) -> [Range<String.Index>] {
+        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.matches(in: text, options: [], range: nsRange).compactMap {
+            Range($0.range, in: text)
+        }
     }
 
     private static func tokenizeForDistance(
@@ -336,7 +364,7 @@ enum NormalizationGate {
         guard !ignoredLiterals.isEmpty else { return text }
 
         var result = text
-        for literal in ignoredLiterals {
+        for literal in ignoredLiterals where !literal.isEmpty {
             result = result.replacingOccurrences(of: literal, with: " ")
         }
         return result

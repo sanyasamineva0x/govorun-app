@@ -361,6 +361,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.matchedSnippetTrigger, "мой имейл")
         XCTAssertEqual(llm.normalizeCalls.count, 0)
         XCTAssertFalse(result.snippetFallbackUsed)
+        XCTAssertNil(result.snippetFallbackReason)
     }
 
     // MARK: - 13. Snippet match → matchedSnippetTrigger содержит trigger
@@ -430,6 +431,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.llmLatencyMs, 0)
         XCTAssertEqual(llm.normalizeCalls.count, 0)
         XCTAssertFalse(result.snippetFallbackUsed)
+        XCTAssertNil(result.snippetFallbackReason)
     }
 
     // MARK: - 16. Embedded happy path → placeholder → reinsertion
@@ -490,6 +492,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.normalizationPath, .snippetPlusLLM)
+        XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
     }
 
     // MARK: - 18. Embedded fallback: placeholder приклеен к слову
@@ -499,7 +502,7 @@ final class PipelineEngineTests: XCTestCase {
         stt.recognizeResult = STTResult(text: "привет вот мой адрес")
 
         let llm = MockLLMClient()
-        llm.normalizeResult = "Мой[[[GOVORUN_SNIPPET]]]."
+        llm.normalizeResult = "Привет вот мой адрес[[[GOVORUN_SNIPPET]]]."
 
         let snippets = MockSnippetEngine()
         snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "привет вот мой адрес")
@@ -516,6 +519,7 @@ final class PipelineEngineTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
+        XCTAssertEqual(result.snippetFallbackReason, .reinsertionFailed)
     }
 
     // MARK: - 19. Embedded fallback: LLM ошибка
@@ -543,6 +547,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.normalizedText, "Лена вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.normalizationPath, .snippetPlusLLM)
+        XCTAssertEqual(result.snippetFallbackReason, .llmFailed)
     }
 
     // MARK: - 20. Embedded fallback: LLM refusal
@@ -570,6 +575,7 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.gateFailureReason, .refusal)
+        XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
     }
 
     // MARK: - 20b. Embedded fallback: gate reject до reinsertion
@@ -596,6 +602,7 @@ final class PipelineEngineTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
+        XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
         guard case .excessiveEdits? = result.gateFailureReason else {
             return XCTFail("Ожидалась excessiveEdits, получили \(String(describing: result.gateFailureReason))")
         }

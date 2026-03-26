@@ -182,6 +182,46 @@ final class NormalizationGateTests: XCTestCase {
         XCTAssertFalse(tokens.contains("jira"))
     }
 
+    func test_correction_source_handles_standalone_net_at_sentence_start() {
+        let result = NormalizationGate.evaluate(
+            input: "Нет, открой Notion.",
+            output: "Открой Notion.",
+            contract: .normalization
+        )
+
+        XCTAssertTrue(result.accepted)
+        XCTAssertNil(result.failureReason)
+    }
+
+    func test_accepts_output_with_ignored_placeholder_literal() {
+        let result = NormalizationGate.evaluate(
+            input: "Привет вот мой адрес.",
+            output: "Привет, мой адрес — [[[GOVORUN_SNIPPET]]].",
+            contract: .normalization,
+            ignoredOutputLiterals: [SnippetPlaceholder.token]
+        )
+
+        XCTAssertTrue(result.accepted)
+        XCTAssertNil(result.failureReason)
+    }
+
+    func test_ignored_placeholder_does_not_hide_missing_protected_tokens() {
+        let result = NormalizationGate.evaluate(
+            input: "Открой Jira в 15:30.",
+            output: "Открой [[[GOVORUN_SNIPPET]]].",
+            contract: .normalization,
+            ignoredOutputLiterals: [SnippetPlaceholder.token]
+        )
+
+        XCTAssertFalse(result.accepted)
+        guard case .missingProtectedTokens(let tokens)? = result.failureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.failureReason))")
+        }
+        XCTAssertTrue(tokens.contains("jira"))
+        XCTAssertTrue(tokens.contains("15"))
+        XCTAssertTrue(tokens.contains("30"))
+    }
+
     func test_rejects_short_hallucinatory_rewrite_without_correction_markers() {
         let result = NormalizationGate.evaluate(
             input: "Привет мир.",

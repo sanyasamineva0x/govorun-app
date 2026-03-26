@@ -40,10 +40,12 @@ private func makeTestAppState(
     mockAudio: MockAudioRecording = MockAudioRecording(),
     sttClient: STTClient? = nil,
     llmClient: LLMClient? = nil,
+    snippetEngine: SnippetMatching? = nil,
     accessibility: MockAccessibility = MockAccessibility(),
     clipboard: MockClipboard = MockClipboard(),
     modelContainer: ModelContainer? = nil,
-    recordingMode: RecordingMode = .pushToTalk
+    recordingMode: RecordingMode = .pushToTalk,
+    analytics: AnalyticsEmitting = NoOpAnalyticsService()
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
@@ -60,7 +62,8 @@ private func makeTestAppState(
     let pipeline = PipelineEngine(
         audioCapture: mockAudio,
         sttClient: stt,
-        llmClient: llm
+        llmClient: llm,
+        snippetEngine: snippetEngine
     )
 
     let inserter = TextInserterEngine(
@@ -84,6 +87,7 @@ private func makeTestAppState(
         bottomBar: BottomBarController(),
         audioCapture: AudioCapture(),
         modelContainer: modelContainer,
+        analytics: analytics,
         settings: settings
     )
 
@@ -137,6 +141,95 @@ final class IntegrationTests: XCTestCase {
         XCTAssertNotNil(appState.lastResult)
         XCTAssertEqual(appState.lastResult?.normalizedText, "Привет, Саша")
         XCTAssertEqual(appState.lastResult?.rawTranscript, "привет марк ой точнее саша")
+    }
+
+    func test_llm_failure_emits_normalization_failed_event() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = "audio data".data(using: .utf8)!
+
+        let mockSTT = MockSTTClient()
+        mockSTT.recognizeResult = STTResult(text: "ну короче давай завтра созвонимся")
+
+        let mockLLM = MockLLMClient()
+        mockLLM.normalizeError = LLMError.serverError(statusCode: 500)
+
+        let mockAccessibility = MockAccessibility()
+        let mockElement = MockAXElement()
+        mockElement.settableAttributes = ["AXSelectedText"]
+        mockAccessibility.focusedElement = mockElement
+
+        let analytics = MockAnalyticsCollector()
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: mockSTT,
+            llmClient: mockLLM,
+            accessibility: mockAccessibility,
+            analytics: analytics
+        )
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        appState.activationKeyMonitor.onDeactivated?()
+        try await Task.sleep(nanoseconds: 850_000_000)
+
+        let failedEvent = analytics.events.first { $0.0 == .normalizationFailed }
+        XCTAssertNotNil(failedEvent)
+        XCTAssertEqual(failedEvent?.2[AnalyticsMetadataKey.normalizationPath], "llmFailed")
+        XCTAssertEqual(
+            failedEvent?.2[AnalyticsMetadataKey.errorType],
+            AnalyticsErrorType.normalizationApi.rawValue
+        )
+    }
+
+    func test_embedded_snippet_llm_failure_emits_failed_event_and_fallback_reason() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = "audio data".data(using: .utf8)!
+
+        let mockSTT = MockSTTClient()
+        mockSTT.recognizeResult = STTResult(text: "лена вот мой адрес")
+
+        let mockLLM = MockLLMClient()
+        mockLLM.normalizeError = LLMError.serverError(statusCode: 500)
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "лена вот мой адрес")
+
+        let mockAccessibility = MockAccessibility()
+        let mockElement = MockAXElement()
+        mockElement.settableAttributes = ["AXSelectedText"]
+        mockAccessibility.focusedElement = mockElement
+
+        let analytics = MockAnalyticsCollector()
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: mockSTT,
+            llmClient: mockLLM,
+            snippetEngine: snippets,
+            accessibility: mockAccessibility,
+            analytics: analytics
+        )
+
+        appState.activationKeyMonitor.onActivated?()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        appState.activationKeyMonitor.onDeactivated?()
+        try await Task.sleep(nanoseconds: 850_000_000)
+
+        let failedEvent = analytics.events.first { $0.0 == .normalizationFailed }
+        XCTAssertNotNil(failedEvent)
+        XCTAssertEqual(failedEvent?.2[AnalyticsMetadataKey.normalizationPath], "snippetPlusLLM")
+        XCTAssertEqual(
+            failedEvent?.2[AnalyticsMetadataKey.fallbackUsed],
+            PipelineResult.SnippetFallbackReason.llmFailed.analyticsValue
+        )
+
+        let fallbackEvent = analytics.events.first { $0.0 == .snippetFallbackUsed }
+        XCTAssertNotNil(fallbackEvent)
+        XCTAssertEqual(
+            fallbackEvent?.2[AnalyticsMetadataKey.fallbackUsed],
+            PipelineResult.SnippetFallbackReason.llmFailed.analyticsValue
+        )
     }
 
     // MARK: - 2. Cancel во время записи

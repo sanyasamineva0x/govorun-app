@@ -732,10 +732,25 @@ final class AppState: ObservableObject {
             await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: metadata)
         }
 
+        if result.normalizationPath == .llmFailed || result.snippetFallbackReason == .llmFailed {
+            var metadata = [
+                AnalyticsMetadataKey.normalizationPath: normPath,
+                AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
+                AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
+            ]
+            if let snippetFallbackReason = result.snippetFallbackReason {
+                metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue
+            }
+            await analytics.emit(.normalizationFailed, sessionId: sessionId, metadata: metadata)
+        }
+
         if result.snippetFallbackUsed {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
             ]
+            if let snippetFallbackReason = result.snippetFallbackReason {
+                metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue
+            }
             if let gateFailureReason = result.gateFailureReason {
                 metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
             }
