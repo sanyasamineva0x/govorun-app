@@ -552,11 +552,10 @@ final class PipelineEngine: @unchecked Sendable {
                         fallbackUsed = true
                         snippetFallbackReason = .gateRejected
                         gateFailureReason = gateResult.failureReason
-                        if let gateFailureReason {
-                            Self.logger.warning(
-                                "NormalizationGate rejected embedded snippet output: \(gateFailureReason.description, privacy: .public)"
-                            )
-                        }
+                        let reasonDescription = gateFailureReason?.description ?? "unknown"
+                        Self.logger.warning(
+                            "NormalizationGate rejected embedded snippet output: \(reasonDescription, privacy: .public)"
+                        )
                         finalText = SnippetReinserter.mechanicalFallback(
                             rawTranscript: correctedTranscript,
                             trigger: snippetMatch.trigger, content: snippetMatch.content

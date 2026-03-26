@@ -720,7 +720,10 @@ final class AppState: ObservableObject {
         ])
 
         let normPath = result.normalizationPath.rawValue
-        if result.llmLatencyMs > 0 || result.normalizationPath == .llm || result.normalizationPath == .snippetPlusLLM {
+        let normalizationDidFail = result.normalizationPath == .llmFailed || result.snippetFallbackReason == .llmFailed
+        let completedPaths: Set<PipelineResult.NormalizationPath> = [.llm, .llmRejected, .snippetPlusLLM]
+
+        if completedPaths.contains(result.normalizationPath), !normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
@@ -732,7 +735,7 @@ final class AppState: ObservableObject {
             await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: metadata)
         }
 
-        if result.normalizationPath == .llmFailed || result.snippetFallbackReason == .llmFailed {
+        if normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",

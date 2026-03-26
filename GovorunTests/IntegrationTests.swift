@@ -180,6 +180,7 @@ final class IntegrationTests: XCTestCase {
             failedEvent?.2[AnalyticsMetadataKey.errorType],
             AnalyticsErrorType.normalizationApi.rawValue
         )
+        XCTAssertFalse(analytics.events.contains { $0.0 == .normalizationCompleted })
     }
 
     func test_embedded_snippet_llm_failure_emits_failed_event_and_fallback_reason() async throws {
@@ -223,6 +224,7 @@ final class IntegrationTests: XCTestCase {
             failedEvent?.2[AnalyticsMetadataKey.fallbackUsed],
             PipelineResult.SnippetFallbackReason.llmFailed.analyticsValue
         )
+        XCTAssertFalse(analytics.events.contains { $0.0 == .normalizationCompleted })
 
         let fallbackEvent = analytics.events.first { $0.0 == .snippetFallbackUsed }
         XCTAssertNotNil(fallbackEvent)
