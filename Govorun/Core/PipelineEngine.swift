@@ -44,6 +44,7 @@ struct PipelineResult {
         case snippet // standalone: content as-is, 0ms
         case snippetPlusLLM // embedded: placeholder → LLM → reinsertion
         case llm
+        case llmRejected // LLM ответил, но gate отклонил → deterministicText fallback
         case llmFailed // LLM упал → deterministicText fallback
     }
 
@@ -275,6 +276,12 @@ enum DeterministicNormalizer {
 // MARK: - LLM Response Guard
 
 enum LLMResponseGuard {
+    enum Issue: Equatable {
+        case empty
+        case refusal
+        case disproportionateLength
+    }
+
     /// Префиксы типичных отказов LLM safety-фильтра
     private static let refusalPrefixes = [
         "к сожалению",
@@ -286,9 +293,9 @@ enum LLMResponseGuard {
         "в соответствии с правилами",
     ]
 
-    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
+    static func firstIssue(_ response: String, rawTranscript: String) -> Issue? {
         let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return false }
+        if trimmed.isEmpty { return .empty }
 
         let lower = trimmed.lowercased()
         let rawLower = rawTranscript.lowercased()
@@ -297,7 +304,7 @@ enum LLMResponseGuard {
         // НО raw transcript НЕ начинается с того же — значит LLM отказал, а не нормализовал
         for prefix in refusalPrefixes {
             if lower.hasPrefix(prefix), !rawLower.hasPrefix(prefix) {
-                return false
+                return .refusal
             }
         }
 
@@ -305,10 +312,14 @@ enum LLMResponseGuard {
         let inputWords = rawTranscript.split(whereSeparator: \.isWhitespace).count
         let outputWords = trimmed.split(whereSeparator: \.isWhitespace).count
         if inputWords > 0, outputWords > inputWords * 3, outputWords > 10 {
-            return false
+            return .disproportionateLength
         }
 
-        return true
+        return nil
+    }
+
+    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
+        firstIssue(response, rawTranscript: rawTranscript) == nil
     }
 }
 
@@ -615,15 +626,16 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
-        // Санитарный чек: LLM вернул мусор → fallback на deterministicText
-        let guardedText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
-            ? normalizedText
-            : deterministicText
+        let gateResult = NormalizationGate.evaluate(
+            input: deterministicText,
+            output: normalizedText,
+            contract: currentTextMode.llmOutputContract
+        )
 
         // Terminal period policy — LLM часто возвращает текст с точкой
         let finalText = terminalPeriodEnabled
-            ? guardedText
-            : DeterministicNormalizer.stripTrailingPeriods(guardedText)
+            ? gateResult.output
+            : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
 
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
         return PipelineResult(
@@ -631,7 +643,7 @@ final class PipelineEngine: @unchecked Sendable {
             rawTranscript: rawTranscript,
             normalizedText: finalText,
             textMode: currentTextMode,
-            normalizationPath: .llm,
+            normalizationPath: gateResult.accepted ? .llm : .llmRejected,
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,

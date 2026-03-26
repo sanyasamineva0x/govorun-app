@@ -272,9 +272,9 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        // Санитарный чек: не теряем текст — возвращаем deterministicText
+        // Gate отклоняет пустой ответ и возвращает deterministicText
         XCTAssertEqual(result.normalizedText, "Давай сделаем это.")
-        XCTAssertEqual(result.normalizationPath, .llm)
+        XCTAssertEqual(result.normalizationPath, .llmRejected)
     }
 
     /// 11b. LLM вернул safety refusal → fallback на deterministicText
@@ -291,7 +291,25 @@ final class PipelineEngineTests: XCTestCase {
         let result = try await engine.stopRecording()
 
         XCTAssertEqual(result.normalizedText, "Федя ты дурачок.")
-        XCTAssertEqual(result.normalizationPath, .llm)
+        XCTAssertEqual(result.normalizationPath, .llmRejected)
+    }
+
+    // MARK: - 11d. Gate: пропажа защищённых токенов → fallback на deterministicText
+
+    func test_llm_missing_protected_tokens_falls_back_to_deterministic() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "открой jira в 15:30")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Открой задачу."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Открой jira в 15:30.")
+        XCTAssertEqual(result.normalizationPath, .llmRejected)
     }
 
     // MARK: - 11c. LLM бросает non-cancelled PipelineError → fallback на deterministicText
