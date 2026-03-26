@@ -213,7 +213,7 @@ final class LocalLLMClientTests: XCTestCase {
 
     func test_normalize_cancellationDoesNotPoisonHealthState() async throws {
         let requests = RequestRecorder()
-        var chatCallCount = 0
+        let chatCallCounter = CallCounter()
 
         MockURLProtocol.requestHandler = { request in
             await requests.append(request)
@@ -225,8 +225,7 @@ final class LocalLLMClientTests: XCTestCase {
                 )
             }
 
-            chatCallCount += 1
-            if chatCallCount == 1 {
+            if await chatCallCounter.increment() == 1 {
                 throw CancellationError()
             }
 
@@ -362,6 +361,15 @@ private actor RequestRecorder {
 
     func snapshot() -> [URLRequest] {
         requests
+    }
+}
+
+private actor CallCounter {
+    private var value = 0
+
+    func increment() -> Int {
+        value += 1
+        return value
     }
 }
 
