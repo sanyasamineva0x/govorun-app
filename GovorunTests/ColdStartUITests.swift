@@ -99,6 +99,11 @@ final class ColdStartAppStateTests: XCTestCase {
         XCTAssertEqual(appState.workerState, .notStarted)
     }
 
+    func test_llmRuntimeState_defaults_to_notStarted() {
+        let (appState, _, _) = makeColdStartTestAppState()
+        XCTAssertEqual(appState.llmRuntimeState, .notStarted)
+    }
+
     func test_updateWorkerState_changes_state() {
         let (appState, _, _) = makeColdStartTestAppState()
 
@@ -107,6 +112,16 @@ final class ColdStartAppStateTests: XCTestCase {
 
         appState.updateWorkerState(.ready)
         XCTAssertEqual(appState.workerState, .ready)
+    }
+
+    func test_updateLLMRuntimeState_changes_state() {
+        let (appState, _, _) = makeColdStartTestAppState()
+
+        appState.updateLLMRuntimeState(.starting)
+        XCTAssertEqual(appState.llmRuntimeState, .starting)
+
+        appState.updateLLMRuntimeState(.ready)
+        XCTAssertEqual(appState.llmRuntimeState, .ready)
     }
 
     func test_handleActivated_when_worker_loading_shows_model_loading_pill() async throws {
@@ -233,6 +248,61 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
 
         XCTAssertTrue(mockWorker.stopCalled)
         XCTAssertFalse(appState.isReady)
+    }
+
+    func test_start_launches_llm_runtime_manager() async throws {
+        let mockLLMRuntime = MockLLMRuntimeManager()
+        let (appState, _, _) = makeColdStartTestAppState(llmRuntimeManager: mockLLMRuntime)
+
+        XCTAssertFalse(mockLLMRuntime.startCalled)
+
+        appState.start()
+
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockLLMRuntime.startCalled { break }
+        }
+
+        XCTAssertTrue(mockLLMRuntime.startCalled)
+    }
+
+    func test_stop_stops_llm_runtime_manager() {
+        let mockLLMRuntime = MockLLMRuntimeManager()
+        let (appState, _, _) = makeColdStartTestAppState(llmRuntimeManager: mockLLMRuntime)
+        appState.start()
+
+        XCTAssertFalse(mockLLMRuntime.stopCalled)
+
+        appState.stop()
+
+        XCTAssertTrue(mockLLMRuntime.stopCalled)
+    }
+
+    func test_settingsChange_updates_llm_runtime_manager_configuration() async throws {
+        let suiteName = "ColdStartLLMRuntime-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let settings = SettingsStore(defaults: defaults)
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            settings: settings
+        )
+
+        settings.llmModel = "gigachat-super"
+
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if !mockLLMRuntime.updatedConfigurations.isEmpty { break }
+        }
+
+        let updated = try XCTUnwrap(mockLLMRuntime.updatedConfigurations.last)
+        XCTAssertEqual(updated.normalizedModelAlias, "gigachat-super")
+
+        withExtendedLifetime(appState) {}
+        defaults.removePersistentDomain(forName: suiteName)
     }
 
     func test_start_without_worker_manager_still_works() {
@@ -447,7 +517,9 @@ final class FindPythonPathTests: XCTestCase {
 @MainActor
 private func makeColdStartTestAppState(
     mockAudio: MockAudioRecording = MockAudioRecording(),
-    workerManager: ASRWorkerManaging? = nil
+    workerManager: ASRWorkerManaging? = nil,
+    llmRuntimeManager: LLMRuntimeManaging? = nil,
+    settings: SettingsStore = SettingsStore()
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
     let eventMonitor = MockEventMonitoring()
     let stt = MockSTTClient()
@@ -473,8 +545,61 @@ private func makeColdStartTestAppState(
         bottomBar: BottomBarController(),
         audioCapture: AudioCapture(),
         workerManager: workerManager,
-        initialWorkerState: .notStarted
+        llmRuntimeManager: llmRuntimeManager,
+        initialWorkerState: .notStarted,
+        initialLLMRuntimeState: .notStarted,
+        settings: settings
     )
 
     return (appState, mockAudio, eventMonitor)
+}
+
+final class MockLLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _state: LLMRuntimeState = .notStarted
+    private var _startCalled = false
+    private var _stopCalled = false
+    private var _updatedConfigurations: [LocalLLMRuntimeConfiguration] = []
+
+    var state: LLMRuntimeState {
+        lock.lock(); defer { lock.unlock() }; return _state
+    }
+
+    var isReady: Bool {
+        state == .ready
+    }
+
+    var onStateChanged: (@Sendable (LLMRuntimeState) -> Void)?
+
+    var startCalled: Bool {
+        lock.lock(); defer { lock.unlock() }; return _startCalled
+    }
+
+    var stopCalled: Bool {
+        lock.lock(); defer { lock.unlock() }; return _stopCalled
+    }
+
+    var updatedConfigurations: [LocalLLMRuntimeConfiguration] {
+        lock.lock(); defer { lock.unlock() }; return _updatedConfigurations
+    }
+
+    var startError: Error?
+    var updateError: Error?
+
+    func start() async throws {
+        lock.lock(); _startCalled = true; lock.unlock()
+        if let startError { throw startError }
+    }
+
+    func stop() {
+        lock.lock()
+        _stopCalled = true
+        _state = .notStarted
+        lock.unlock()
+    }
+
+    func updateConfiguration(_ configuration: LocalLLMRuntimeConfiguration) async throws {
+        lock.lock(); _updatedConfigurations.append(configuration); lock.unlock()
+        if let updateError { throw updateError }
+    }
 }
