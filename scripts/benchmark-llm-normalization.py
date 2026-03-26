@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=192,
+        default=128,
         help="Max tokens for completion.",
     )
     parser.add_argument(
@@ -267,6 +267,7 @@ def summarize(rows: list[dict]) -> dict:
     total_with_expected = 0
     exact_matches = 0
     period_matches = 0
+    error_count = sum(1 for row in rows if "error" in row)
     failures: list[dict] = []
     for row in rows:
         expected = row.get("expected")
@@ -277,7 +278,7 @@ def summarize(rows: list[dict]) -> dict:
         if output == expected:
             exact_matches += 1
             period_matches += 1
-        elif output + "." == expected or output + "." == expected.rstrip(".") + ".":
+        elif output.rstrip(".") == expected.rstrip("."):
             period_matches += 1
         else:
             failures.append({
@@ -290,6 +291,7 @@ def summarize(rows: list[dict]) -> dict:
     if total_with_expected > 0:
         summary["quality"] = {
             "total": total_with_expected,
+            "errors": error_count,
             "exact_match": exact_matches,
             "exact_match_pct": round(100.0 * exact_matches / total_with_expected, 1),
             "period_tolerant_match": period_matches,
@@ -308,7 +310,7 @@ def summarize(rows: list[dict]) -> dict:
                 if exp is None or out is None:
                     continue
                 b_total += 1
-                if out == exp or out + "." == exp or out + "." == exp.rstrip(".") + ".":
+                if out == exp or out.rstrip(".") == exp.rstrip("."):
                     b_period += 1
             if b_total > 0:
                 summary["buckets"][bucket]["period_tolerant_pct"] = round(
@@ -334,14 +336,18 @@ def main() -> int:
     if system_prompt:
         print(f"Using system prompt from {args.system_prompt_file}")
 
+    stop_sequences = None
+    if args.stop:
+        try:
+            stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
+        except (UnicodeDecodeError, ValueError) as exc:
+            print(f"Invalid stop sequence format: {exc}", file=sys.stderr)
+            return 1
+
     recorded_rows: list[dict] = []
     with output_path.open("w", encoding="utf-8") as output_file:
         for index, sample in enumerate(dataset):
             rss_before_kb = read_rss_kb(args.server_pid)
-
-            stop_sequences = None
-            if args.stop:
-                stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
 
             try:
                 output_text, first_token_ms, total_latency_ms = request_completion(

@@ -51,6 +51,7 @@ final class LocalLLMClientTests: XCTestCase {
         let payload = try JSONDecoder().decode(ChatPayload.self, from: body)
         XCTAssertEqual(payload.model, "gigachat-gguf")
         XCTAssertEqual(payload.maxTokens, 128)
+        XCTAssertEqual(payload.stop, ["\n\n"])
         XCTAssertEqual(payload.messages.count, 2)
         XCTAssertEqual(payload.messages[0].role, "system")
         XCTAssertTrue(payload.messages[0].content.contains("Сегодня:"))
@@ -173,6 +174,40 @@ final class LocalLLMClientTests: XCTestCase {
         let captured = await requests.snapshot()
         XCTAssertEqual(captured.count, 1, "Второй вызов должен упасть fail-fast без нового probe")
         XCTAssertEqual(captured.first?.url?.path, "/v1/models")
+    }
+
+    func test_normalize_emptyStopSequencesOmitsStopField() async throws {
+        let requests = RequestRecorder()
+        MockURLProtocol.requestHandler = { request in
+            await requests.append(request)
+
+            if request.url?.path == "/v1/models" {
+                return HTTPStubResponse(
+                    statusCode: 200,
+                    body: #"{"data":[{"id":"gigachat-gguf"}]}"#
+                )
+            }
+
+            return HTTPStubResponse(
+                statusCode: 200,
+                body: #"{"choices":[{"message":{"content":"Ок"}}]}"#
+            )
+        }
+
+        let client = makeClient(
+            configuration: LocalLLMConfiguration(stopSequences: [])
+        )
+        _ = try await client.normalize(
+            "ок",
+            mode: .universal,
+            hints: NormalizationHints(currentDate: makeDate())
+        )
+
+        let captured = await requests.snapshot()
+        let chatRequest = try XCTUnwrap(captured.last)
+        let body = try requestBodyData(from: chatRequest)
+        let payload = try JSONDecoder().decode(ChatPayload.self, from: body)
+        XCTAssertNil(payload.stop, "Пустой stopSequences не должен сериализовать stop в JSON")
     }
 
     func test_normalize_usesContentPartsResponse() async throws {
@@ -430,11 +465,13 @@ private struct ChatPayload: Decodable {
 
     let model: String
     let maxTokens: Int
+    let stop: [String]?
     let messages: [Message]
 
     enum CodingKeys: String, CodingKey {
         case model
         case maxTokens = "max_tokens"
+        case stop
         case messages
     }
 }
