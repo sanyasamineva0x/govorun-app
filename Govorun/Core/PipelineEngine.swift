@@ -35,6 +35,7 @@ struct PipelineResult {
     let totalLatencyMs: Int
     let matchedSnippetTrigger: String?
     let snippetFallbackUsed: Bool
+    let gateFailureReason: NormalizationGateFailureReason?
     var insertionStrategy: InsertionStrategy?
     let audioDurationMs: Int
     var audioFileName: String?
@@ -60,6 +61,7 @@ struct PipelineResult {
         totalLatencyMs: Int,
         matchedSnippetTrigger: String? = nil,
         snippetFallbackUsed: Bool = false,
+        gateFailureReason: NormalizationGateFailureReason? = nil,
         insertionStrategy: InsertionStrategy? = nil,
         audioDurationMs: Int = 0,
         audioFileName: String? = nil
@@ -75,6 +77,7 @@ struct PipelineResult {
         self.totalLatencyMs = totalLatencyMs
         self.matchedSnippetTrigger = matchedSnippetTrigger
         self.snippetFallbackUsed = snippetFallbackUsed
+        self.gateFailureReason = gateFailureReason
         self.insertionStrategy = insertionStrategy
         self.audioDurationMs = audioDurationMs
         self.audioFileName = audioFileName
@@ -486,6 +489,7 @@ final class PipelineEngine: @unchecked Sendable {
                     totalLatencyMs: totalMs,
                     matchedSnippetTrigger: snippetMatch.trigger,
                     snippetFallbackUsed: false,
+                    gateFailureReason: nil,
                     audioDurationMs: audioDurationMs,
                     audioFileName: audioFileName
                 )
@@ -504,6 +508,7 @@ final class PipelineEngine: @unchecked Sendable {
                 let finalText: String
                 let llmLatencyMs: Int
                 var fallbackUsed = false
+                var gateFailureReason: NormalizationGateFailureReason?
 
                 do {
                     guard !currentIsCancelled() else {
@@ -519,14 +524,25 @@ final class PipelineEngine: @unchecked Sendable {
                     }
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
 
-                    if !LLMResponseGuard.isUsable(llmOutput, rawTranscript: correctedTranscript) {
+                    let gateResult = NormalizationGate.evaluate(
+                        input: correctedTranscript,
+                        output: llmOutput,
+                        contract: currentTextMode.llmOutputContract,
+                        ignoredOutputLiterals: Set([SnippetPlaceholder.token])
+                    )
+
+                    if !gateResult.accepted {
                         fallbackUsed = true
+                        gateFailureReason = gateResult.failureReason
+                        if let gateFailureReason {
+                            print("[NormalizationGate] rejected embedded snippet output: \(gateFailureReason)")
+                        }
                         finalText = SnippetReinserter.mechanicalFallback(
                             rawTranscript: correctedTranscript,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     } else if let reinserted = SnippetReinserter.reinsert(
-                        llmOutput: llmOutput, content: snippetMatch.content
+                        llmOutput: gateResult.output, content: snippetMatch.content
                     ) {
                         finalText = reinserted
                     } else {
@@ -561,6 +577,7 @@ final class PipelineEngine: @unchecked Sendable {
                     totalLatencyMs: totalMs,
                     matchedSnippetTrigger: snippetMatch.trigger,
                     snippetFallbackUsed: fallbackUsed,
+                    gateFailureReason: gateFailureReason,
                     audioDurationMs: audioDurationMs,
                     audioFileName: audioFileName
                 )
@@ -631,6 +648,9 @@ final class PipelineEngine: @unchecked Sendable {
             output: normalizedText,
             contract: currentTextMode.llmOutputContract
         )
+        if let failureReason = gateResult.failureReason {
+            print("[NormalizationGate] rejected output: \(failureReason)")
+        }
 
         // Terminal period policy — LLM часто возвращает текст с точкой
         let finalText = terminalPeriodEnabled
@@ -648,6 +668,7 @@ final class PipelineEngine: @unchecked Sendable {
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,
             totalLatencyMs: totalMs,
+            gateFailureReason: gateResult.failureReason,
             audioDurationMs: audioDurationMs,
             audioFileName: audioFileName
         )

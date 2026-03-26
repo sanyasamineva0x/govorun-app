@@ -721,17 +721,25 @@ final class AppState: ObservableObject {
 
         let normPath = result.normalizationPath.rawValue
         if result.llmLatencyMs > 0 || result.normalizationPath == .llm || result.normalizationPath == .snippetPlusLLM {
-            await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: [
+            var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
-            ])
+            ]
+            if let gateFailureReason = result.gateFailureReason {
+                metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
+            }
+            await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: metadata)
         }
 
         if result.snippetFallbackUsed {
-            await analytics.emit(.snippetFallbackUsed, sessionId: sessionId, metadata: [
+            var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-            ])
+            ]
+            if let gateFailureReason = result.gateFailureReason {
+                metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
+            }
+            await analytics.emit(.snippetFallbackUsed, sessionId: sessionId, metadata: metadata)
         }
     }
 

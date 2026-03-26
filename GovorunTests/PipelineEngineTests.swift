@@ -275,6 +275,7 @@ final class PipelineEngineTests: XCTestCase {
         // Gate отклоняет пустой ответ и возвращает deterministicText
         XCTAssertEqual(result.normalizedText, "Давай сделаем это.")
         XCTAssertEqual(result.normalizationPath, .llmRejected)
+        XCTAssertEqual(result.gateFailureReason, .empty)
     }
 
     /// 11b. LLM вернул safety refusal → fallback на deterministicText
@@ -292,6 +293,7 @@ final class PipelineEngineTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "Федя ты дурачок.")
         XCTAssertEqual(result.normalizationPath, .llmRejected)
+        XCTAssertEqual(result.gateFailureReason, .refusal)
     }
 
     // MARK: - 11d. Gate: пропажа защищённых токенов → fallback на deterministicText
@@ -310,6 +312,10 @@ final class PipelineEngineTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "Открой jira в 15:30.")
         XCTAssertEqual(result.normalizationPath, .llmRejected)
+        guard case .missingProtectedTokens(let tokens)? = result.gateFailureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.gateFailureReason))")
+        }
+        XCTAssertTrue(tokens.contains("jira"))
     }
 
     // MARK: - 11c. LLM бросает non-cancelled PipelineError → fallback на deterministicText
@@ -563,6 +569,36 @@ final class PipelineEngineTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
         XCTAssertTrue(result.snippetFallbackUsed)
+        XCTAssertEqual(result.gateFailureReason, .refusal)
+    }
+
+    // MARK: - 20b. Embedded fallback: gate reject до reinsertion
+
+    func test_pipeline_embedded_fallback_when_gate_rejects_output() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет вот мой адрес")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Вот [[[GOVORUN_SNIPPET]]]."
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "привет вот мой адрес")
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: llm,
+            snippetEngine: snippets
+        )
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
+        XCTAssertTrue(result.snippetFallbackUsed)
+        guard case .excessiveEdits? = result.gateFailureReason else {
+            return XCTFail("Ожидалась excessiveEdits, получили \(String(describing: result.gateFailureReason))")
+        }
     }
 
     // MARK: - 21. No snippet → no snippetContext in hints
@@ -922,6 +958,35 @@ final class DeterministicNormalizerTests: XCTestCase {
 // MARK: - LLMResponseGuard тесты
 
 final class LLMResponseGuardTests: XCTestCase {
+    func test_firstIssue_returns_empty_for_blank_response() {
+        XCTAssertEqual(
+            LLMResponseGuard.firstIssue("   ", rawTranscript: "привет"),
+            .empty
+        )
+    }
+
+    func test_firstIssue_returns_refusal_for_safety_response() {
+        XCTAssertEqual(
+            LLMResponseGuard.firstIssue("К сожалению, не могу помочь.", rawTranscript: "привет"),
+            .refusal
+        )
+    }
+
+    func test_firstIssue_returns_disproportionate_length_for_explanation() {
+        let input = "федя ты дурачок"
+        let output = "Федя, ты дурачок. Однако хочу заметить что такие выражения не стоит использовать в деловой переписке потому что они могут обидеть собеседника"
+        XCTAssertEqual(
+            LLMResponseGuard.firstIssue(output, rawTranscript: input),
+            .disproportionateLength
+        )
+    }
+
+    func test_firstIssue_returns_nil_for_normal_response() {
+        XCTAssertNil(
+            LLMResponseGuard.firstIssue("Привет, Федя.", rawTranscript: "привет федя")
+        )
+    }
+
     func test_normal_response_is_usable() {
         XCTAssertTrue(LLMResponseGuard.isUsable("Привет, Федя.", rawTranscript: "привет федя"))
     }

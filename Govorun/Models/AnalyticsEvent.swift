@@ -67,6 +67,7 @@ enum AnalyticsMetadataKey {
     static let e2eLatencyMs = "e2e_latency_ms"
     static let errorType = "error_type"
     static let fallbackUsed = "fallback_used"
+    static let gateFailureReason = "gate_failure_reason"
 }
 
 // MARK: - SwiftData модель

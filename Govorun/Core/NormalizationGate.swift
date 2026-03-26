@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - LLM Output Contract
+// MARK: - Контракт выхода LLM
 
 enum LLMOutputContract: Equatable {
     case normalization
@@ -8,12 +8,15 @@ enum LLMOutputContract: Equatable {
 }
 
 extension TextMode {
+    /// Пока в продукте нет отдельного пользовательского режима
+    /// «как сказал / чисто / формально», все app-aware режимы идут
+    /// через контракт нормализации. Rewriting останется для следующего этапа.
     var llmOutputContract: LLMOutputContract {
         .normalization
     }
 }
 
-// MARK: - Gate Result
+// MARK: - Результат gate
 
 enum NormalizationGateFailureReason: Equatable {
     case empty
@@ -22,6 +25,42 @@ enum NormalizationGateFailureReason: Equatable {
     case missingProtectedTokens([String])
     case excessiveEdits(ratio: Double, threshold: Double)
     case invalidLengthRatio(actual: Double, allowed: ClosedRange<Double>)
+}
+
+extension NormalizationGateFailureReason: CustomStringConvertible {
+    var analyticsValue: String {
+        switch self {
+        case .empty:
+            "empty"
+        case .refusal:
+            "refusal"
+        case .disproportionateLength:
+            "disproportionate_length"
+        case .missingProtectedTokens:
+            "missing_protected_tokens"
+        case .excessiveEdits:
+            "excessive_edits"
+        case .invalidLengthRatio:
+            "invalid_length_ratio"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .empty:
+            "empty"
+        case .refusal:
+            "refusal"
+        case .disproportionateLength:
+            "disproportionate_length"
+        case .missingProtectedTokens(let tokens):
+            "missing_protected_tokens(\(tokens.joined(separator: ",")))"
+        case .excessiveEdits(let ratio, let threshold):
+            "excessive_edits(ratio=\(String(format: "%.3f", ratio)), threshold=\(String(format: "%.3f", threshold)))"
+        case .invalidLengthRatio(let actual, let allowed):
+            "invalid_length_ratio(actual=\(String(format: "%.3f", actual)), allowed=\(String(format: "%.3f", allowed.lowerBound))...\(String(format: "%.3f", allowed.upperBound)))"
+        }
+    }
 }
 
 struct NormalizationGateResult: Equatable {
@@ -69,40 +108,60 @@ enum NormalizationGate {
         #"[₽$€¥]"#,
     ]
 
+    private static let protectedTokenRegexes: [NSRegularExpression] = protectedTokenPatterns.map {
+        do {
+            return try NSRegularExpression(pattern: $0, options: [.caseInsensitive])
+        } catch {
+            preconditionFailure("Невалидный regex protected token pattern: \($0). Ошибка: \(error)")
+        }
+    }
+
     static func evaluate(
         input: String,
         output: String,
-        contract: LLMOutputContract
+        contract: LLMOutputContract,
+        ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationGateResult {
-        switch LLMResponseGuard.firstIssue(output, rawTranscript: input) {
-        case .empty?:
+        switch (contract, LLMResponseGuard.firstIssue(output, rawTranscript: input)) {
+        case (_, .empty?):
             return .rejected(fallback: input, reason: .empty)
-        case .refusal?:
+        case (_, .refusal?):
             return .rejected(fallback: input, reason: .refusal)
-        case .disproportionateLength?:
+        case (.normalization, .disproportionateLength?):
             return .rejected(fallback: input, reason: .disproportionateLength)
-        case nil:
+        case (.rewriting, .disproportionateLength?),
+             (_, nil):
             break
         }
 
         switch contract {
         case .normalization:
-            return evaluateNormalization(input: input, output: output)
+            return evaluateNormalization(
+                input: input,
+                output: output,
+                ignoredOutputLiterals: ignoredOutputLiterals
+            )
         case .rewriting:
-            return evaluateRewriting(input: input, output: output)
+            return evaluateRewriting(
+                input: input,
+                output: output,
+                ignoredOutputLiterals: ignoredOutputLiterals
+            )
         }
     }
 
-    // MARK: - Normalization
+    // MARK: - Нормализация
 
     private static func evaluateNormalization(
         input: String,
-        output: String
+        output: String,
+        ignoredOutputLiterals: Set<String>
     ) -> NormalizationGateResult {
         let protectedTokens = protectedTokensForNormalization(input)
         let missingTokens = missingProtectedTokens(
             expected: protectedTokens,
-            actualText: output
+            actualText: output,
+            ignoredOutputLiterals: ignoredOutputLiterals
         )
         if !missingTokens.isEmpty {
             return .rejected(
@@ -112,7 +171,10 @@ enum NormalizationGate {
         }
 
         let inputTokens = tokenizeForDistance(input)
-        let outputTokens = tokenizeForDistance(output)
+        let outputTokens = tokenizeForDistance(
+            output,
+            ignoredLiterals: ignoredOutputLiterals
+        )
 
         guard !inputTokens.isEmpty else {
             return .accepted(output)
@@ -133,16 +195,18 @@ enum NormalizationGate {
         return .accepted(output)
     }
 
-    // MARK: - Rewriting
+    // MARK: - Переписывание
 
     private static func evaluateRewriting(
         input: String,
-        output: String
+        output: String,
+        ignoredOutputLiterals: Set<String>
     ) -> NormalizationGateResult {
         let protectedTokens = protectedTokensForNormalization(input)
         let missingTokens = missingProtectedTokens(
             expected: protectedTokens,
-            actualText: output
+            actualText: output,
+            ignoredOutputLiterals: ignoredOutputLiterals
         )
         if !missingTokens.isEmpty {
             return .rejected(
@@ -152,7 +216,10 @@ enum NormalizationGate {
         }
 
         let inputCount = max(tokenizeForDistance(input).count, 1)
-        let outputCount = tokenizeForDistance(output).count
+        let outputCount = tokenizeForDistance(
+            output,
+            ignoredLiterals: ignoredOutputLiterals
+        ).count
         let ratio = Double(outputCount)/Double(inputCount)
         let allowed = 0.5...1.5
 
@@ -166,64 +233,63 @@ enum NormalizationGate {
         return .accepted(output)
     }
 
-    // MARK: - Heuristics
+    // MARK: - Эвристики
 
     private static func protectedTokensForNormalization(_ input: String) -> [String] {
         let source = correctionAwareProtectedSource(in: input)
         var tokens = Set<String>()
 
-        for pattern in protectedTokenPatterns {
-            tokens.formUnion(matches(of: pattern, in: source))
+        for regex in protectedTokenRegexes {
+            tokens.formUnion(matches(of: regex, in: source))
         }
 
         return tokens.sorted()
     }
 
     private static func correctionAwareProtectedSource(in input: String) -> String {
-        let lowered = " " + input.lowercased() + " "
-
         guard let marker = correctionMarkers
-            .compactMap({ lowered.range(of: $0, options: [.caseInsensitive, .backwards]) })
+            .compactMap({ input.range(of: $0, options: [.caseInsensitive, .backwards]) })
             .max(by: { $0.lowerBound < $1.lowerBound })
         else {
             return input
         }
 
-        let offset = lowered.distance(from: lowered.startIndex, to: marker.upperBound)
-        let originalStart = input.index(
-            input.startIndex,
-            offsetBy: max(offset - 2, 0),
-            limitedBy: input.endIndex
-        ) ?? input.startIndex
-        let tail = String(input[originalStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let tail = String(input[marker.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return tail.isEmpty ? input : String(tail)
+        return tail.isEmpty ? input : tail
     }
 
     private static func missingProtectedTokens(
         expected: [String],
-        actualText: String
+        actualText: String,
+        ignoredOutputLiterals: Set<String>
     ) -> [String] {
-        let actualCanonical = Set(expectedTokens(in: actualText))
+        let actualCanonical = Set(
+            extractProtectedTokens(
+                from: actualText,
+                ignoredLiterals: ignoredOutputLiterals
+            )
+        )
         return expected.filter { !actualCanonical.contains(canonicalize($0)) }
     }
 
-    private static func expectedTokens(in text: String) -> [String] {
+    private static func extractProtectedTokens(
+        from text: String,
+        ignoredLiterals: Set<String> = []
+    ) -> [String] {
         var tokens = Set<String>()
-        for pattern in protectedTokenPatterns {
-            tokens.formUnion(matches(of: pattern, in: text))
+        let sanitizedText = stripIgnoredLiterals(
+            in: text,
+            ignoredLiterals: ignoredLiterals
+        )
+
+        for regex in protectedTokenRegexes {
+            tokens.formUnion(matches(of: regex, in: sanitizedText))
         }
         return Array(tokens)
     }
 
-    private static func matches(of pattern: String, in text: String) -> Set<String> {
-        guard let regex = try? NSRegularExpression(
-            pattern: pattern,
-            options: [.caseInsensitive]
-        ) else {
-            return []
-        }
-
+    private static func matches(of regex: NSRegularExpression, in text: String) -> Set<String> {
         let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
         let nsText = text as NSString
         let matches = regex.matches(in: text, options: [], range: nsRange)
@@ -249,8 +315,11 @@ enum NormalizationGate {
         return correctionMarkers.contains(where: { lowered.contains($0) })
     }
 
-    private static func tokenizeForDistance(_ text: String) -> [String] {
-        text
+    private static func tokenizeForDistance(
+        _ text: String,
+        ignoredLiterals: Set<String> = []
+    ) -> [String] {
+        stripIgnoredLiterals(in: text, ignoredLiterals: ignoredLiterals)
             .split(whereSeparator: \.isWhitespace)
             .map {
                 canonicalize(
@@ -258,6 +327,19 @@ enum NormalizationGate {
                 )
             }
             .filter { !$0.isEmpty }
+    }
+
+    private static func stripIgnoredLiterals(
+        in text: String,
+        ignoredLiterals: Set<String>
+    ) -> String {
+        guard !ignoredLiterals.isEmpty else { return text }
+
+        var result = text
+        for literal in ignoredLiterals {
+            result = result.replacingOccurrences(of: literal, with: " ")
+        }
+        return result
     }
 
     private static func canonicalize(_ token: String) -> String {
