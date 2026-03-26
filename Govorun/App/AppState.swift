@@ -1,11 +1,14 @@
 import Cocoa
 import Combine
+import OSLog
 import SwiftData
 
 // MARK: - AppState: Composition Root
 
 @MainActor
 final class AppState: ObservableObject {
+    private static let logger = Logger(subsystem: "com.govorun.app", category: "AppState")
+
     private(set) var activationKeyMonitor: ActivationKeyMonitor
     let sessionManager: SessionManager
     let pipelineEngine: PipelineEngine
@@ -283,7 +286,7 @@ final class AppState: ObservableObject {
                 do {
                     try await llmRuntimeManager.start()
                 } catch {
-                    print("[Govorun] LLM runtime не запустился: \(error)")
+                    Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
                 }
             }
         }
@@ -476,7 +479,7 @@ final class AppState: ObservableObject {
                 do {
                     try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
                 } catch {
-                    print("[Govorun] LLM runtime не обновился: \(error)")
+                    Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
                 }
             }
         }

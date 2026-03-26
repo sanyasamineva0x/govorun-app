@@ -555,35 +555,51 @@ private func makeColdStartTestAppState(
 }
 
 final class MockLLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
-    var state: LLMRuntimeState = .notStarted
+    private let lock = NSLock()
+    private var _state: LLMRuntimeState = .notStarted
+    private var _startCalled = false
+    private var _stopCalled = false
+    private var _updatedConfigurations: [LocalLLMRuntimeConfiguration] = []
+
+    var state: LLMRuntimeState {
+        lock.lock(); defer { lock.unlock() }; return _state
+    }
+
     var isReady: Bool {
         state == .ready
     }
 
     var onStateChanged: (@Sendable (LLMRuntimeState) -> Void)?
 
-    private(set) var startCalled = false
-    private(set) var stopCalled = false
-    private(set) var updatedConfigurations: [LocalLLMRuntimeConfiguration] = []
+    var startCalled: Bool {
+        lock.lock(); defer { lock.unlock() }; return _startCalled
+    }
+
+    var stopCalled: Bool {
+        lock.lock(); defer { lock.unlock() }; return _stopCalled
+    }
+
+    var updatedConfigurations: [LocalLLMRuntimeConfiguration] {
+        lock.lock(); defer { lock.unlock() }; return _updatedConfigurations
+    }
+
     var startError: Error?
     var updateError: Error?
 
     func start() async throws {
-        startCalled = true
-        if let startError {
-            throw startError
-        }
+        lock.lock(); _startCalled = true; lock.unlock()
+        if let startError { throw startError }
     }
 
     func stop() {
-        stopCalled = true
-        state = .notStarted
+        lock.lock()
+        _stopCalled = true
+        _state = .notStarted
+        lock.unlock()
     }
 
     func updateConfiguration(_ configuration: LocalLLMRuntimeConfiguration) async throws {
-        updatedConfigurations.append(configuration)
-        if let updateError {
-            throw updateError
-        }
+        lock.lock(); _updatedConfigurations.append(configuration); lock.unlock()
+        if let updateError { throw updateError }
     }
 }

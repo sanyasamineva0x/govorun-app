@@ -214,7 +214,7 @@ struct LocalLLMRuntimeConfiguration: Equatable {
 
 // MARK: - Протокол
 
-protocol LLMRuntimeManaging: AnyObject {
+protocol LLMRuntimeManaging: AnyObject, Sendable {
     var state: LLMRuntimeState { get }
     var isReady: Bool { get }
     var onStateChanged: (@Sendable (LLMRuntimeState) -> Void)? { get set }
@@ -265,9 +265,12 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
     typealias ProcessLauncher = @Sendable (LLMRuntimeLaunchRequest, @escaping @Sendable (Int32) -> Void) throws -> any LLMRuntimeProcessControlling
     typealias HealthcheckProbe = @Sendable (LocalLLMRuntimeConfiguration) async throws -> Void
-    typealias Sleeper = @Sendable (TimeInterval) async -> Void
+    typealias Sleeper = @Sendable (TimeInterval) async throws -> Void
 
-    var onStateChanged: (@Sendable (LLMRuntimeState) -> Void)?
+    var onStateChanged: (@Sendable (LLMRuntimeState) -> Void)? {
+        get { withLock { _onStateChanged } }
+        set { withLock { _onStateChanged = newValue } }
+    }
 
     private let lock = NSLock()
     private let launchProcess: ProcessLauncher
@@ -280,6 +283,8 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     private var _isStarting = false
     private var _shouldBeRunning = false
     private var _lastExitCode: Int32?
+    private var _onStateChanged: (@Sendable (LLMRuntimeState) -> Void)?
+    private var _pendingRestart = false
 
     init(
         configuration: LocalLLMRuntimeConfiguration = .resolved(),
@@ -303,7 +308,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
     func start() async throws {
         guard beginStart() else { return }
-        defer { finishStart() }
+        defer { handleStartFinished() }
 
         let configuration = currentConfiguration()
         let startMode = try resolveStartMode(for: configuration)
@@ -393,6 +398,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
             throw LLMRuntimeError.unsupportedLocalEndpoint(message)
         case .managed(let baseURL):
             guard let modelPath = try resolveModelPath(configuration) else {
+                Self.logger.info("Модель GGUF не найдена — LLM runtime отключён")
                 return .disabled
             }
 
@@ -454,6 +460,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
             setState(.ready)
             return true
         } catch {
+            Self.logger.debug("Существующий LLM runtime не прошёл healthcheck, перезапуск: \(String(describing: error), privacy: .public)")
             terminateSpecificProcess(existingProcess)
             clearLastExitCode()
             return false
@@ -537,7 +544,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
                 lastError = error
             }
 
-            await sleep(configuration.healthcheckInterval)
+            try await sleep(configuration.healthcheckInterval)
         }
 
         if let lastError {
@@ -548,8 +555,12 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
     private func handleProcessExit(_ status: Int32) {
         let shouldReport = registerProcessExit(status)
-        guard shouldReport else { return }
-        setState(.error("LLM runtime завершился с кодом \(status)"))
+        if shouldReport {
+            Self.logger.error("LLM runtime process exited unexpectedly: status=\(status)")
+            setState(.error("LLM runtime завершился с кодом \(status)"))
+        } else {
+            Self.logger.debug("LLM runtime process exited (expected): status=\(status)")
+        }
     }
 
     private func currentConfiguration() -> LocalLLMRuntimeConfiguration {
@@ -571,14 +582,29 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     private func beginStart() -> Bool {
         withLock {
             _shouldBeRunning = true
-            guard !_isStarting else { return false }
+            guard !_isStarting else {
+                _pendingRestart = true
+                Self.logger.debug("start() пропущен — уже запускается, перезапуск отложен")
+                return false
+            }
             _isStarting = true
             return true
         }
     }
 
-    private func finishStart() {
-        withLock { _isStarting = false }
+    private func handleStartFinished() {
+        let needsRestart = withLock {
+            _isStarting = false
+            let pending = _pendingRestart
+            _pendingRestart = false
+            return pending
+        }
+
+        if needsRestart {
+            Task { [weak self] in
+                try? await self?.start()
+            }
+        }
     }
 
     private func markStoppedManually() {
@@ -634,8 +660,11 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     }
 
     private func setState(_ newState: LLMRuntimeState) {
-        withLock { _state = newState }
-        onStateChanged?(newState)
+        let callback = withLock {
+            _state = newState
+            return _onStateChanged
+        }
+        callback?(newState)
     }
 
     private func withLock<T>(_ body: () -> T) -> T {
@@ -669,7 +698,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
     private static let liveSleep: Sleeper = { interval in
         let nanoseconds = UInt64(interval * 1_000_000_000)
-        try? await Task.sleep(nanoseconds: nanoseconds)
+        try await Task.sleep(nanoseconds: nanoseconds)
     }
 
     private static let liveHealthcheckProbe: HealthcheckProbe = { configuration in
@@ -725,7 +754,7 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let output = String(decoding: data, as: UTF8.self)
-            LLMRuntimeManager.logger.debug("llama-server stderr: \(output, privacy: .public)")
+            LLMRuntimeManager.logger.warning("llama-server stderr: \(output, privacy: .public)")
         }
 
         process.terminationHandler = { proc in
