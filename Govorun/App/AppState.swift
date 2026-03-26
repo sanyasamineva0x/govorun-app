@@ -720,18 +720,44 @@ final class AppState: ObservableObject {
         ])
 
         let normPath = result.normalizationPath.rawValue
-        if result.llmLatencyMs > 0 || result.normalizationPath == .llm || result.normalizationPath == .snippetPlusLLM {
-            await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: [
+        let normalizationDidFail = result.normalizationPath == .llmFailed || result.snippetFallbackReason == .llmFailed
+        let completedPaths: Set<PipelineResult.NormalizationPath> = [.llm, .llmRejected, .snippetPlusLLM]
+
+        if completedPaths.contains(result.normalizationPath), !normalizationDidFail {
+            var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
-            ])
+            ]
+            if let gateFailureReason = result.gateFailureReason {
+                metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
+            }
+            await analytics.emit(.normalizationCompleted, sessionId: sessionId, metadata: metadata)
+        }
+
+        if normalizationDidFail {
+            var metadata = [
+                AnalyticsMetadataKey.normalizationPath: normPath,
+                AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
+                AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
+            ]
+            if let snippetFallbackReason = result.snippetFallbackReason {
+                metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue
+            }
+            await analytics.emit(.normalizationFailed, sessionId: sessionId, metadata: metadata)
         }
 
         if result.snippetFallbackUsed {
-            await analytics.emit(.snippetFallbackUsed, sessionId: sessionId, metadata: [
+            var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-            ])
+            ]
+            if let snippetFallbackReason = result.snippetFallbackReason {
+                metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue
+            }
+            if let gateFailureReason = result.gateFailureReason {
+                metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
+            }
+            await analytics.emit(.snippetFallbackUsed, sessionId: sessionId, metadata: metadata)
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Ошибки Pipeline
 
@@ -35,6 +36,8 @@ struct PipelineResult {
     let totalLatencyMs: Int
     let matchedSnippetTrigger: String?
     let snippetFallbackUsed: Bool
+    let snippetFallbackReason: SnippetFallbackReason?
+    let gateFailureReason: NormalizationGateFailureReason?
     var insertionStrategy: InsertionStrategy?
     let audioDurationMs: Int
     var audioFileName: String?
@@ -44,7 +47,18 @@ struct PipelineResult {
         case snippet // standalone: content as-is, 0ms
         case snippetPlusLLM // embedded: placeholder → LLM → reinsertion
         case llm
+        case llmRejected // LLM ответил, но gate отклонил → deterministicText fallback
         case llmFailed // LLM упал → deterministicText fallback
+    }
+
+    enum SnippetFallbackReason: String {
+        case gateRejected = "gate_rejected"
+        case reinsertionFailed = "reinsertion_failed"
+        case llmFailed = "llm_failed"
+
+        var analyticsValue: String {
+            rawValue
+        }
     }
 
     init(
@@ -59,6 +73,8 @@ struct PipelineResult {
         totalLatencyMs: Int,
         matchedSnippetTrigger: String? = nil,
         snippetFallbackUsed: Bool = false,
+        snippetFallbackReason: SnippetFallbackReason? = nil,
+        gateFailureReason: NormalizationGateFailureReason? = nil,
         insertionStrategy: InsertionStrategy? = nil,
         audioDurationMs: Int = 0,
         audioFileName: String? = nil
@@ -74,6 +90,8 @@ struct PipelineResult {
         self.totalLatencyMs = totalLatencyMs
         self.matchedSnippetTrigger = matchedSnippetTrigger
         self.snippetFallbackUsed = snippetFallbackUsed
+        self.snippetFallbackReason = snippetFallbackReason
+        self.gateFailureReason = gateFailureReason
         self.insertionStrategy = insertionStrategy
         self.audioDurationMs = audioDurationMs
         self.audioFileName = audioFileName
@@ -275,6 +293,12 @@ enum DeterministicNormalizer {
 // MARK: - LLM Response Guard
 
 enum LLMResponseGuard {
+    enum Issue: Equatable {
+        case empty
+        case refusal
+        case disproportionateLength
+    }
+
     /// Префиксы типичных отказов LLM safety-фильтра
     private static let refusalPrefixes = [
         "к сожалению",
@@ -286,9 +310,9 @@ enum LLMResponseGuard {
         "в соответствии с правилами",
     ]
 
-    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
+    static func firstIssue(_ response: String, rawTranscript: String) -> Issue? {
         let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return false }
+        if trimmed.isEmpty { return .empty }
 
         let lower = trimmed.lowercased()
         let rawLower = rawTranscript.lowercased()
@@ -297,7 +321,7 @@ enum LLMResponseGuard {
         // НО raw transcript НЕ начинается с того же — значит LLM отказал, а не нормализовал
         for prefix in refusalPrefixes {
             if lower.hasPrefix(prefix), !rawLower.hasPrefix(prefix) {
-                return false
+                return .refusal
             }
         }
 
@@ -305,10 +329,14 @@ enum LLMResponseGuard {
         let inputWords = rawTranscript.split(whereSeparator: \.isWhitespace).count
         let outputWords = trimmed.split(whereSeparator: \.isWhitespace).count
         if inputWords > 0, outputWords > inputWords * 3, outputWords > 10 {
-            return false
+            return .disproportionateLength
         }
 
-        return true
+        return nil
+    }
+
+    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
+        firstIssue(response, rawTranscript: rawTranscript) == nil
     }
 }
 
@@ -332,6 +360,8 @@ func isTrivial(_ text: String) -> Bool {
 // MARK: - PipelineEngine
 
 final class PipelineEngine: @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.govorun.app", category: "PipelineEngine")
+
     private let audioCapture: AudioRecording
     private let sttClient: STTClient
     private let llmClient: LLMClient
@@ -475,6 +505,7 @@ final class PipelineEngine: @unchecked Sendable {
                     totalLatencyMs: totalMs,
                     matchedSnippetTrigger: snippetMatch.trigger,
                     snippetFallbackUsed: false,
+                    gateFailureReason: nil,
                     audioDurationMs: audioDurationMs,
                     audioFileName: audioFileName
                 )
@@ -493,6 +524,8 @@ final class PipelineEngine: @unchecked Sendable {
                 let finalText: String
                 let llmLatencyMs: Int
                 var fallbackUsed = false
+                var snippetFallbackReason: PipelineResult.SnippetFallbackReason?
+                var gateFailureReason: NormalizationGateFailureReason?
 
                 do {
                     guard !currentIsCancelled() else {
@@ -508,18 +541,33 @@ final class PipelineEngine: @unchecked Sendable {
                     }
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
 
-                    if !LLMResponseGuard.isUsable(llmOutput, rawTranscript: correctedTranscript) {
+                    let gateResult = NormalizationGate.evaluate(
+                        input: correctedTranscript,
+                        output: llmOutput,
+                        contract: currentTextMode.llmOutputContract,
+                        ignoredOutputLiterals: Set([SnippetPlaceholder.token])
+                    )
+
+                    if !gateResult.accepted {
                         fallbackUsed = true
+                        snippetFallbackReason = .gateRejected
+                        gateFailureReason = gateResult.failureReason
+                        let reasonDescription = gateFailureReason?.description ?? "unknown"
+                        Self.logger.warning(
+                            "NormalizationGate rejected embedded snippet output: \(reasonDescription, privacy: .public)"
+                        )
                         finalText = SnippetReinserter.mechanicalFallback(
                             rawTranscript: correctedTranscript,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     } else if let reinserted = SnippetReinserter.reinsert(
-                        llmOutput: llmOutput, content: snippetMatch.content
+                        llmOutput: gateResult.output, content: snippetMatch.content
                     ) {
                         finalText = reinserted
                     } else {
                         fallbackUsed = true
+                        snippetFallbackReason = .reinsertionFailed
+                        Self.logger.warning("Snippet reinsertion failed after embedded LLM normalization")
                         finalText = SnippetReinserter.mechanicalFallback(
                             rawTranscript: correctedTranscript,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
@@ -530,7 +578,11 @@ final class PipelineEngine: @unchecked Sendable {
                     throw PipelineError.cancelled
                 } catch {
                     fallbackUsed = true
+                    snippetFallbackReason = .llmFailed
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+                    Self.logger.error(
+                        "LLM failed for embedded snippet: \(String(describing: error), privacy: .public)"
+                    )
                     finalText = SnippetReinserter.mechanicalFallback(
                         rawTranscript: correctedTranscript,
                         trigger: snippetMatch.trigger, content: snippetMatch.content
@@ -550,6 +602,8 @@ final class PipelineEngine: @unchecked Sendable {
                     totalLatencyMs: totalMs,
                     matchedSnippetTrigger: snippetMatch.trigger,
                     snippetFallbackUsed: fallbackUsed,
+                    snippetFallbackReason: snippetFallbackReason,
+                    gateFailureReason: gateFailureReason,
                     audioDurationMs: audioDurationMs,
                     audioFileName: audioFileName
                 )
@@ -599,6 +653,7 @@ final class PipelineEngine: @unchecked Sendable {
         } catch {
             // Graceful degradation: LLM упал → возвращаем deterministicText
             llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+            Self.logger.error("LLM failed: \(String(describing: error), privacy: .public)")
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
@@ -615,15 +670,21 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
-        // Санитарный чек: LLM вернул мусор → fallback на deterministicText
-        let guardedText = LLMResponseGuard.isUsable(normalizedText, rawTranscript: deterministicText)
-            ? normalizedText
-            : deterministicText
+        let gateResult = NormalizationGate.evaluate(
+            input: deterministicText,
+            output: normalizedText,
+            contract: currentTextMode.llmOutputContract
+        )
+        if let failureReason = gateResult.failureReason {
+            Self.logger.warning(
+                "NormalizationGate rejected output: \(failureReason.description, privacy: .public)"
+            )
+        }
 
         // Terminal period policy — LLM часто возвращает текст с точкой
         let finalText = terminalPeriodEnabled
-            ? guardedText
-            : DeterministicNormalizer.stripTrailingPeriods(guardedText)
+            ? gateResult.output
+            : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
 
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
         return PipelineResult(
@@ -631,11 +692,12 @@ final class PipelineEngine: @unchecked Sendable {
             rawTranscript: rawTranscript,
             normalizedText: finalText,
             textMode: currentTextMode,
-            normalizationPath: .llm,
+            normalizationPath: gateResult.accepted ? .llm : .llmRejected,
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,
             totalLatencyMs: totalMs,
+            gateFailureReason: gateResult.failureReason,
             audioDurationMs: audioDurationMs,
             audioFileName: audioFileName
         )

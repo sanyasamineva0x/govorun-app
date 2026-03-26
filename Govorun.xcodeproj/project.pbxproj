@@ -56,6 +56,7 @@
 		8D6B55B397A319757853D4BC /* SnippetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5C8D4458CEE7320FA4E927 /* SnippetEngine.swift */; };
 		8EBA361DC34ACBA17A737091 /* Snippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C1D6A76F016B9FB7B36935 /* Snippet.swift */; };
 		8F1B93B45D12D0AEF339BDB6 /* PostInsertionProviders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A8CE6CEEE393DB1B285273 /* PostInsertionProviders.swift */; };
+		91721B57610A7D52B3B9DDD1 /* NormalizationGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCF0D5497E4FF297C0EDAA7 /* NormalizationGateTests.swift */; };
 		97F580D6CA61AC67DA9BA975 /* TextInserterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */; };
 		98DB996040D1E91158E31ADB /* GovorunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 520999CA027A9B517E78049F /* GovorunTests.swift */; };
 		9AC2C85AE12704C8DD7204E7 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB9E75E47CE0306274578811 /* HistoryStore.swift */; };
@@ -78,6 +79,7 @@
 		D4926A5FB7B316111F3EBAAD /* DictionaryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E92DD6DD2BE366471D422EE /* DictionaryStore.swift */; };
 		D4B2B7D904A7EA8A576F3C84 /* SessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68748E9E0E3719D440D0112 /* SessionManagerTests.swift */; };
 		D90DDD1FE3F19250E9F9F828 /* SnippetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACDDD81302F5A46531C5BD4 /* SnippetStore.swift */; };
+		DAE1AF4419C5BCB53B1CAE83 /* NormalizationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2695EC730AB72F2B7BFB44 /* NormalizationGate.swift */; };
 		DEB0A853BAFC21E0ED56AD34 /* IntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB81CB40CF9064760691C6C7 /* IntegrationTests.swift */; };
 		E14D2B724A5FE8DD6A9B03D8 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 38AFBC1A8F95C876F9E8513D /* Sparkle */; };
 		E2A97C83C0898298FF41D32F /* LLMClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC90482DBAA525B239F62162 /* LLMClient.swift */; };
@@ -136,6 +138,7 @@
 		27DDC5AB9A47F49BE8F9975D /* PolishTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolishTests.swift; sourceTree = "<group>"; };
 		2AFD05A1075389C37AF5300C /* SystemSoundPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSoundPlayer.swift; sourceTree = "<group>"; };
 		2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInserterTests.swift; sourceTree = "<group>"; };
+		2E2695EC730AB72F2B7BFB44 /* NormalizationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationGate.swift; sourceTree = "<group>"; };
 		35C1F7285CD1914934621B20 /* DictionaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryView.swift; sourceTree = "<group>"; };
 		38F559BD4FEE533941FAA772 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		3CAC5453AAC19CF9D41E3345 /* NSWorkspaceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSWorkspaceProvider.swift; sourceTree = "<group>"; };
@@ -176,6 +179,7 @@
 		984F69205A188CADA1507824 /* ASRWorkerManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRWorkerManagerTests.swift; sourceTree = "<group>"; };
 		9BBD6E36B5D21F480F32BFF4 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		9F8464ACCC00B1211D9952C0 /* BottomBarWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomBarWindow.swift; sourceTree = "<group>"; };
+		9FCF0D5497E4FF297C0EDAA7 /* NormalizationGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationGateTests.swift; sourceTree = "<group>"; };
 		A9F7D20519E75AF7559513E5 /* DictionaryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryStoreTests.swift; sourceTree = "<group>"; };
 		AA98C22FFB16595EC0B8CDF5 /* TextInserter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInserter.swift; sourceTree = "<group>"; };
 		AD57F2CAF152D7085C5A219B /* PostInsertionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostInsertionMonitor.swift; sourceTree = "<group>"; };
@@ -298,6 +302,7 @@
 				76A73B6E246DDA1BE722F64C /* ErrorClassifier.swift */,
 				634A6B60896D5BBAD1DDAD92 /* ErrorMessages.swift */,
 				CD3BCD3255FD1F71FCA3712D /* NetworkMonitor.swift */,
+				2E2695EC730AB72F2B7BFB44 /* NormalizationGate.swift */,
 				DB050E6FFF7217B85AAEBEE7 /* NumberNormalizer.swift */,
 				AED17520D0D47BC3588CFB67 /* PipelineEngine.swift */,
 				AD57F2CAF152D7085C5A219B /* PostInsertionMonitor.swift */,
@@ -353,6 +358,7 @@
 				878B2E8058F5C95D62643612 /* LocalSTTClientTests.swift */,
 				B01CB9DB91032D9EABDDEACA /* MetricsAggregatorTests.swift */,
 				CB2F6608A6960547A380E24C /* ModelManagerTests.swift */,
+				9FCF0D5497E4FF297C0EDAA7 /* NormalizationGateTests.swift */,
 				5F7496CFDD5C640E246C5590 /* NumberNormalizerTests.swift */,
 				3D3F66ED66F0E696CCCA5DD0 /* PipelineEngineTests.swift */,
 				27DDC5AB9A47F49BE8F9975D /* PolishTests.swift */,
@@ -524,6 +530,7 @@
 				AE25387F72A1EB6957F05C3E /* LocalSTTClientTests.swift in Sources */,
 				450232D47F3A0A4838F2674D /* MetricsAggregatorTests.swift in Sources */,
 				21012316C8692E8A451DD1F5 /* ModelManagerTests.swift in Sources */,
+				91721B57610A7D52B3B9DDD1 /* NormalizationGateTests.swift in Sources */,
 				15D01FE3B2F052C4DC418202 /* NumberNormalizerTests.swift in Sources */,
 				EF9D0F118C9BF5B4F9C9FCB1 /* PipelineEngineTests.swift in Sources */,
 				E75FFE6660AF5EFDD00EA402 /* PolishTests.swift in Sources */,
@@ -575,6 +582,7 @@
 				F77394C25280DEDD8DC82C38 /* NSEventMonitoring.swift in Sources */,
 				73E9F0BACB4F6CA9F6032704 /* NSWorkspaceProvider.swift in Sources */,
 				85E3D5B4B248B068EF02B025 /* NetworkMonitor.swift in Sources */,
+				DAE1AF4419C5BCB53B1CAE83 /* NormalizationGate.swift in Sources */,
 				EAFCA49DF7A7F3DC6231F8FD /* NumberNormalizer.swift in Sources */,
 				2501576E415EFEA5B9398464 /* OnboardingView.swift in Sources */,
 				08E097BC16B8F13DD54DB8FF /* OnboardingWindowController.swift in Sources */,
@@ -618,14 +626,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Govorun/Govorun.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 14;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Govorun/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.11;
+				MARKETING_VERSION = 0.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.govorun.app;
 				PRODUCT_NAME = Govorun;
 				SDKROOT = macosx;
@@ -695,14 +703,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Govorun/Govorun.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 14;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Govorun/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.11;
+				MARKETING_VERSION = 0.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.govorun.app;
 				PRODUCT_NAME = Govorun;
 				SDKROOT = macosx;
