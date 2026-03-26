@@ -17,6 +17,10 @@ final class SettingsStore: ObservableObject {
         static let onboardingCompleted = "onboardingCompleted"
         static let activationKey = "activationKey"
         static let terminalPeriodEnabled = "terminalPeriodEnabled"
+        static let llmBaseURL = "llmBaseURL"
+        static let llmModel = "llmModel"
+        static let llmRequestTimeout = "llmRequestTimeout"
+        static let llmHealthcheckTimeout = "llmHealthcheckTimeout"
     }
 
     // MARK: - Init
@@ -34,6 +38,10 @@ final class SettingsStore: ObservableObject {
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: false,
             Keys.terminalPeriodEnabled: true,
+            Keys.llmBaseURL: LocalLLMConfiguration.defaultBaseURLString,
+            Keys.llmModel: LocalLLMConfiguration.defaultModel,
+            Keys.llmRequestTimeout: LocalLLMConfiguration.defaultRequestTimeout,
+            Keys.llmHealthcheckTimeout: LocalLLMConfiguration.defaultHealthcheckTimeout,
         ])
     }
 
@@ -119,6 +127,64 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    var llmBaseURL: String {
+        get {
+            let stored = defaults.string(forKey: Keys.llmBaseURL)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let stored, !stored.isEmpty {
+                return stored
+            }
+            return LocalLLMConfiguration.defaultBaseURLString
+        }
+        set {
+            defaults.set(
+                newValue.trimmingCharacters(in: .whitespacesAndNewlines),
+                forKey: Keys.llmBaseURL
+            )
+            objectWillChange.send()
+        }
+    }
+
+    var llmModel: String {
+        get {
+            let stored = defaults.string(forKey: Keys.llmModel)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let stored, !stored.isEmpty {
+                return stored
+            }
+            return LocalLLMConfiguration.defaultModel
+        }
+        set {
+            defaults.set(
+                newValue.trimmingCharacters(in: .whitespacesAndNewlines),
+                forKey: Keys.llmModel
+            )
+            objectWillChange.send()
+        }
+    }
+
+    var llmRequestTimeout: TimeInterval {
+        get {
+            let value = defaults.double(forKey: Keys.llmRequestTimeout)
+            return value > 0 ? value : LocalLLMConfiguration.defaultRequestTimeout
+        }
+        set {
+            defaults.set(max(0.1, newValue), forKey: Keys.llmRequestTimeout)
+            objectWillChange.send()
+        }
+    }
+
+    var llmHealthcheckTimeout: TimeInterval {
+        get {
+            let value = defaults.double(forKey: Keys.llmHealthcheckTimeout)
+            return value > 0 ? value : LocalLLMConfiguration.defaultHealthcheckTimeout
+        }
+        set {
+            defaults.set(max(0.1, newValue), forKey: Keys.llmHealthcheckTimeout)
+            objectWillChange.send()
+        }
+    }
+
     var activationKey: ActivationKey {
         get {
             guard let jsonString = defaults.string(forKey: Keys.activationKey),
@@ -150,6 +216,10 @@ final class SettingsStore: ObservableObject {
         defaults.removeObject(forKey: Keys.saveAudioHistory)
         defaults.removeObject(forKey: Keys.activationKey)
         defaults.removeObject(forKey: Keys.terminalPeriodEnabled)
+        defaults.removeObject(forKey: Keys.llmBaseURL)
+        defaults.removeObject(forKey: Keys.llmModel)
+        defaults.removeObject(forKey: Keys.llmRequestTimeout)
+        defaults.removeObject(forKey: Keys.llmHealthcheckTimeout)
         // launchAtLogin управляется через SMAppService, не UserDefaults
         registerDefaults()
         objectWillChange.send()

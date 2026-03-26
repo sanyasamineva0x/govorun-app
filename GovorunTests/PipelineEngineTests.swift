@@ -109,6 +109,27 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(result.normalizationPath, .llm)
     }
 
+    func test_updateLLMClient_switchesRuntimeForNextNormalization() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет саша")
+
+        let initialLLM = MockLLMClient()
+        initialLLM.normalizeResult = "Старый ответ"
+
+        let nextLLM = MockLLMClient()
+        nextLLM.normalizeResult = "Привет саша."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: initialLLM)
+        engine.updateLLMClient(nextLLM)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Привет саша.")
+        XCTAssertEqual(initialLLM.normalizeCalls.count, 0)
+        XCTAssertEqual(nextLLM.normalizeCalls.count, 1)
+    }
+
     // MARK: - 3. cancel останавливает всё
 
     func test_cancel_stops_everything() throws {

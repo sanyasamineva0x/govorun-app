@@ -28,6 +28,10 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         XCTAssertFalse(store.saveAudioHistory, "По умолчанию аудио не сохраняется (privacy)")
+        XCTAssertEqual(store.llmBaseURL, LocalLLMConfiguration.defaultBaseURLString)
+        XCTAssertEqual(store.llmModel, LocalLLMConfiguration.defaultModel)
+        XCTAssertEqual(store.llmRequestTimeout, LocalLLMConfiguration.defaultRequestTimeout)
+        XCTAssertEqual(store.llmHealthcheckTimeout, LocalLLMConfiguration.defaultHealthcheckTimeout)
         // launchAtLogin: SMAppService, зависит от системного состояния
         XCTAssertFalse(store.onboardingCompleted)
     }
@@ -199,5 +203,42 @@ final class SettingsStoreTests: XCTestCase {
         store.terminalPeriodEnabled = false
         store.resetToDefaults()
         XCTAssertTrue(store.terminalPeriodEnabled)
+    }
+
+    // MARK: - 10. Local LLM runtime settings
+
+    func test_localLLMSettings_persist() {
+        store.llmBaseURL = "http://127.0.0.1:9090/v1/"
+        store.llmModel = "gigachat-q4"
+        store.llmRequestTimeout = 18
+        store.llmHealthcheckTimeout = 2.5
+
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.llmBaseURL, "http://127.0.0.1:9090/v1/")
+        XCTAssertEqual(store2.llmModel, "gigachat-q4")
+        XCTAssertEqual(store2.llmRequestTimeout, 18)
+        XCTAssertEqual(store2.llmHealthcheckTimeout, 2.5)
+    }
+
+    func test_localLLMSettings_reset_to_defaults() {
+        store.llmBaseURL = "http://127.0.0.1:9090/v1"
+        store.llmModel = "custom-model"
+        store.llmRequestTimeout = 20
+        store.llmHealthcheckTimeout = 3
+
+        store.resetToDefaults()
+
+        XCTAssertEqual(store.llmBaseURL, LocalLLMConfiguration.defaultBaseURLString)
+        XCTAssertEqual(store.llmModel, LocalLLMConfiguration.defaultModel)
+        XCTAssertEqual(store.llmRequestTimeout, LocalLLMConfiguration.defaultRequestTimeout)
+        XCTAssertEqual(store.llmHealthcheckTimeout, LocalLLMConfiguration.defaultHealthcheckTimeout)
+    }
+
+    func test_localLLMSettings_invalidTimeoutsFallbackToDefaults() {
+        defaults.set(0, forKey: "llmRequestTimeout")
+        defaults.set(-1, forKey: "llmHealthcheckTimeout")
+
+        XCTAssertEqual(store.llmRequestTimeout, LocalLLMConfiguration.defaultRequestTimeout)
+        XCTAssertEqual(store.llmHealthcheckTimeout, LocalLLMConfiguration.defaultHealthcheckTimeout)
     }
 }

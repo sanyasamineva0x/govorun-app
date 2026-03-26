@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODEL_PATH="${MODEL_PATH:-${1:-}}"
+PORT="${PORT:-8080}"
+HOST="${HOST:-127.0.0.1}"
+MODEL_ALIAS="${MODEL_ALIAS:-gigachat-gguf}"
+CTX_SIZE="${CTX_SIZE:-4096}"
+GPU_LAYERS="${GPU_LAYERS:--1}"
+
+if [[ -z "$MODEL_PATH" ]]; then
+  echo "usage: MODEL_PATH=/path/to/gigachat.gguf bash scripts/run-gigachat-llm.sh"
+  exit 1
+fi
+
+if command -v llama-server >/dev/null 2>&1; then
+  LLAMA_SERVER_BIN="llama-server"
+elif [[ -x "./llama.cpp/build/bin/llama-server" ]]; then
+  LLAMA_SERVER_BIN="./llama.cpp/build/bin/llama-server"
+else
+  echo "llama-server not found. Install llama.cpp or add llama-server to PATH."
+  exit 1
+fi
+
+echo "[Govorun] Starting local GigaChat endpoint on http://${HOST}:${PORT}/v1"
+echo "[Govorun] Model: ${MODEL_PATH}"
+echo "[Govorun] Alias: ${MODEL_ALIAS}"
+
+exec "$LLAMA_SERVER_BIN" \
+  --host "$HOST" \
+  --port "$PORT" \
+  --model "$MODEL_PATH" \
+  --alias "$MODEL_ALIAS" \
+  --ctx-size "$CTX_SIZE" \
+  --n-gpu-layers "$GPU_LAYERS"

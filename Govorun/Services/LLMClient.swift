@@ -34,7 +34,170 @@ enum LLMError: Error, Equatable {
     }
 }
 
-// MARK: - Плейсхолдер (до реализации LocalLLMClient)
+// MARK: - Конфиг локального LLM
+
+struct LocalLLMConfiguration: Equatable {
+    static let defaultBaseURLString = "http://127.0.0.1:8080/v1"
+    static let defaultModel = "gigachat-gguf"
+    static let defaultRequestTimeout: TimeInterval = 12.0
+    static let defaultHealthcheckTimeout: TimeInterval = 1.5
+    static let defaultHealthcheckTTL: TimeInterval = 30.0
+    static let defaultFailureCooldown: TimeInterval = 5.0
+    static let defaultMaxOutputTokens = 192
+    static let defaultTemperature = 0.0
+
+    let baseURLString: String
+    let model: String
+    let requestTimeout: TimeInterval
+    let healthcheckTimeout: TimeInterval
+    let healthcheckSuccessTTL: TimeInterval
+    let failureCooldown: TimeInterval
+    let maxOutputTokens: Int
+    let temperature: Double
+
+    init(
+        baseURLString: String = LocalLLMConfiguration.defaultBaseURLString,
+        model: String = LocalLLMConfiguration.defaultModel,
+        requestTimeout: TimeInterval = LocalLLMConfiguration.defaultRequestTimeout,
+        healthcheckTimeout: TimeInterval = LocalLLMConfiguration.defaultHealthcheckTimeout,
+        healthcheckSuccessTTL: TimeInterval = LocalLLMConfiguration.defaultHealthcheckTTL,
+        failureCooldown: TimeInterval = LocalLLMConfiguration.defaultFailureCooldown,
+        maxOutputTokens: Int = LocalLLMConfiguration.defaultMaxOutputTokens,
+        temperature: Double = LocalLLMConfiguration.defaultTemperature
+    ) {
+        self.baseURLString = baseURLString
+        self.model = model
+        self.requestTimeout = max(0.1, requestTimeout)
+        self.healthcheckTimeout = max(0.1, healthcheckTimeout)
+        self.healthcheckSuccessTTL = max(0, healthcheckSuccessTTL)
+        self.failureCooldown = max(0, failureCooldown)
+        self.maxOutputTokens = max(1, maxOutputTokens)
+        self.temperature = temperature
+    }
+
+    var normalizedBaseURL: URL? {
+        let trimmed = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let sanitized = trimmed.replacingOccurrences(
+            of: "/+$",
+            with: "",
+            options: .regularExpression
+        )
+        guard let url = URL(string: sanitized), url.scheme != nil, url.host != nil else {
+            return nil
+        }
+        return url
+    }
+
+    var normalizedModel: String {
+        model.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func resolved(
+        baseURLString: String = LocalLLMConfiguration.defaultBaseURLString,
+        model: String = LocalLLMConfiguration.defaultModel,
+        requestTimeout: TimeInterval = LocalLLMConfiguration.defaultRequestTimeout,
+        healthcheckTimeout: TimeInterval = LocalLLMConfiguration.defaultHealthcheckTimeout,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> LocalLLMConfiguration {
+        LocalLLMConfiguration(
+            baseURLString: stringOverride(
+                key: "GOVORUN_LLM_BASE_URL",
+                fallback: baseURLString,
+                environment: environment
+            ),
+            model: stringOverride(
+                key: "GOVORUN_LLM_MODEL",
+                fallback: model,
+                environment: environment
+            ),
+            requestTimeout: doubleOverride(
+                key: "GOVORUN_LLM_TIMEOUT",
+                fallback: requestTimeout,
+                environment: environment
+            ),
+            healthcheckTimeout: doubleOverride(
+                key: "GOVORUN_LLM_HEALTHCHECK_TIMEOUT",
+                fallback: healthcheckTimeout,
+                environment: environment
+            ),
+            healthcheckSuccessTTL: nonNegativeDoubleOverride(
+                key: "GOVORUN_LLM_HEALTHCHECK_TTL",
+                fallback: defaultHealthcheckTTL,
+                environment: environment
+            ),
+            failureCooldown: nonNegativeDoubleOverride(
+                key: "GOVORUN_LLM_FAILURE_COOLDOWN",
+                fallback: defaultFailureCooldown,
+                environment: environment
+            ),
+            maxOutputTokens: intOverride(
+                key: "GOVORUN_LLM_MAX_TOKENS",
+                fallback: defaultMaxOutputTokens,
+                environment: environment
+            ),
+            temperature: nonNegativeDoubleOverride(
+                key: "GOVORUN_LLM_TEMPERATURE",
+                fallback: defaultTemperature,
+                environment: environment
+            )
+        )
+    }
+
+    private static func stringOverride(
+        key: String,
+        fallback: String,
+        environment: [String: String]
+    ) -> String {
+        let value = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? fallback : value
+    }
+
+    private static func doubleOverride(
+        key: String,
+        fallback: TimeInterval,
+        environment: [String: String]
+    ) -> TimeInterval {
+        guard let raw = environment[key],
+              let value = TimeInterval(raw),
+              value > 0
+        else {
+            return fallback
+        }
+        return value
+    }
+
+    private static func nonNegativeDoubleOverride(
+        key: String,
+        fallback: TimeInterval,
+        environment: [String: String]
+    ) -> TimeInterval {
+        guard let raw = environment[key],
+              let value = TimeInterval(raw),
+              value >= 0
+        else {
+            return fallback
+        }
+        return value
+    }
+
+    private static func intOverride(
+        key: String,
+        fallback: Int,
+        environment: [String: String]
+    ) -> Int {
+        guard let raw = environment[key],
+              let value = Int(raw),
+              value > 0
+        else {
+            return fallback
+        }
+        return value
+    }
+}
+
+// MARK: - Плейсхолдер
 
 final class PlaceholderLLMClient: LLMClient, Sendable {
     func normalize(_ text: String, mode: TextMode, hints: NormalizationHints) async throws -> String {
