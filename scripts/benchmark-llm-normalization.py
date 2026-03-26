@@ -264,7 +264,8 @@ def summarize(rows: list[dict]) -> dict:
         }
 
     # Quality metrics: exact match and period-tolerant match
-    total_with_expected = 0
+    total_rows = len(rows)
+    completed_count = 0
     exact_matches = 0
     period_matches = 0
     error_count = sum(1 for row in rows if "error" in row)
@@ -272,9 +273,28 @@ def summarize(rows: list[dict]) -> dict:
     for row in rows:
         expected = row.get("expected")
         output = row.get("output")
-        if expected is None or output is None:
+        error = row.get("error")
+
+        if error is not None:
+            failures.append({
+                "id": row.get("id", "?"),
+                "bucket": row.get("bucket", "?"),
+                "expected": expected,
+                "error": error,
+            })
             continue
-        total_with_expected += 1
+
+        if expected is None or output is None:
+            failures.append({
+                "id": row.get("id", "?"),
+                "bucket": row.get("bucket", "?"),
+                "expected": expected,
+                "output": output,
+                "error": "missing_expected_or_output",
+            })
+            continue
+
+        completed_count += 1
         if output == expected:
             exact_matches += 1
             period_matches += 1
@@ -288,33 +308,50 @@ def summarize(rows: list[dict]) -> dict:
                 "output": output,
             })
 
-    if total_with_expected > 0:
+    if total_rows > 0:
         summary["quality"] = {
-            "total": total_with_expected,
+            "total": total_rows,
+            "completed": completed_count,
+            "completed_pct": round(100.0 * completed_count / total_rows, 1),
             "errors": error_count,
+            "error_pct": round(100.0 * error_count / total_rows, 1),
             "exact_match": exact_matches,
-            "exact_match_pct": round(100.0 * exact_matches / total_with_expected, 1),
+            "exact_match_pct": round(100.0 * exact_matches / total_rows, 1),
+            "completed_exact_match_pct": (
+                round(100.0 * exact_matches / completed_count, 1) if completed_count else None
+            ),
             "period_tolerant_match": period_matches,
-            "period_tolerant_pct": round(100.0 * period_matches / total_with_expected, 1),
+            "period_tolerant_pct": round(100.0 * period_matches / total_rows, 1),
+            "completed_period_tolerant_pct": (
+                round(100.0 * period_matches / completed_count, 1) if completed_count else None
+            ),
             "failures": failures,
         }
 
         # Per-bucket quality
         for bucket in buckets:
             bucket_rows = [r for r in rows if r.get("bucket") == bucket]
-            b_total = 0
+            b_total = len(bucket_rows)
+            b_completed = 0
+            b_errors = sum(1 for r in bucket_rows if "error" in r)
             b_period = 0
             for r in bucket_rows:
                 exp = r.get("expected")
                 out = r.get("output")
                 if exp is None or out is None:
                     continue
-                b_total += 1
+                b_completed += 1
                 if out == exp or out.rstrip(".") == exp.rstrip("."):
                     b_period += 1
             if b_total > 0:
                 summary["buckets"][bucket]["period_tolerant_pct"] = round(
                     100.0 * b_period / b_total, 1
+                )
+                summary["buckets"][bucket]["completed_pct"] = round(
+                    100.0 * b_completed / b_total, 1
+                )
+                summary["buckets"][bucket]["error_pct"] = round(
+                    100.0 * b_errors / b_total, 1
                 )
 
     return summary
@@ -415,9 +452,12 @@ def main() -> int:
     if quality:
         print(f"\n{'='*60}")
         print(f"QUALITY: {quality['period_tolerant_pct']}% period-tolerant match "
-              f"({quality['period_tolerant_match']}/{quality['total']})")
+              f"end-to-end ({quality['period_tolerant_match']}/{quality['total']})")
         print(f"         {quality['exact_match_pct']}% exact match "
-              f"({quality['exact_match']}/{quality['total']})")
+              f"end-to-end ({quality['exact_match']}/{quality['total']})")
+        print(f"         {quality['completed_pct']}% completed "
+              f"({quality['completed']}/{quality['total']}), "
+              f"errors={quality['errors']}")
         for bucket_name in sorted(summary.get("buckets", {})):
             pct = summary["buckets"][bucket_name].get("period_tolerant_pct", "?")
             cnt = summary["buckets"][bucket_name].get("samples", "?")
@@ -426,8 +466,13 @@ def main() -> int:
             print(f"\nFAILURES ({len(quality['failures'])}):")
             for f in quality["failures"]:
                 print(f"  [{f['id']}] {f['bucket']}")
-                print(f"    expected: {f['expected']}")
-                print(f"    got:      {f['output']}")
+                if "error" in f:
+                    print(f"    error:    {f['error']}")
+                    if f.get("expected") is not None:
+                        print(f"    expected: {f['expected']}")
+                else:
+                    print(f"    expected: {f['expected']}")
+                    print(f"    got:      {f['output']}")
         print(f"{'='*60}")
     else:
         print(json.dumps(summary, ensure_ascii=False, indent=2))
