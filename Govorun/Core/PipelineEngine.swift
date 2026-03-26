@@ -144,28 +144,71 @@ enum SnippetReinserter {
         trigger: String,
         content: String
     ) -> String {
-        let textTokens = SnippetEngine.tokenize(rawTranscript)
-        let triggerTokens = SnippetEngine.tokenize(trigger)
-        let windowSize = triggerTokens.count
+        if let triggerRange = triggerRange(in: rawTranscript, trigger: trigger) {
+            let prefix = rawTranscript[..<triggerRange.lowerBound]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let suffix = rawTranscript[triggerRange.upperBound...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if textTokens.count >= windowSize {
-            for i in 0...(textTokens.count - windowSize) {
-                let window = Array(textTokens[i..<(i + windowSize)])
-                if window == triggerTokens {
-                    let prefix = textTokens[0..<i]
-                    let suffix = textTokens[(i + windowSize)...]
-                    var parts: [String] = []
-                    if !prefix.isEmpty { parts.append(prefix.joined(separator: " ")) }
-                    parts.append("\(trigger): \(content)")
-                    if !suffix.isEmpty { parts.append(suffix.joined(separator: " ")) }
-                    let result = parts.joined(separator: " ")
-                    return result.prefix(1).uppercased() + result.dropFirst()
+            var result = ""
+            if !prefix.isEmpty {
+                result.append(String(prefix))
+                result.append(" ")
+            }
+
+            result.append("\(trigger): \(content)")
+
+            if !suffix.isEmpty {
+                if suffix.first?.isPunctuation == true {
+                    result.append(String(suffix))
+                } else {
+                    result.append(" ")
+                    result.append(String(suffix))
                 }
             }
+
+            return result.prefix(1).uppercased() + result.dropFirst()
         }
 
         let capitalizedTrigger = trigger.prefix(1).uppercased() + trigger.dropFirst()
         return "\(capitalizedTrigger): \(content)"
+    }
+
+    private static func triggerRange(in text: String, trigger: String) -> Range<String.Index>? {
+        if let directRange = text.range(of: trigger, options: [.caseInsensitive, .diacriticInsensitive]) {
+            return directRange
+        }
+
+        let triggerTokens = SnippetEngine.tokenize(trigger)
+        guard !triggerTokens.isEmpty else { return nil }
+
+        let tokenPattern = try! NSRegularExpression(pattern: "\\S+")
+        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = tokenPattern.matches(in: text, options: [], range: nsRange)
+
+        let textTokensWithRanges: [(token: String, range: Range<String.Index>)] = matches.compactMap { match in
+            guard let range = Range(match.range, in: text) else { return nil }
+            let rawToken = text[range]
+            let normalizedToken = String(rawToken)
+                .lowercased()
+                .trimmingCharacters(in: .punctuationCharacters)
+            guard !normalizedToken.isEmpty else { return nil }
+            return (normalizedToken, range)
+        }
+
+        let windowSize = triggerTokens.count
+        guard textTokensWithRanges.count >= windowSize else { return nil }
+
+        for i in 0...(textTokensWithRanges.count - windowSize) {
+            let window = Array(textTokensWithRanges[i..<(i + windowSize)]).map(\.token)
+            if window == triggerTokens {
+                let start = textTokensWithRanges[i].range.lowerBound
+                let end = textTokensWithRanges[i + windowSize - 1].range.upperBound
+                return start..<end
+            }
+        }
+
+        return nil
     }
 }
 
@@ -494,6 +537,13 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
+        // Единый deterministic baseline до LLM:
+        // числа, валюты, время, даты и базовая очистка всегда проходят один и тот же путь.
+        let deterministicText = makeDeterministicBaseline(
+            from: correctedTranscript,
+            terminalPeriodEnabled: terminalPeriodEnabled
+        )
+
         // Snippet match (на исправленном тексте)
         if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
             switch snippetMatch.kind {
@@ -539,7 +589,7 @@ final class PipelineEngine: @unchecked Sendable {
                         throw PipelineError.cancelled
                     }
                     let llmOutput = try await currentLLMClient.normalize(
-                        correctedTranscript, mode: currentTextMode, hints: hintsWithSnippet
+                        deterministicText, mode: currentTextMode, hints: hintsWithSnippet
                     )
                     guard !currentIsCancelled() else {
                         cleanupAudioOnFailure()
@@ -548,7 +598,7 @@ final class PipelineEngine: @unchecked Sendable {
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
 
                     let gateResult = NormalizationGate.evaluate(
-                        input: correctedTranscript,
+                        input: deterministicText,
                         output: llmOutput,
                         contract: currentTextMode.llmOutputContract,
                         ignoredOutputLiterals: Set([SnippetPlaceholder.token])
@@ -563,7 +613,7 @@ final class PipelineEngine: @unchecked Sendable {
                             "NormalizationGate rejected embedded snippet output: \(reasonDescription, privacy: .public)"
                         )
                         finalText = SnippetReinserter.mechanicalFallback(
-                            rawTranscript: correctedTranscript,
+                            rawTranscript: deterministicText,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     } else if let reinserted = SnippetReinserter.reinsert(
@@ -575,7 +625,7 @@ final class PipelineEngine: @unchecked Sendable {
                         snippetFallbackReason = .reinsertionFailed
                         Self.logger.warning("Snippet reinsertion failed after embedded LLM normalization")
                         finalText = SnippetReinserter.mechanicalFallback(
-                            rawTranscript: correctedTranscript,
+                            rawTranscript: deterministicText,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     }
@@ -590,7 +640,7 @@ final class PipelineEngine: @unchecked Sendable {
                         "LLM failed for embedded snippet: \(String(describing: error), privacy: .public)"
                     )
                     finalText = SnippetReinserter.mechanicalFallback(
-                        rawTranscript: correctedTranscript,
+                        rawTranscript: deterministicText,
                         trigger: snippetMatch.trigger, content: snippetMatch.content
                     )
                 }
@@ -615,9 +665,6 @@ final class PipelineEngine: @unchecked Sendable {
                 )
             }
         }
-
-        // DeterministicNormalizer — всегда (филлеры, капитализация, замены)
-        let deterministicText = DeterministicNormalizer.normalize(correctedTranscript, terminalPeriodEnabled: terminalPeriodEnabled)
 
         // Trivial text → только DeterministicNormalizer, без LLM
         if isTrivial(correctedTranscript) {
@@ -754,5 +801,15 @@ final class PipelineEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _isCancelled
+    }
+
+    private func makeDeterministicBaseline(
+        from text: String,
+        terminalPeriodEnabled: Bool
+    ) -> String {
+        DeterministicNormalizer.normalize(
+            text,
+            terminalPeriodEnabled: terminalPeriodEnabled
+        )
     }
 }

@@ -457,7 +457,7 @@ final class PipelineEngineTests: XCTestCase {
 
     // MARK: - 16. Embedded happy path → placeholder → reinsertion
 
-    func test_pipeline_embedded_sends_transcript_to_llm_with_snippet_context() async throws {
+    func test_pipeline_embedded_sends_deterministic_baseline_to_llm_with_snippet_context() async throws {
         let stt = MockSTTClient()
         stt.recognizeResult = STTResult(text: "привет вот мой адрес")
 
@@ -482,9 +482,9 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertFalse(result.snippetFallbackUsed)
         XCTAssertEqual(result.matchedSnippetTrigger, "мой адрес")
 
-        // LLM получил rawTranscript, не content
+        // LLM получил общий deterministic baseline, а не raw transcript / snippet content
         XCTAssertEqual(llm.normalizeCalls.count, 1)
-        XCTAssertEqual(llm.normalizeCalls.first?.text, "привет вот мой адрес")
+        XCTAssertEqual(llm.normalizeCalls.first?.text, "Привет мой адрес.")
         XCTAssertNotNil(llm.normalizeCalls.first?.hints.snippetContext)
     }
 
@@ -510,7 +510,7 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
+        XCTAssertEqual(result.normalizedText, "Привет мой адрес: Аминева 9.")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.normalizationPath, .snippetPlusLLM)
         XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
@@ -538,7 +538,7 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
+        XCTAssertEqual(result.normalizedText, "Привет мой адрес: Аминева 9.")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.snippetFallbackReason, .reinsertionFailed)
     }
@@ -565,7 +565,7 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        XCTAssertEqual(result.normalizedText, "Лена вот мой адрес: Аминева 9")
+        XCTAssertEqual(result.normalizedText, "Лена мой адрес: Аминева 9.")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.normalizationPath, .snippetPlusLLM)
         XCTAssertEqual(result.snippetFallbackReason, .llmFailed)
@@ -593,7 +593,7 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
+        XCTAssertEqual(result.normalizedText, "Привет мой адрес: Аминева 9.")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.gateFailureReason, .refusal)
         XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
@@ -621,7 +621,7 @@ final class PipelineEngineTests: XCTestCase {
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
 
-        XCTAssertEqual(result.normalizedText, "Привет вот мой адрес: Аминева 9")
+        XCTAssertEqual(result.normalizedText, "Привет мой адрес: Аминева 9.")
         XCTAssertTrue(result.snippetFallbackUsed)
         XCTAssertEqual(result.snippetFallbackReason, .gateRejected)
         guard case .excessiveEdits? = result.gateFailureReason else {
@@ -704,6 +704,95 @@ final class PipelineEngineTests: XCTestCase {
 
         // rawTranscript сохраняет оригинал
         XCTAssertEqual(result.rawTranscript, "открой жира и слак")
+    }
+
+    func test_pipeline_regular_llm_receives_deterministic_numeric_baseline() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(
+            text: "ну напомни про двадцать пять процентов и тысяча рублей в пять часов для двух дизайнеров"
+        )
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+
+        try engine.startRecording(sessionId: UUID())
+        _ = try await engine.stopRecording()
+
+        XCTAssertEqual(
+            llm.normalizeCalls.first?.text,
+            "Напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+        )
+    }
+
+    func test_pipeline_embedded_llm_receives_same_deterministic_numeric_baseline() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(
+            text: "привет вот мой адрес и напомни про двадцать пять процентов и тысяча рублей в пять часов для двух дизайнеров"
+        )
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Привет, мой адрес — [[[GOVORUN_SNIPPET]]], и напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded(
+            "мой адрес",
+            content: "Аминева 9",
+            forInput: "привет вот мой адрес и напомни про двадцать пять процентов и тысяча рублей в пять часов для двух дизайнеров"
+        )
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: llm,
+            snippetEngine: snippets
+        )
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(
+            llm.normalizeCalls.first?.text,
+            "Привет мой адрес и напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+        )
+        XCTAssertEqual(
+            result.normalizedText,
+            "Привет, мой адрес — Аминева 9, и напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+        )
+    }
+
+    func test_pipeline_embedded_fallback_uses_deterministic_numeric_baseline() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(
+            text: "привет вот мой адрес и напомни про двадцать пять процентов и тысяча рублей в пять часов для двух дизайнеров"
+        )
+
+        let llm = MockLLMClient()
+        llm.normalizeError = LLMError.serverError(statusCode: 500)
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded(
+            "мой адрес",
+            content: "Аминева 9",
+            forInput: "привет вот мой адрес и напомни про двадцать пять процентов и тысяча рублей в пять часов для двух дизайнеров"
+        )
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: llm,
+            snippetEngine: snippets
+        )
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(
+            result.normalizedText,
+            "Привет мой адрес: Аминева 9 и напомни про 25% и 1 000 рублей в 5:00 для двух дизайнеров."
+        )
+        XCTAssertEqual(result.snippetFallbackReason, .llmFailed)
     }
 
     func test_pipeline_replacements_applied_for_trivial_text() async throws {
