@@ -122,12 +122,12 @@ struct LocalLLMConfiguration: Equatable {
                 fallback: healthcheckTimeout,
                 environment: environment
             ),
-            healthcheckSuccessTTL: doubleOverride(
+            healthcheckSuccessTTL: nonNegativeDoubleOverride(
                 key: "GOVORUN_LLM_HEALTHCHECK_TTL",
                 fallback: defaultHealthcheckTTL,
                 environment: environment
             ),
-            failureCooldown: doubleOverride(
+            failureCooldown: nonNegativeDoubleOverride(
                 key: "GOVORUN_LLM_FAILURE_COOLDOWN",
                 fallback: defaultFailureCooldown,
                 environment: environment
@@ -137,7 +137,7 @@ struct LocalLLMConfiguration: Equatable {
                 fallback: defaultMaxOutputTokens,
                 environment: environment
             ),
-            temperature: doubleOverride(
+            temperature: nonNegativeDoubleOverride(
                 key: "GOVORUN_LLM_TEMPERATURE",
                 fallback: defaultTemperature,
                 environment: environment
@@ -162,6 +162,20 @@ struct LocalLLMConfiguration: Equatable {
         guard let raw = environment[key],
               let value = TimeInterval(raw),
               value > 0
+        else {
+            return fallback
+        }
+        return value
+    }
+
+    private static func nonNegativeDoubleOverride(
+        key: String,
+        fallback: TimeInterval,
+        environment: [String: String]
+    ) -> TimeInterval {
+        guard let raw = environment[key],
+              let value = TimeInterval(raw),
+              value >= 0
         else {
             return fallback
         }

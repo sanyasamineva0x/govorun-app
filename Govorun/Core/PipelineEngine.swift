@@ -364,12 +364,12 @@ final class PipelineEngine: @unchecked Sendable {
 
     private let audioCapture: AudioRecording
     private let sttClient: STTClient
-    private let llmClient: LLMClient
     private let snippetEngine: SnippetMatching?
 
     private let lock = NSLock()
     private var _isCancelled = false
     private var _isRecording = false
+    private var _llmClient: LLMClient
 
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = .init()
@@ -405,8 +405,14 @@ final class PipelineEngine: @unchecked Sendable {
     ) {
         self.audioCapture = audioCapture
         self.sttClient = sttClient
-        self.llmClient = llmClient
+        _llmClient = llmClient
         self.snippetEngine = snippetEngine
+    }
+
+    func updateLLMClient(_ llmClient: LLMClient) {
+        lock.lock()
+        defer { lock.unlock() }
+        _llmClient = llmClient
     }
 
     func startRecording(sessionId: UUID) throws {
@@ -427,7 +433,7 @@ final class PipelineEngine: @unchecked Sendable {
         let sessionId = snapshotSessionId()
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
-        let (currentTextMode, currentHints) = snapshotConfig()
+        let (currentTextMode, currentHints, currentLLMClient) = snapshotConfig()
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
@@ -532,7 +538,7 @@ final class PipelineEngine: @unchecked Sendable {
                         cleanupAudioOnFailure()
                         throw PipelineError.cancelled
                     }
-                    let llmOutput = try await llmClient.normalize(
+                    let llmOutput = try await currentLLMClient.normalize(
                         correctedTranscript, mode: currentTextMode, hints: hintsWithSnippet
                     )
                     guard !currentIsCancelled() else {
@@ -641,7 +647,11 @@ final class PipelineEngine: @unchecked Sendable {
                 cleanupAudioOnFailure()
                 throw PipelineError.cancelled
             }
-            normalizedText = try await llmClient.normalize(deterministicText, mode: currentTextMode, hints: currentHints)
+            normalizedText = try await currentLLMClient.normalize(
+                deterministicText,
+                mode: currentTextMode,
+                hints: currentHints
+            )
             guard !currentIsCancelled() else {
                 cleanupAudioOnFailure()
                 throw PipelineError.cancelled
@@ -721,10 +731,10 @@ final class PipelineEngine: @unchecked Sendable {
         return _sessionId ?? UUID()
     }
 
-    private func snapshotConfig() -> (TextMode, NormalizationHints) {
+    private func snapshotConfig() -> (TextMode, NormalizationHints, LLMClient) {
         lock.lock()
         defer { lock.unlock() }
-        return (_textMode, _hints)
+        return (_textMode, _hints, _llmClient)
     }
 
     private func prepareForRecording() {

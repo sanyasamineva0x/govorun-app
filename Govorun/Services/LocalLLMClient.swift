@@ -49,7 +49,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
 
     func normalize(_ text: String, mode: TextMode, hints: NormalizationHints) async throws -> String {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedText.isEmpty else { return text }
+        guard !trimmedText.isEmpty else { return trimmedText }
 
         let baseURL = try validatedBaseURL()
         let model = try validatedModel()
@@ -58,7 +58,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
 
         do {
             let output = try await sendChatCompletion(
-                input: text,
+                input: trimmedText,
                 mode: mode,
                 hints: hints,
                 baseURL: baseURL,
@@ -66,6 +66,8 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
             )
             await healthState.recordSuccess(now: Date())
             return output
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             await healthState.recordFailure(
                 now: Date(),
@@ -92,6 +94,8 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
         do {
             try await performHealthcheck(baseURL: baseURL, model: model)
             await healthState.recordSuccess(now: Date())
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             await healthState.recordFailure(
                 now: Date(),
@@ -103,7 +107,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
     }
 
     private func performHealthcheck(baseURL: URL, model: String) async throws {
-        var request = URLRequest(url: baseURL.appendingPathComponent("models"))
+        var request = URLRequest(url: baseURL.appending(path: "models"))
         request.httpMethod = "GET"
         request.timeoutInterval = configuration.healthcheckTimeout
 
@@ -115,6 +119,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
         do {
             modelsResponse = try decoder.decode(ModelsResponse.self, from: data)
         } catch {
+            Self.logger.error("Healthcheck JSON decoding failed: \(String(describing: error), privacy: .public)")
             throw LLMError.parsingFailed
         }
 
@@ -152,7 +157,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
             ]
         )
 
-        var request = URLRequest(url: baseURL.appendingPathComponent("chat/completions"))
+        var request = URLRequest(url: baseURL.appending(path: "chat/completions"))
         request.httpMethod = "POST"
         request.timeoutInterval = configuration.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -166,6 +171,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
         do {
             completion = try decoder.decode(ChatCompletionResponse.self, from: data)
         } catch {
+            Self.logger.error("Completion JSON decoding failed: \(String(describing: error), privacy: .public)")
             throw LLMError.parsingFailed
         }
 
@@ -183,11 +189,19 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
                 throw LLMError.networkError("Локальный endpoint не вернул HTTP-ответ")
             }
             return (data, httpResponse)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let error as URLError {
+            if error.code == .cancelled {
+                throw CancellationError()
+            }
             throw mapTransportError(error)
         } catch let error as LLMError {
             throw error
         } catch {
+            if isCancellation(error) {
+                throw CancellationError()
+            }
             throw LLMError.networkError(error.localizedDescription)
         }
     }
@@ -231,6 +245,21 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
             throw LLMError.networkError("Не указана модель локального LLM runtime")
         }
         return model
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain,
+           nsError.code == URLError.cancelled.rawValue
+        {
+            return true
+        }
+
+        return nsError.domain == "Swift.CancellationError"
     }
 }
 

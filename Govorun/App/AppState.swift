@@ -36,6 +36,10 @@ final class AppState: ObservableObject {
     private var currentRecordingMode: RecordingMode
     /// Отложенный режим записи (ждёт idle)
     private var pendingRecordingMode: RecordingMode?
+    /// Текущий конфиг локального LLM runtime
+    private var currentLLMConfiguration: LocalLLMConfiguration
+    /// Отложенный конфиг локального LLM runtime (ждёт idle)
+    private var pendingLLMConfiguration: LocalLLMConfiguration?
     /// Подписка на изменения SettingsStore
     private var settingsCancellable: AnyCancellable?
 
@@ -95,12 +99,8 @@ final class AppState: ObservableObject {
         self.settings = settings
 
         let stt: STTClient = LocalSTTClient(socketPath: manager.socketPath)
-        let llmConfiguration = LocalLLMConfiguration.resolved(
-            baseURLString: settings.llmBaseURL,
-            model: settings.llmModel,
-            requestTimeout: settings.llmRequestTimeout,
-            healthcheckTimeout: settings.llmHealthcheckTimeout
-        )
+        let llmConfiguration = Self.resolveLLMConfiguration(settings: settings)
+        currentLLMConfiguration = llmConfiguration
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -210,6 +210,7 @@ final class AppState: ObservableObject {
         self.eventMonitor = eventMonitor
         currentActivationKey = settings.activationKey
         currentRecordingMode = settings.recordingMode
+        currentLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         self.updaterService = updaterService
 
         workerState = initialWorkerState
@@ -382,16 +383,24 @@ final class AppState: ObservableObject {
     private func handleSettingsChanged() {
         let newKey = settings.activationKey
         let newMode = settings.recordingMode
+        let newLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         let keyChanged = newKey != currentActivationKey
         let modeChanged = newMode != currentRecordingMode
+        let llmConfigurationChanged = newLLMConfiguration != currentLLMConfiguration
 
-        guard keyChanged || modeChanged else { return }
+        guard keyChanged || modeChanged || llmConfigurationChanged else { return }
 
         if sessionManager.state == .idle {
-            recreateMonitor(key: newKey, mode: newMode)
+            if keyChanged || modeChanged {
+                recreateMonitor(key: newKey, mode: newMode)
+            }
+            if llmConfigurationChanged {
+                applyLLMConfiguration(newLLMConfiguration)
+            }
         } else {
             if keyChanged { pendingActivationKey = newKey }
             if modeChanged { pendingRecordingMode = newMode }
+            if llmConfigurationChanged { pendingLLMConfiguration = newLLMConfiguration }
         }
     }
 
@@ -416,8 +425,31 @@ final class AppState: ObservableObject {
     fileprivate func applyPendingSettings() {
         let key = pendingActivationKey ?? currentActivationKey
         let mode = pendingRecordingMode ?? currentRecordingMode
-        guard pendingActivationKey != nil || pendingRecordingMode != nil else { return }
-        recreateMonitor(key: key, mode: mode)
+        let llmConfiguration = pendingLLMConfiguration
+
+        guard pendingActivationKey != nil || pendingRecordingMode != nil || llmConfiguration != nil else { return }
+
+        if pendingActivationKey != nil || pendingRecordingMode != nil {
+            recreateMonitor(key: key, mode: mode)
+        }
+        if let llmConfiguration {
+            applyLLMConfiguration(llmConfiguration)
+        }
+    }
+
+    private func applyLLMConfiguration(_ configuration: LocalLLMConfiguration) {
+        pipelineEngine.updateLLMClient(LocalLLMClient(configuration: configuration))
+        currentLLMConfiguration = configuration
+        pendingLLMConfiguration = nil
+    }
+
+    private static func resolveLLMConfiguration(settings: SettingsStore) -> LocalLLMConfiguration {
+        LocalLLMConfiguration.resolved(
+            baseURLString: settings.llmBaseURL,
+            model: settings.llmModel,
+            requestTimeout: settings.llmRequestTimeout,
+            healthcheckTimeout: settings.llmHealthcheckTimeout
+        )
     }
 
     /// Проверить что worker жив через ping по unix socket

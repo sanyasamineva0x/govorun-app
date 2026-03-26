@@ -36,7 +36,7 @@ final class LocalLLMClientTests: XCTestCase {
 
         let client = makeClient()
         let output = try await client.normalize(
-            "ну привет",
+            "  ну привет  ",
             mode: .universal,
             hints: NormalizationHints(currentDate: makeDate())
         )
@@ -198,6 +198,97 @@ final class LocalLLMClientTests: XCTestCase {
         )
 
         XCTAssertEqual(output, "Привет.")
+    }
+
+    func test_normalize_emptyText_returnsTrimmedEmptyString() async throws {
+        let client = makeClient()
+        let output = try await client.normalize(
+            "   \n  ",
+            mode: .universal,
+            hints: NormalizationHints(currentDate: makeDate())
+        )
+
+        XCTAssertEqual(output, "")
+    }
+
+    func test_normalize_cancellationDoesNotPoisonHealthState() async throws {
+        let requests = RequestRecorder()
+        var chatCallCount = 0
+
+        MockURLProtocol.requestHandler = { request in
+            await requests.append(request)
+
+            if request.url?.path == "/v1/models" {
+                return HTTPStubResponse(
+                    statusCode: 200,
+                    body: #"{"data":[{"id":"gigachat-gguf"}]}"#
+                )
+            }
+
+            chatCallCount += 1
+            if chatCallCount == 1 {
+                throw CancellationError()
+            }
+
+            return HTTPStubResponse(
+                statusCode: 200,
+                body: #"{"choices":[{"message":{"content":"Привет."}}]}"#
+            )
+        }
+
+        let client = makeClient()
+
+        do {
+            _ = try await client.normalize(
+                "привет",
+                mode: .universal,
+                hints: NormalizationHints(currentDate: makeDate())
+            )
+            XCTFail("Ожидалась отмена")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Ожидался CancellationError, получен \(error)")
+        }
+
+        let secondOutput = try await client.normalize(
+            "привет",
+            mode: .universal,
+            hints: NormalizationHints(currentDate: makeDate())
+        )
+
+        XCTAssertEqual(secondOutput, "Привет.")
+
+        let captured = await requests.snapshot()
+        XCTAssertEqual(captured.map(\.url?.path), ["/v1/models", "/v1/chat/completions", "/v1/chat/completions"])
+    }
+
+    func test_localLLMConfiguration_allowsZeroOverridesForTemperatureAndCooldowns() {
+        let config = LocalLLMConfiguration.resolved(
+            environment: [
+                "GOVORUN_LLM_TEMPERATURE": "0",
+                "GOVORUN_LLM_HEALTHCHECK_TTL": "0",
+                "GOVORUN_LLM_FAILURE_COOLDOWN": "0",
+            ]
+        )
+
+        XCTAssertEqual(config.temperature, 0)
+        XCTAssertEqual(config.healthcheckSuccessTTL, 0)
+        XCTAssertEqual(config.failureCooldown, 0)
+    }
+
+    func test_localLLMConfiguration_normalizesBaseURLAndModel() {
+        let config = LocalLLMConfiguration(
+            baseURLString: " http://127.0.0.1:8080/v1/// ",
+            model: " gigachat-gguf "
+        )
+
+        XCTAssertEqual(config.normalizedBaseURL?.absoluteString, "http://127.0.0.1:8080/v1")
+        XCTAssertEqual(config.normalizedModel, "gigachat-gguf")
+    }
+
+    func test_localLLMConfiguration_invalidBaseURLReturnsNil() {
+        let config = LocalLLMConfiguration(baseURLString: " localhost:8080 ")
+        XCTAssertNil(config.normalizedBaseURL)
     }
 
     private func assertNormalizeFails(client: LocalLLMClient) async {
