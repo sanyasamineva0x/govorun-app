@@ -91,8 +91,17 @@ final class AppState: ObservableObject {
         let manager = ASRWorkerManager()
         workerManager = manager
 
+        let settings = SettingsStore()
+        self.settings = settings
+
         let stt: STTClient = LocalSTTClient(socketPath: manager.socketPath)
-        let llm: LLMClient = PlaceholderLLMClient()
+        let llmConfiguration = LocalLLMConfiguration.resolved(
+            baseURLString: settings.llmBaseURL,
+            model: settings.llmModel,
+            requestTimeout: settings.llmRequestTimeout,
+            healthcheckTimeout: settings.llmHealthcheckTimeout
+        )
+        let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
         let snippetEngine = SnippetEngine()
@@ -106,8 +115,6 @@ final class AppState: ObservableObject {
         }
         self.snippetEngine = snippetEngine
 
-        let settings = SettingsStore()
-        self.settings = settings
         eventMonitor.activationKey = settings.activationKey
         eventMonitor.recordingMode = settings.recordingMode
         self.eventMonitor = eventMonitor
