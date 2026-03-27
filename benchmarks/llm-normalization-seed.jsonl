@@ -1,6 +1,6 @@
 {"id":"short-001","bucket":"short","input":"ну привет","expected":"Привет."}
 {"id":"short-002","bucket":"short","input":"типа окей","expected":"Окей."}
-{"id":"short-003","bucket":"short","input":"завтра в пять","expected":"Завтра в 17:00."}
+{"id":"short-003","bucket":"short","input":"завтра в пять","expected":"Завтра в 17:00.","expected_full_pipeline":"Завтра в пять."}
 {"id":"short-004","bucket":"short","input":"открой жиру","expected":"Открой Jira."}
 {"id":"short-005","bucket":"short","input":"скинь в слак","expected":"Скинь в Slack."}
 {"id":"short-006","bucket":"short","input":"встреча в среду нет в четверг","expected":"Встреча в четверг."}
