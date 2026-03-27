@@ -288,6 +288,34 @@ private struct ProductModeCard: View {
     @EnvironmentObject private var appState: AppState
     @Binding var selection: ProductMode
 
+    private var superAvailable: Bool {
+        appState.superAssetsState == .installed
+    }
+
+    private var assetsStatusText: String? {
+        switch appState.superAssetsState {
+        case .unknown, .checking:
+            "Проверяю готовность Super..."
+        case .installed:
+            nil
+        case .modelMissing:
+            "Модель не найдена. Скопируйте GGUF в ~/.govorun/models/"
+        case .runtimeMissing:
+            "Компонент llama-server отсутствует в приложении"
+        case .error(let msg):
+            "Ошибка: \(msg)"
+        }
+    }
+
+    private var assetsStatusIcon: String {
+        switch appState.superAssetsState {
+        case .unknown, .checking: "hourglass"
+        case .installed: "checkmark.circle"
+        case .modelMissing: "exclamationmark.triangle"
+        case .runtimeMissing, .error: "xmark.circle"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "Режим Говоруна", icon: "switch.2")
@@ -308,18 +336,34 @@ private struct ProductModeCard: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: selection) { _, newValue in
+                        if newValue == .superMode, !superAvailable {
+                            selection = .standard
+                        }
+                    }
 
                     Text(selection.subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text(runtimeStatusText)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    if let assetsText = assetsStatusText {
+                        Label(assetsText, systemImage: assetsStatusIcon)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(runtimeStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
         }
         .settingsCard()
+        .onAppear {
+            Task {
+                await appState.refreshSuperAssetsReadiness()
+            }
+        }
     }
 
     private var runtimeStatusText: String {
