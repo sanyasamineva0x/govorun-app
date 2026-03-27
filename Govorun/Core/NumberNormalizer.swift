@@ -431,6 +431,20 @@ enum NumberNormalizer {
         var spans: [Span] = []
         var i = 0
         while i < tokens.count {
+            // Numeric: 25 процентов / 12,5 процента
+            if let numResult = parseNumericNumber(tokens, at: i), numResult.currency == nil {
+                let afterIdx = i + numResult.consumed
+                if afterIdx < tokens.count, percentWords.contains(tokens[afterIdx].core.lowercased()) {
+                    spans.append(Span(
+                        range: i..<(afterIdx + 1),
+                        kind: .percent(numResult.value),
+                        priority: SpanPriority.percent
+                    ))
+                    i = afterIdx + 1
+                    continue
+                }
+            }
+
             // Numeric: 25% (процент в core)
             if let numResult = parseNumericNumber(tokens, at: i) {
                 let lastIdx = i + numResult.consumed - 1
@@ -1336,6 +1350,8 @@ enum NumberNormalizer {
         "штук", "штуки", "штука", "штукам",
         "гектар", "гектара", "гектаров",
         "раз", "раза",
+        "человек", "человека", "человеку", "человеком", "человеке",
+        "людей",
     ]
 
     // MARK: - normalize

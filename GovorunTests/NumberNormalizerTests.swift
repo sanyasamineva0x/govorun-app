@@ -239,6 +239,10 @@ final class PercentageNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("пять процентов годовых"), "5% годовых")
     }
 
+    func test_numeric_percent_word_form() {
+        XCTAssertEqual(NumberNormalizer.normalize("маржа выросла до 12,5 процента"), "маржа выросла до 12,5%")
+    }
+
     func test_no_match_процент_without_number() {
         XCTAssertEqual(NumberNormalizer.normalize("процентов нет"), "процентов нет")
     }
@@ -1025,6 +1029,10 @@ final class V2PercentMoneySpanTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять процентов, и всё"), "25%, и всё")
     }
 
+    func test_numeric_percent_word_form_with_punctuation() {
+        XCTAssertEqual(NumberNormalizer.normalize("маржа выросла до 12,5 процента."), "маржа выросла до 12,5%.")
+    }
+
     // GigaAM: 1000₽ → 1 000 рублей
     func test_gigaam_rub_symbol() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}"), "1 000 рублей")
@@ -1079,6 +1087,10 @@ final class V2PercentMoneySpanTests: XCTestCase {
     /// Символ валюты с пунктуацией: 1000₽.
     func test_currency_symbol_with_trailing_period() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}."), "1 000 рублей.")
+    }
+
+    func test_people_count_uses_digits() {
+        XCTAssertEqual(NumberNormalizer.normalize("семь человек"), "7 человек")
     }
 }
 

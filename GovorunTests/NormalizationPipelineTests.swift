@@ -72,6 +72,18 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertNil(result.gateFailureReason)
     }
 
+    func test_postflight_applies_surface_canon_for_quotes_and_percents() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "По проекту «Алтай», маржа выросла до 12,5%.",
+            llmOutput: "По проекту Алтай, маржа выросла до 12,5 процента.",
+            textMode: .universal
+        )
+
+        XCTAssertEqual(result.finalText, "По проекту «Алтай», маржа выросла до 12,5%.")
+        XCTAssertEqual(result.path, .llm)
+        XCTAssertNil(result.gateFailureReason)
+    }
+
     func test_preflight_carries_explicit_time_of_day_through_correction() {
         let result = NormalizationPipeline.preflight(
             transcript: "позвони маме в восемь вечера или нет лучше в девять",

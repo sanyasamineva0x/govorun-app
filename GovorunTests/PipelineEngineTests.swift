@@ -1066,7 +1066,14 @@ final class DeterministicNormalizerTests: XCTestCase {
     func test_builtin_structured_canon_normalizes_paper_format() {
         XCTAssertEqual(
             DeterministicNormalizer.normalize("создай заметку купить бумагу а четыре"),
-            "Создай заметку купить бумагу A4."
+            "Создай заметку купить бумагу А4."
+        )
+    }
+
+    func test_builtin_structured_canon_wraps_project_title_in_quotes() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("давай перенесём встречу по проекту алтай потому что иванов не может"),
+            "Давай перенесём встречу по проекту «Алтай» потому что иванов не может."
         )
     }
 

@@ -206,6 +206,7 @@ enum DeterministicNormalizer {
         result = carryForwardExplicitTimeOfDay(in: result)
         result = replaceNumberIdentifiers(in: result)
         result = replacePaperFormats(in: result)
+        result = replaceProjectTitles(in: result)
         result = replaceMixedProductPhrases(in: result)
         result = replaceHyphenatedTechRoles(in: result)
         result = replaceUnitAbbreviations(in: result)
@@ -278,7 +279,22 @@ enum DeterministicNormalizer {
                 return matchedSubstring(for: match, in: source)
             }
 
-            return "\(context) A\(digit)"
+            return "\(context) А\(digit)"
+        }
+    }
+
+    private static func replaceProjectTitles(in text: String) -> String {
+        replacingMatches(in: text, regex: projectTitlePattern) { match, source in
+            guard
+                let prefixRange = Range(match.range(at: 1), in: source),
+                let titleRange = Range(match.range(at: 2), in: source)
+            else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            let prefix = String(source[prefixRange])
+            let title = String(source[titleRange])
+            return "\(prefix)«\(formatProjectTitle(title))»"
         }
     }
 
@@ -336,6 +352,16 @@ enum DeterministicNormalizer {
             return "\(source[numberRange])°C"
         }
         return result
+    }
+
+    private static func formatProjectTitle(_ title: String) -> String {
+        title
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .map { word in
+                let lowercased = word.lowercased()
+                return lowercased.prefix(1).uppercased() + lowercased.dropFirst()
+            }
+            .joined(separator: " ")
     }
 
     private static func formatMeasuredUnit(
@@ -474,6 +500,17 @@ enum DeterministicNormalizer {
         }
     }()
 
+    private static let projectTitlePattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(
+                pattern: "(по\\s+проекту\\s+)([А-ЯЁа-яё\\d-]+)",
+                options: [.caseInsensitive]
+            )
+        } catch {
+            fatalError("Invalid project title regex: \(error)")
+        }
+    }()
+
     private static let techRolePattern: NSRegularExpression = {
         do {
             return try NSRegularExpression(
@@ -595,7 +632,9 @@ enum NormalizationPipeline {
         terminalPeriodEnabled: Bool = true,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationPipelinePostflight {
-        let canonicalOutput = DeterministicNormalizer.canonicalizeSurfaceForms(llmOutput)
+        let canonicalOutput = DeterministicNormalizer.canonicalizeSurfaceForms(
+            NumberNormalizer.normalize(llmOutput)
+        )
         let gateResult = NormalizationGate.evaluate(
             input: deterministicText,
             output: canonicalOutput,
