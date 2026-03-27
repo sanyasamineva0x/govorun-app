@@ -127,9 +127,16 @@ final class AppState: ObservableObject {
         modelContainer = container
         let context = ModelContext(container)
         let snippetStore = SnippetStore(modelContext: context)
-        try? snippetStore.seedDefaultsIfNeeded()
-        if let records = try? snippetStore.snippetRecords() {
+        do {
+            try snippetStore.seedDefaultsIfNeeded()
+        } catch {
+            Self.logger.error("Сниппеты не засеялись: \(String(describing: error), privacy: .public)")
+        }
+        do {
+            let records = try snippetStore.snippetRecords()
             snippetEngine.updateSnippets(records)
+        } catch {
+            Self.logger.error("Сниппеты не загрузились: \(String(describing: error), privacy: .public)")
         }
         self.snippetEngine = snippetEngine
 
@@ -301,6 +308,7 @@ final class AppState: ObservableObject {
                         try await llmRuntimeManager.start()
                     } catch {
                         Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+                        self.updateLLMRuntimeState(.error(error.localizedDescription))
                     }
                 }
             } else {
@@ -364,8 +372,11 @@ final class AppState: ObservableObject {
         guard let modelContainer else { return }
         let context = ModelContext(modelContainer)
         let store = SnippetStore(modelContext: context)
-        if let records = try? store.snippetRecords() {
+        do {
+            let records = try store.snippetRecords()
             snippetEngine.updateSnippets(records)
+        } catch {
+            Self.logger.error("Сниппеты не перезагрузились: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -515,6 +526,7 @@ final class AppState: ObservableObject {
                         try await llmRuntimeManager.start()
                     } catch {
                         Self.logger.error("LLM runtime не переключился в Super: \(String(describing: error), privacy: .public)")
+                        self.updateLLMRuntimeState(.error(error.localizedDescription))
                     }
                 }
             } else {
@@ -538,6 +550,7 @@ final class AppState: ObservableObject {
                     try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
                 } catch {
                     Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
+                    self.updateLLMRuntimeState(.error(error.localizedDescription))
                 }
             }
         } else {
@@ -837,7 +850,11 @@ final class AppState: ObservableObject {
                 if let modelContainer, let appContext = currentAppContext {
                     let historyContext = ModelContext(modelContainer)
                     let historyStore = HistoryStore(modelContext: historyContext)
-                    try? historyStore.save(resultWithInsertion, appContext: appContext)
+                    do {
+                        try historyStore.save(resultWithInsertion, appContext: appContext)
+                    } catch {
+                        Self.logger.error("История не сохранилась: \(String(describing: error), privacy: .public)")
+                    }
                 }
 
                 // Post-insertion мониторинг: 60s окно для edit/undo detection

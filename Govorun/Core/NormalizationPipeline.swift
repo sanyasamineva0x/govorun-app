@@ -592,6 +592,7 @@ struct NormalizationPipelinePostflight: Equatable {
 
 enum NormalizationPipeline {
     static func isTrivial(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
         let words = text.split(separator: " ")
         guard words.count <= 1 else { return false }
 

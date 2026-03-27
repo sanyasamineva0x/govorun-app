@@ -587,6 +587,7 @@ private func makeColdStartTestAppState(
         sttClient: stt,
         llmClient: llm
     )
+    pipeline.productMode = productMode
     let inserter = TextInserterEngine(
         accessibility: MockAccessibility(),
         clipboard: MockClipboard()

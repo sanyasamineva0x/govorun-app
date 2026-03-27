@@ -36,6 +36,7 @@ final class RecreateMonitorTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()
@@ -136,6 +137,7 @@ final class RecreateMonitorTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()

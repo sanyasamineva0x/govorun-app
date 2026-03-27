@@ -74,6 +74,7 @@ private func makePipeline(
         snippetEngine: snippets,
         saveAudioFile: saveAudioFile
     )
+    engine.productMode = .superMode
     return (engine, audio, stt, llm)
 }
 
@@ -443,6 +444,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -470,6 +472,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: MockLLMClient(),
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -513,6 +516,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -543,6 +547,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -574,6 +579,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
         engine.terminalPeriodEnabled = false
 
         try engine.startRecording(sessionId: UUID())
@@ -602,6 +608,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -630,6 +637,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -657,6 +665,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -685,6 +694,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -713,6 +723,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -844,6 +855,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()
@@ -880,6 +892,7 @@ final class PipelineEngineTests: XCTestCase {
             llmClient: llm,
             snippetEngine: snippets
         )
+        engine.productMode = .superMode
 
         try engine.startRecording(sessionId: UUID())
         let result = try await engine.stopRecording()

@@ -66,6 +66,7 @@ private func makeTestAppState(
         llmClient: llm,
         snippetEngine: snippetEngine
     )
+    pipeline.productMode = productMode
 
     let inserter = TextInserterEngine(
         accessibility: accessibility,

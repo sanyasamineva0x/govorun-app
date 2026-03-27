@@ -20,6 +20,7 @@ private func makeToggleAppState(
         sttClient: stt,
         llmClient: llm
     )
+    pipeline.productMode = .superMode
     let inserter = TextInserterEngine(
         accessibility: MockAccessibility(),
         clipboard: MockClipboard()
@@ -387,6 +388,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()
@@ -453,6 +455,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()
@@ -516,6 +519,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()
@@ -590,6 +594,7 @@ final class ErrorAutoDismissTests: XCTestCase {
             sttClient: stt,
             llmClient: llm
         )
+        pipeline.productMode = .superMode
         let inserter = TextInserterEngine(
             accessibility: MockAccessibility(),
             clipboard: MockClipboard()

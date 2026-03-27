@@ -241,7 +241,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _isRecording = false
     private var _llmClient: LLMClient
 
-    private var _productMode: ProductMode = .superMode
+    private var _productMode: ProductMode = .standard
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = .init()
     private var _terminalPeriodEnabled: Bool = true
