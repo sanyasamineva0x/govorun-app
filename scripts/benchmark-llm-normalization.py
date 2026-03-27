@@ -439,6 +439,8 @@ def request_completion(
         raise LLMRequestError(f"HTTP {exc.code}: {body}") from exc
     except urllib.error.URLError as exc:
         raise LLMRequestError(f"Connection error: {exc}") from exc
+    except OSError as exc:
+        raise LLMRequestError(f"Socket error during streaming: {exc}") from exc
 
     total_latency_ms = (time.perf_counter() - start) * 1000.0
     return "".join(output_parts).strip(), first_token_latency_ms, total_latency_ms

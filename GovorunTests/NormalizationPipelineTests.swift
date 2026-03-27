@@ -25,6 +25,16 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertTrue(result.shouldInvokeLLM)
     }
 
+    func test_preflight_without_terminal_period_omits_trailing_period() {
+        let result = NormalizationPipeline.preflight(
+            transcript: "напомни про двадцать пять процентов",
+            terminalPeriodEnabled: false
+        )
+
+        XCTAssertEqual(result.deterministicText, "Напомни про 25%")
+        XCTAssertTrue(result.shouldInvokeLLM)
+    }
+
     func test_postflight_rejected_output_falls_back_to_deterministic_text() {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Созвон в 15:30.",
