@@ -422,6 +422,61 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         XCTAssertTrue(mockWorker.startCalled)
     }
 
+    func test_superMode_coldStart_withMissingModel_disablesRuntime() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        mockAssets.checkResult = .modelMissing
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            superAssetsManager: mockAssets,
+            productMode: .superMode
+        )
+
+        appState.start()
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertFalse(mockLLMRuntime.startCalled)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+        XCTAssertEqual(appState.superAssetsState, .modelMissing)
+    }
+
+    func test_superMode_coldStart_withInstalledAssets_startsRuntime() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        // checkResult по умолчанию .installed
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            superAssetsManager: mockAssets,
+            productMode: .superMode
+        )
+
+        appState.start()
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockLLMRuntime.startCalled { break }
+        }
+
+        XCTAssertTrue(mockLLMRuntime.startCalled)
+        XCTAssertEqual(appState.superAssetsState, .installed)
+    }
+
+    func test_standardMode_ignoresAssetsState() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        mockAssets.checkResult = .runtimeMissing
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            superAssetsManager: mockAssets,
+            productMode: .standard
+        )
+
+        appState.start()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
     func test_stop_then_start_relaunches_worker() async throws {
         let mockWorker = MockASRWorkerManager()
         let (appState, _, _) = makeColdStartTestAppState(workerManager: mockWorker)
