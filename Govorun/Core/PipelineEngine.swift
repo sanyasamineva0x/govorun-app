@@ -301,7 +301,7 @@ final class PipelineEngine: @unchecked Sendable {
         let audioData = audioCapture.stopRecording()
 
         // Сохраняем аудио на диск для истории (если включено в настройках)
-        let audioFileName: String? = if !audioData.isEmpty && saveAudioHistory {
+        let audioFileName: String? = if !audioData.isEmpty, saveAudioHistory {
             try? AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
         } else {
             nil
@@ -357,10 +357,11 @@ final class PipelineEngine: @unchecked Sendable {
 
         // Единый deterministic baseline до LLM:
         // числа, валюты, время, даты и базовая очистка всегда проходят один и тот же путь.
-        let deterministicText = makeDeterministicBaseline(
-            from: correctedTranscript,
+        let pipelinePreflight = NormalizationPipeline.preflight(
+            transcript: correctedTranscript,
             terminalPeriodEnabled: terminalPeriodEnabled
         )
+        let deterministicText = pipelinePreflight.deterministicText
 
         // Snippet match (на исправленном тексте)
         if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
@@ -485,7 +486,7 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // Trivial text → только DeterministicNormalizer, без LLM
-        if isTrivial(correctedTranscript) {
+        if !pipelinePreflight.shouldInvokeLLM {
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
@@ -504,7 +505,7 @@ final class PipelineEngine: @unchecked Sendable {
 
         // LLM нормализация (на уже очищенном тексте)
         let llmStart = CFAbsoluteTimeGetCurrent()
-        let normalizedText: String
+        let llmOutput: String
         let llmLatencyMs: Int
 
         do {
@@ -512,7 +513,7 @@ final class PipelineEngine: @unchecked Sendable {
                 cleanupAudioOnFailure()
                 throw PipelineError.cancelled
             }
-            normalizedText = try await currentLLMClient.normalize(
+            llmOutput = try await currentLLMClient.normalize(
                 deterministicText,
                 mode: currentTextMode,
                 hints: currentHints
@@ -529,13 +530,17 @@ final class PipelineEngine: @unchecked Sendable {
             // Graceful degradation: LLM упал → возвращаем deterministicText
             llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
             Self.logger.error("LLM failed: \(String(describing: error), privacy: .public)")
+            let failedPostflight = NormalizationPipeline.failedPostflight(
+                deterministicText: deterministicText,
+                failureContext: String(describing: error)
+            )
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
-                normalizedText: deterministicText,
+                normalizedText: failedPostflight.finalText,
                 textMode: currentTextMode,
-                normalizationPath: .llmFailed,
+                normalizationPath: mapNormalizationPath(failedPostflight.path),
                 sttLatencyMs: sttLatencyMs,
                 llmLatencyMs: llmLatencyMs,
                 insertionLatencyMs: 0,
@@ -545,34 +550,30 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
-        let gateResult = NormalizationGate.evaluate(
-            input: deterministicText,
-            output: normalizedText,
-            contract: currentTextMode.llmOutputContract
+        let postflight = NormalizationPipeline.postflight(
+            deterministicText: deterministicText,
+            llmOutput: llmOutput,
+            textMode: currentTextMode,
+            terminalPeriodEnabled: terminalPeriodEnabled
         )
-        if let failureReason = gateResult.failureReason {
+        if let failureReason = postflight.gateFailureReason {
             Self.logger.warning(
                 "NormalizationGate rejected output: \(failureReason.description, privacy: .public)"
             )
         }
 
-        // Terminal period policy — LLM часто возвращает текст с точкой
-        let finalText = terminalPeriodEnabled
-            ? gateResult.output
-            : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
-
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
         return PipelineResult(
             sessionId: sessionId,
             rawTranscript: rawTranscript,
-            normalizedText: finalText,
+            normalizedText: postflight.finalText,
             textMode: currentTextMode,
-            normalizationPath: gateResult.accepted ? .llm : .llmRejected,
+            normalizationPath: mapNormalizationPath(postflight.path),
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,
             totalLatencyMs: totalMs,
-            gateFailureReason: gateResult.failureReason,
+            gateFailureReason: postflight.gateFailureReason,
             audioDurationMs: audioDurationMs,
             audioFileName: audioFileName
         )
@@ -621,13 +622,16 @@ final class PipelineEngine: @unchecked Sendable {
         return _isCancelled
     }
 
-    private func makeDeterministicBaseline(
-        from text: String,
-        terminalPeriodEnabled: Bool
-    ) -> String {
-        DeterministicNormalizer.normalize(
-            text,
-            terminalPeriodEnabled: terminalPeriodEnabled
-        )
+    private func mapNormalizationPath(_ path: NormalizationPipelinePath) -> PipelineResult.NormalizationPath {
+        switch path {
+        case .trivial:
+            .trivial
+        case .llm:
+            .llm
+        case .llmRejected:
+            .llmRejected
+        case .llmFailed:
+            .llmFailed
+        }
     }
 }

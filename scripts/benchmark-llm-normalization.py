@@ -24,6 +24,26 @@ HELPER_SWIFT_SOURCES = [
 ]
 
 
+class BenchmarkError(Exception):
+    pass
+
+
+class BenchmarkConfigurationError(BenchmarkError):
+    pass
+
+
+class FullPipelineHelperError(BenchmarkError):
+    pass
+
+
+class FullPipelineHelperUnavailableError(FullPipelineHelperError):
+    pass
+
+
+def fail(message: str) -> None:
+    print(f"ERROR: {message}", file=sys.stderr)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark local LLM normalization via OpenAI-compatible endpoint."
@@ -120,23 +140,68 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_dataset(path: Path) -> list[dict]:
+    if not path.exists():
+        raise BenchmarkConfigurationError(f"Dataset file not found: {path}")
+    if not path.is_file():
+        raise BenchmarkConfigurationError(f"Dataset path is not a file: {path}")
+
     rows: list[dict] = []
     with path.open("r", encoding="utf-8") as handle:
-        for raw_line in handle:
+        for line_number, raw_line in enumerate(handle, start=1):
             line = raw_line.strip()
             if not line:
                 continue
-            rows.append(json.loads(line))
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise BenchmarkConfigurationError(
+                    f"Invalid JSON in dataset {path}:{line_number}: {exc.msg}"
+                ) from exc
+
+    if not rows:
+        raise BenchmarkConfigurationError(f"Dataset is empty: {path}")
     return rows
 
 
 def load_system_prompt(path: str | None) -> str | None:
     if not path:
         return None
-    return Path(path).read_text(encoding="utf-8").strip()
+    prompt_path = Path(path)
+    if not prompt_path.exists():
+        raise BenchmarkConfigurationError(f"System prompt file not found: {prompt_path}")
+    if not prompt_path.is_file():
+        raise BenchmarkConfigurationError(f"System prompt path is not a file: {prompt_path}")
+    return prompt_path.read_text(encoding="utf-8").strip()
+
+
+def validate_expected_key(dataset: list[dict], expected_key: str | None) -> None:
+    if expected_key is None:
+        return
+    if not expected_key.strip():
+        raise BenchmarkConfigurationError("--expected-key must not be empty")
+
+    missing_ids = [
+        str(sample.get("id", "?"))
+        for sample in dataset
+        if expected_key not in sample
+    ]
+    if not missing_ids:
+        return
+
+    preview = ", ".join(missing_ids[:5])
+    suffix = "" if len(missing_ids) <= 5 else f" and {len(missing_ids) - 5} more"
+    raise BenchmarkConfigurationError(
+        f"Dataset field '{expected_key}' is missing in {len(missing_ids)} sample(s): {preview}{suffix}"
+    )
 
 
 def ensure_full_pipeline_helper(binary_path: Path) -> Path:
+    missing_sources = [str(source) for source in HELPER_SWIFT_SOURCES if not source.exists()]
+    if missing_sources:
+        raise BenchmarkConfigurationError(
+            "Missing helper source files: " + ", ".join(missing_sources)
+        )
+
     binary_path.parent.mkdir(parents=True, exist_ok=True)
     if binary_path.exists():
         binary_mtime = binary_path.stat().st_mtime
@@ -150,40 +215,80 @@ def ensure_full_pipeline_helper(binary_path: Path) -> Path:
         "-o",
         str(binary_path),
     ]
-    subprocess.run(compile_cmd, check=True, cwd=REPO_ROOT)
+    try:
+        subprocess.run(
+            compile_cmd,
+            check=True,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        stdout = (exc.stdout or "").strip()
+        details = stderr or stdout or "swiftc failed without stderr output"
+        raise BenchmarkConfigurationError(
+            f"Failed to compile full-pipeline helper: {details}"
+        ) from exc
     return binary_path
 
 
 class FullPipelineHelper:
     def __init__(self, binary_path: Path) -> None:
-        self.process = subprocess.Popen(
-            [str(binary_path)],
-            cwd=REPO_ROOT,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            bufsize=1,
-        )
+        try:
+            self.process = subprocess.Popen(
+                [str(binary_path)],
+                cwd=REPO_ROOT,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+            )
+        except OSError as exc:
+            raise FullPipelineHelperUnavailableError(
+                f"Failed to start full-pipeline helper: {exc}"
+            ) from exc
+
+    def _stderr_snapshot(self) -> str:
+        if self.process.stderr is None:
+            return ""
+        return self.process.stderr.read().strip()
 
     def request(self, payload: dict) -> dict:
         if self.process.stdin is None or self.process.stdout is None:
-            raise RuntimeError("Full pipeline helper pipes are not available")
+            raise FullPipelineHelperUnavailableError("Full pipeline helper pipes are not available")
+        if self.process.poll() is not None:
+            stderr = self._stderr_snapshot()
+            raise FullPipelineHelperUnavailableError(
+                f"Full pipeline helper is not running: {stderr or 'no stderr output'}"
+            )
 
-        self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
-        self.process.stdin.flush()
+        try:
+            self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            self.process.stdin.flush()
+        except (BrokenPipeError, OSError) as exc:
+            stderr = self._stderr_snapshot()
+            raise FullPipelineHelperUnavailableError(
+                f"Failed to send request to full-pipeline helper: {stderr or exc}"
+            ) from exc
 
         line = self.process.stdout.readline()
         if not line:
-            stderr = ""
-            if self.process.stderr is not None:
-                stderr = self.process.stderr.read().strip()
-            raise RuntimeError(f"Full pipeline helper exited unexpectedly: {stderr}")
+            stderr = self._stderr_snapshot()
+            raise FullPipelineHelperUnavailableError(
+                f"Full pipeline helper exited unexpectedly: {stderr or 'no stderr output'}"
+            )
 
-        response = json.loads(line)
+        try:
+            response = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise FullPipelineHelperError(
+                f"Full pipeline helper returned invalid JSON: {line.strip()}"
+            ) from exc
         if not response.get("ok"):
-            raise RuntimeError(response.get("error", "unknown helper error"))
+            raise FullPipelineHelperError(response.get("error", "unknown helper error"))
         return response
 
     def close(self) -> None:
@@ -218,7 +323,9 @@ def resolve_system_prompt(
         return None, None
 
     if helper is None:
-        raise RuntimeError("Full pipeline helper is required to generate the production system prompt")
+        raise BenchmarkConfigurationError(
+            "Full pipeline helper is required to generate the production system prompt"
+        )
 
     response = helper.request({
         "op": "prompt",
@@ -226,6 +333,12 @@ def resolve_system_prompt(
         "currentDate": args.current_date,
     })
     return response["systemPrompt"], "<generated-from-production>"
+
+
+def require_full_pipeline_helper(helper: FullPipelineHelper | None) -> FullPipelineHelper:
+    if helper is None:
+        raise BenchmarkConfigurationError("Full pipeline helper is not initialized")
+    return helper
 
 
 def request_completion(
@@ -500,22 +613,23 @@ def summarize(rows: list[dict]) -> dict:
 
 
 def main() -> int:
-    args = parse_args()
-    dataset_path = Path(args.dataset)
-    output_path = Path(args.output)
-    summary_path = Path(args.summary)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-
-    dataset = load_dataset(dataset_path)
-
     helper: FullPipelineHelper | None = None
-    if args.pipeline_mode == "full-pipeline":
-        helper_binary = ensure_full_pipeline_helper(HELPER_BINARY)
-        helper = FullPipelineHelper(helper_binary)
-
     try:
+        args = parse_args()
+        dataset_path = Path(args.dataset)
+        output_path = Path(args.output)
+        summary_path = Path(args.summary)
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+
+        dataset = load_dataset(dataset_path)
+        validate_expected_key(dataset, args.expected_key)
+
+        if args.pipeline_mode == "full-pipeline":
+            helper_binary = ensure_full_pipeline_helper(HELPER_BINARY)
+            helper = FullPipelineHelper(helper_binary)
+
         system_prompt, prompt_source = resolve_system_prompt(args=args, helper=helper)
 
         print(f"Loaded {len(dataset)} samples from {dataset_path}")
@@ -528,8 +642,7 @@ def main() -> int:
             try:
                 stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
             except (UnicodeDecodeError, ValueError) as exc:
-                print(f"Invalid stop sequence format: {exc}", file=sys.stderr)
-                return 1
+                raise BenchmarkConfigurationError(f"Invalid stop sequence format: {exc}") from exc
 
         recorded_rows: list[dict] = []
         with output_path.open("w", encoding="utf-8") as output_file:
@@ -545,12 +658,18 @@ def main() -> int:
                 }
 
                 if args.pipeline_mode == "full-pipeline":
-                    assert helper is not None
-                    preflight = helper.request({
-                        "op": "preflight",
-                        "transcript": sample["input"],
-                        "terminalPeriodEnabled": not args.no_terminal_period,
-                    })
+                    full_pipeline_helper = require_full_pipeline_helper(helper)
+                    try:
+                        preflight = full_pipeline_helper.request({
+                            "op": "preflight",
+                            "transcript": sample["input"],
+                            "terminalPeriodEnabled": not args.no_terminal_period,
+                        })
+                    except FullPipelineHelperError as exc:
+                        raise FullPipelineHelperError(
+                            f"[{sample.get('id', '?')}] Full-pipeline helper failed during preflight: {exc}"
+                        ) from exc
+
                     deterministic_text = preflight["deterministicText"]
                     should_invoke_llm = bool(preflight["shouldInvokeLLM"])
                     result["deterministic_input"] = deterministic_text
@@ -578,36 +697,24 @@ def main() -> int:
                                 temperature=args.temperature,
                                 stop=stop_sequences,
                             )
-                            postflight = helper.request({
-                                "op": "postflight",
-                                "deterministicText": deterministic_text,
-                                "llmOutput": llm_output,
-                                "textMode": args.text_mode,
-                                "terminalPeriodEnabled": not args.no_terminal_period,
-                            })
-                            total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
-                            result.update({
-                                "llm_output": llm_output,
-                                "output": postflight["finalText"],
-                                "normalization_path": postflight["normalizationPath"],
-                                "gate_failure_reason": postflight.get("gateFailureReason"),
-                                "llm_total_latency_ms": round(llm_total_latency_ms, 2),
-                                "first_token_latency_ms": (
-                                    round(first_token_ms, 2) if first_token_ms is not None else None
-                                ),
-                                "total_latency_ms": round(total_latency_ms, 2),
-                                "rss_before_kb": rss_before_kb,
-                                "rss_after_kb": read_rss_kb(args.server_pid),
-                            })
                         except Exception as exc:  # noqa: BLE001
-                            postflight = helper.request({
-                                "op": "failed-postflight",
-                                "deterministicText": deterministic_text,
-                            })
+                            try:
+                                postflight = full_pipeline_helper.request({
+                                    "op": "failed-postflight",
+                                    "deterministicText": deterministic_text,
+                                    "failureContext": str(exc),
+                                })
+                            except FullPipelineHelperError as helper_exc:
+                                raise FullPipelineHelperError(
+                                    f"[{sample.get('id', '?')}] LLM request failed with '{exc}', "
+                                    f"then full-pipeline helper failed during failed-postflight: {helper_exc}"
+                                ) from helper_exc
+
                             total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
                             result.update({
                                 "output": postflight["finalText"],
                                 "normalization_path": postflight["normalizationPath"],
+                                "failure_context": postflight.get("failureContext"),
                                 "llm_total_latency_ms": None,
                                 "first_token_latency_ms": None,
                                 "total_latency_ms": round(total_latency_ms, 2),
@@ -623,6 +730,35 @@ def main() -> int:
                             if index >= args.warmup:
                                 recorded_rows.append(result)
                             continue
+
+                        try:
+                            postflight = full_pipeline_helper.request({
+                                "op": "postflight",
+                                "deterministicText": deterministic_text,
+                                "llmOutput": llm_output,
+                                "textMode": args.text_mode,
+                                "terminalPeriodEnabled": not args.no_terminal_period,
+                            })
+                        except FullPipelineHelperError as exc:
+                            raise FullPipelineHelperError(
+                                f"[{sample.get('id', '?')}] Full-pipeline helper failed during postflight: {exc}"
+                            ) from exc
+
+                        total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
+                        result.update({
+                            "llm_output": llm_output,
+                            "output": postflight["finalText"],
+                            "normalization_path": postflight["normalizationPath"],
+                            "gate_failure_reason": postflight.get("gateFailureReason"),
+                            "failure_context": postflight.get("failureContext"),
+                            "llm_total_latency_ms": round(llm_total_latency_ms, 2),
+                            "first_token_latency_ms": (
+                                round(first_token_ms, 2) if first_token_ms is not None else None
+                            ),
+                            "total_latency_ms": round(total_latency_ms, 2),
+                            "rss_before_kb": rss_before_kb,
+                            "rss_after_kb": read_rss_kb(args.server_pid),
+                        })
                 else:
                     try:
                         output_text, first_token_ms, total_latency_ms = request_completion(
@@ -726,11 +862,16 @@ def main() -> int:
             print(f"{'='*60}")
         else:
             print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+    except BenchmarkError as exc:
+        fail(str(exc))
+        return 1
+    except Exception as exc:  # noqa: BLE001
+        fail(f"Unexpected benchmark error: {exc}")
+        return 1
     finally:
         if helper is not None:
             helper.close()
-
-    return 0
 
 
 if __name__ == "__main__":

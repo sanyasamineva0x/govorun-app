@@ -7,6 +7,7 @@ private struct Request: Decodable {
     let transcript: String?
     let deterministicText: String?
     let llmOutput: String?
+    let failureContext: String?
     let terminalPeriodEnabled: Bool?
 }
 
@@ -18,6 +19,7 @@ private struct Response: Encodable {
     let finalText: String?
     let normalizationPath: String?
     let gateFailureReason: String?
+    let failureContext: String?
     let error: String?
 
     static func error(_ message: String) -> Self {
@@ -29,6 +31,7 @@ private struct Response: Encodable {
             finalText: nil,
             normalizationPath: nil,
             gateFailureReason: nil,
+            failureContext: nil,
             error: message
         )
     }
@@ -76,6 +79,7 @@ struct BenchmarkFullPipelineHelper {
                 finalText: nil,
                 normalizationPath: nil,
                 gateFailureReason: nil,
+                failureContext: nil,
                 error: nil
             )
 
@@ -95,6 +99,7 @@ struct BenchmarkFullPipelineHelper {
                 finalText: nil,
                 normalizationPath: nil,
                 gateFailureReason: nil,
+                failureContext: nil,
                 error: nil
             )
 
@@ -120,6 +125,7 @@ struct BenchmarkFullPipelineHelper {
                 finalText: postflight.finalText,
                 normalizationPath: postflight.path.rawValue,
                 gateFailureReason: postflight.gateFailureReason?.analyticsValue,
+                failureContext: postflight.failureContext,
                 error: nil
             )
 
@@ -128,7 +134,8 @@ struct BenchmarkFullPipelineHelper {
                 return .error("missing deterministicText")
             }
             let postflight = NormalizationPipeline.failedPostflight(
-                deterministicText: deterministicText
+                deterministicText: deterministicText,
+                failureContext: request.failureContext
             )
             return .init(
                 ok: true,
@@ -138,6 +145,7 @@ struct BenchmarkFullPipelineHelper {
                 finalText: postflight.finalText,
                 normalizationPath: postflight.path.rawValue,
                 gateFailureReason: nil,
+                failureContext: postflight.failureContext,
                 error: nil
             )
 

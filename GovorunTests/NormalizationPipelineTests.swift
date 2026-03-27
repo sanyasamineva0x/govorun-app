@@ -39,11 +39,13 @@ final class NormalizationPipelineTests: XCTestCase {
 
     func test_failed_postflight_returns_deterministic_fallback() {
         let result = NormalizationPipeline.failedPostflight(
-            deterministicText: "Отправь отчёт."
+            deterministicText: "Отправь отчёт.",
+            failureContext: "HTTP 500"
         )
 
         XCTAssertEqual(result.finalText, "Отправь отчёт.")
         XCTAssertEqual(result.path, .llmFailed)
         XCTAssertNil(result.gateFailureReason)
+        XCTAssertEqual(result.failureContext, "HTTP 500")
     }
 }

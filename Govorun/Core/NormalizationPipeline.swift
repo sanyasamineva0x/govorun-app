@@ -185,6 +185,7 @@ struct NormalizationPipelinePostflight: Equatable {
     let finalText: String
     let path: NormalizationPipelinePath
     let gateFailureReason: NormalizationGateFailureReason?
+    let failureContext: String?
 }
 
 enum NormalizationPipeline {
@@ -227,17 +228,20 @@ enum NormalizationPipeline {
         return .init(
             finalText: finalText,
             path: gateResult.accepted ? .llm : .llmRejected,
-            gateFailureReason: gateResult.failureReason
+            gateFailureReason: gateResult.failureReason,
+            failureContext: nil
         )
     }
 
     static func failedPostflight(
-        deterministicText: String
+        deterministicText: String,
+        failureContext: String? = nil
     ) -> NormalizationPipelinePostflight {
         .init(
             finalText: deterministicText,
             path: .llmFailed,
-            gateFailureReason: nil
+            gateFailureReason: nil,
+            failureContext: failureContext
         )
     }
 }
