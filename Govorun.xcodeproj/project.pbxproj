@@ -13,6 +13,7 @@
 		0C8E29BC5E391368ED2AA60E /* ActivationKeyMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14BC63DADD871F4DF9302081 /* ActivationKeyMonitorTests.swift */; };
 		0D6897EE67FFCDF301CFC7C7 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93342824A94E4C7C5819F577 /* SettingsWindowController.swift */; };
 		10B0022E67DCC9C546F62927 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47684C610847BC47C88AF60E /* HistoryView.swift */; };
+		14DE47343A59ABCCF28ADA53 /* NormalizationPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CDCA9EBA069917D92F6F87 /* NormalizationPipeline.swift */; };
 		157A11B2D8A737A1AC1D8788 /* SettingsTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C663D82CA0B022162A4ECDF3 /* SettingsTheme.swift */; };
 		15D01FE3B2F052C4DC418202 /* NumberNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F7496CFDD5C640E246C5590 /* NumberNormalizerTests.swift */; };
 		1E1FD6A2A99EFCB82A38BFB0 /* RecreateMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F67F121D59B2796FF982947 /* RecreateMonitorTests.swift */; };
@@ -60,6 +61,7 @@
 		8EBA361DC34ACBA17A737091 /* Snippet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C1D6A76F016B9FB7B36935 /* Snippet.swift */; };
 		8F1B93B45D12D0AEF339BDB6 /* PostInsertionProviders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A8CE6CEEE393DB1B285273 /* PostInsertionProviders.swift */; };
 		91721B57610A7D52B3B9DDD1 /* NormalizationGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCF0D5497E4FF297C0EDAA7 /* NormalizationGateTests.swift */; };
+		9636ABC23577A6FE901E4E12 /* NormalizationPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CB577C4AAD81289814C2CA6 /* NormalizationPipelineTests.swift */; };
 		97F580D6CA61AC67DA9BA975 /* TextInserterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */; };
 		98DB996040D1E91158E31ADB /* GovorunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 520999CA027A9B517E78049F /* GovorunTests.swift */; };
 		9AC2C85AE12704C8DD7204E7 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB9E75E47CE0306274578811 /* HistoryStore.swift */; };
@@ -178,6 +180,7 @@
 		84A33FF37715682CBBDB4BCD /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		878B2E8058F5C95D62643612 /* LocalSTTClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSTTClientTests.swift; sourceTree = "<group>"; };
 		8A46918EA766325EBB622716 /* ActivationKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationKey.swift; sourceTree = "<group>"; };
+		8CB577C4AAD81289814C2CA6 /* NormalizationPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationPipelineTests.swift; sourceTree = "<group>"; };
 		8F67F121D59B2796FF982947 /* RecreateMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecreateMonitorTests.swift; sourceTree = "<group>"; };
 		90B5AACB6D688C8440AACCF6 /* LocalLLMClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMClientTests.swift; sourceTree = "<group>"; };
 		93342824A94E4C7C5819F577 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
@@ -200,6 +203,7 @@
 		BC90482DBAA525B239F62162 /* LLMClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMClient.swift; sourceTree = "<group>"; };
 		BE9F32511E551D266CFDF3F7 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
 		C11755056C78DA9A3DE181C0 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		C4CDCA9EBA069917D92F6F87 /* NormalizationPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationPipeline.swift; sourceTree = "<group>"; };
 		C59DE7257F806F9E09A929C0 /* LocalSTTClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSTTClient.swift; sourceTree = "<group>"; };
 		C663D82CA0B022162A4ECDF3 /* SettingsTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTheme.swift; sourceTree = "<group>"; };
 		C6A832786FE0633629D6CD8F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -311,6 +315,7 @@
 				634A6B60896D5BBAD1DDAD92 /* ErrorMessages.swift */,
 				CD3BCD3255FD1F71FCA3712D /* NetworkMonitor.swift */,
 				2E2695EC730AB72F2B7BFB44 /* NormalizationGate.swift */,
+				C4CDCA9EBA069917D92F6F87 /* NormalizationPipeline.swift */,
 				DB050E6FFF7217B85AAEBEE7 /* NumberNormalizer.swift */,
 				AED17520D0D47BC3588CFB67 /* PipelineEngine.swift */,
 				AD57F2CAF152D7085C5A219B /* PostInsertionMonitor.swift */,
@@ -371,6 +376,7 @@
 				B01CB9DB91032D9EABDDEACA /* MetricsAggregatorTests.swift */,
 				CB2F6608A6960547A380E24C /* ModelManagerTests.swift */,
 				9FCF0D5497E4FF297C0EDAA7 /* NormalizationGateTests.swift */,
+				8CB577C4AAD81289814C2CA6 /* NormalizationPipelineTests.swift */,
 				5F7496CFDD5C640E246C5590 /* NumberNormalizerTests.swift */,
 				3D3F66ED66F0E696CCCA5DD0 /* PipelineEngineTests.swift */,
 				27DDC5AB9A47F49BE8F9975D /* PolishTests.swift */,
@@ -545,6 +551,7 @@
 				450232D47F3A0A4838F2674D /* MetricsAggregatorTests.swift in Sources */,
 				21012316C8692E8A451DD1F5 /* ModelManagerTests.swift in Sources */,
 				91721B57610A7D52B3B9DDD1 /* NormalizationGateTests.swift in Sources */,
+				9636ABC23577A6FE901E4E12 /* NormalizationPipelineTests.swift in Sources */,
 				15D01FE3B2F052C4DC418202 /* NumberNormalizerTests.swift in Sources */,
 				EF9D0F118C9BF5B4F9C9FCB1 /* PipelineEngineTests.swift in Sources */,
 				E75FFE6660AF5EFDD00EA402 /* PolishTests.swift in Sources */,
@@ -599,6 +606,7 @@
 				73E9F0BACB4F6CA9F6032704 /* NSWorkspaceProvider.swift in Sources */,
 				85E3D5B4B248B068EF02B025 /* NetworkMonitor.swift in Sources */,
 				DAE1AF4419C5BCB53B1CAE83 /* NormalizationGate.swift in Sources */,
+				14DE47343A59ABCCF28ADA53 /* NormalizationPipeline.swift in Sources */,
 				EAFCA49DF7A7F3DC6231F8FD /* NumberNormalizer.swift in Sources */,
 				2501576E415EFEA5B9398464 /* OnboardingView.swift in Sources */,
 				08E097BC16B8F13DD54DB8FF /* OnboardingWindowController.swift in Sources */,

@@ -12,6 +12,17 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+HELPER_SOURCE = REPO_ROOT / "scripts" / "benchmark-full-pipeline-helper.swift"
+HELPER_BINARY = REPO_ROOT / "build" / "benchmark-full-pipeline-helper"
+HELPER_SWIFT_SOURCES = [
+    REPO_ROOT / "Govorun/Models/TextMode.swift",
+    REPO_ROOT / "Govorun/Core/NumberNormalizer.swift",
+    REPO_ROOT / "Govorun/Core/NormalizationGate.swift",
+    REPO_ROOT / "Govorun/Core/NormalizationPipeline.swift",
+    HELPER_SOURCE,
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -81,6 +92,30 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Optional PID of local LLM server to sample RSS via ps.",
     )
+    parser.add_argument(
+        "--pipeline-mode",
+        choices=["llm-only", "full-pipeline"],
+        default="llm-only",
+        help="Benchmark only the LLM input/output contract or the full normalization pipeline.",
+    )
+    parser.add_argument(
+        "--text-mode",
+        default="universal",
+        help="TextMode raw value for generated production prompt in full-pipeline mode.",
+    )
+    parser.add_argument(
+        "--current-date",
+        help="Optional date in YYYY-MM-DD for generated production prompt in full-pipeline mode.",
+    )
+    parser.add_argument(
+        "--expected-key",
+        help="Optional dataset field to compare against. By default full-pipeline prefers expected_full_pipeline, then expected.",
+    )
+    parser.add_argument(
+        "--no-terminal-period",
+        action="store_true",
+        help="Disable terminal period policy in full-pipeline mode.",
+    )
     return parser.parse_args()
 
 
@@ -99,6 +134,98 @@ def load_system_prompt(path: str | None) -> str | None:
     if not path:
         return None
     return Path(path).read_text(encoding="utf-8").strip()
+
+
+def ensure_full_pipeline_helper(binary_path: Path) -> Path:
+    binary_path.parent.mkdir(parents=True, exist_ok=True)
+    if binary_path.exists():
+        binary_mtime = binary_path.stat().st_mtime
+        if all(source.exists() and source.stat().st_mtime <= binary_mtime for source in HELPER_SWIFT_SOURCES):
+            return binary_path
+
+    compile_cmd = [
+        "xcrun",
+        "swiftc",
+        *[str(source) for source in HELPER_SWIFT_SOURCES],
+        "-o",
+        str(binary_path),
+    ]
+    subprocess.run(compile_cmd, check=True, cwd=REPO_ROOT)
+    return binary_path
+
+
+class FullPipelineHelper:
+    def __init__(self, binary_path: Path) -> None:
+        self.process = subprocess.Popen(
+            [str(binary_path)],
+            cwd=REPO_ROOT,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            bufsize=1,
+        )
+
+    def request(self, payload: dict) -> dict:
+        if self.process.stdin is None or self.process.stdout is None:
+            raise RuntimeError("Full pipeline helper pipes are not available")
+
+        self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        self.process.stdin.flush()
+
+        line = self.process.stdout.readline()
+        if not line:
+            stderr = ""
+            if self.process.stderr is not None:
+                stderr = self.process.stderr.read().strip()
+            raise RuntimeError(f"Full pipeline helper exited unexpectedly: {stderr}")
+
+        response = json.loads(line)
+        if not response.get("ok"):
+            raise RuntimeError(response.get("error", "unknown helper error"))
+        return response
+
+    def close(self) -> None:
+        if self.process.poll() is not None:
+            return
+        self.process.terminate()
+        try:
+            self.process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+
+
+def resolve_expected(sample: dict, args: argparse.Namespace) -> tuple[str, str | None]:
+    if args.expected_key:
+        return args.expected_key, sample.get(args.expected_key)
+
+    if args.pipeline_mode == "full-pipeline" and "expected_full_pipeline" in sample:
+        return "expected_full_pipeline", sample.get("expected_full_pipeline")
+
+    return "expected", sample.get("expected")
+
+
+def resolve_system_prompt(
+    *,
+    args: argparse.Namespace,
+    helper: FullPipelineHelper | None,
+) -> tuple[str | None, str | None]:
+    if args.system_prompt_file:
+        return load_system_prompt(args.system_prompt_file), args.system_prompt_file
+
+    if args.pipeline_mode != "full-pipeline":
+        return None, None
+
+    if helper is None:
+        raise RuntimeError("Full pipeline helper is required to generate the production system prompt")
+
+    response = helper.request({
+        "op": "prompt",
+        "textMode": args.text_mode,
+        "currentDate": args.current_date,
+    })
+    return response["systemPrompt"], "<generated-from-production>"
 
 
 def request_completion(
@@ -248,13 +375,20 @@ def summarize(rows: list[dict]) -> dict:
         "first_token_latency_ms": metric_block("first_token_latency_ms"),
         "buckets": {},
     }
+    llm_latency = metric_block("llm_total_latency_ms")
+    if llm_latency["count"] > 0:
+        summary["llm_latency_ms"] = llm_latency
 
     for bucket in buckets:
-        summary["buckets"][bucket] = {
+        bucket_summary = {
             "samples": sum(1 for row in rows if row.get("bucket") == bucket),
             "latency_ms": metric_block("total_latency_ms", bucket=bucket),
             "first_token_latency_ms": metric_block("first_token_latency_ms", bucket=bucket),
         }
+        llm_bucket_latency = metric_block("llm_total_latency_ms", bucket=bucket)
+        if llm_bucket_latency["count"] > 0:
+            bucket_summary["llm_latency_ms"] = llm_bucket_latency
+        summary["buckets"][bucket] = bucket_summary
 
     rss_values = [row["rss_after_kb"] for row in rows if isinstance(row.get("rss_after_kb"), int)]
     if rss_values:
@@ -354,6 +488,14 @@ def summarize(rows: list[dict]) -> dict:
                     100.0 * b_errors / b_total, 1
                 )
 
+    path_counts: dict[str, int] = {}
+    for row in rows:
+        path = row.get("normalization_path")
+        if isinstance(path, str):
+            path_counts[path] = path_counts.get(path, 0) + 1
+    if path_counts:
+        summary["normalization_paths"] = path_counts
+
     return summary
 
 
@@ -367,115 +509,226 @@ def main() -> int:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
 
     dataset = load_dataset(dataset_path)
-    system_prompt = load_system_prompt(args.system_prompt_file)
 
-    print(f"Loaded {len(dataset)} samples from {dataset_path}")
-    if system_prompt:
-        print(f"Using system prompt from {args.system_prompt_file}")
+    helper: FullPipelineHelper | None = None
+    if args.pipeline_mode == "full-pipeline":
+        helper_binary = ensure_full_pipeline_helper(HELPER_BINARY)
+        helper = FullPipelineHelper(helper_binary)
 
-    stop_sequences = None
-    if args.stop:
-        try:
-            stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
-        except (UnicodeDecodeError, ValueError) as exc:
-            print(f"Invalid stop sequence format: {exc}", file=sys.stderr)
-            return 1
+    try:
+        system_prompt, prompt_source = resolve_system_prompt(args=args, helper=helper)
 
-    recorded_rows: list[dict] = []
-    with output_path.open("w", encoding="utf-8") as output_file:
-        for index, sample in enumerate(dataset):
-            rss_before_kb = read_rss_kb(args.server_pid)
+        print(f"Loaded {len(dataset)} samples from {dataset_path}")
+        print(f"Pipeline mode: {args.pipeline_mode}")
+        if system_prompt:
+            print(f"Using system prompt from {prompt_source}")
 
+        stop_sequences = None
+        if args.stop:
             try:
-                output_text, first_token_ms, total_latency_ms = request_completion(
-                    base_url=args.base_url,
-                    model=args.model,
-                    user_text=sample["input"],
-                    system_prompt=system_prompt,
-                    timeout=args.timeout,
-                    max_tokens=args.max_tokens,
-                    temperature=args.temperature,
-                    stop=stop_sequences,
-                )
-            except Exception as exc:  # noqa: BLE001
+                stop_sequences = [s.encode().decode("unicode_escape") for s in args.stop]
+            except (UnicodeDecodeError, ValueError) as exc:
+                print(f"Invalid stop sequence format: {exc}", file=sys.stderr)
+                return 1
+
+        recorded_rows: list[dict] = []
+        with output_path.open("w", encoding="utf-8") as output_file:
+            for index, sample in enumerate(dataset):
+                rss_before_kb = read_rss_kb(args.server_pid)
+                expected_key, expected_value = resolve_expected(sample, args)
+                pipeline_start = time.perf_counter()
+
                 result = {
                     **sample,
-                    "error": str(exc),
-                    "rss_before_kb": rss_before_kb,
-                    "rss_after_kb": read_rss_kb(args.server_pid),
+                    "expected": expected_value,
+                    "expected_key": expected_key,
                 }
-                output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
-                print(f"[{index + 1}/{len(dataset)}] {sample['id']}: ERROR {exc}", file=sys.stderr)
-                continue
 
-            rss_after_kb = read_rss_kb(args.server_pid)
-            result = {
-                **sample,
-                "output": output_text,
-                "first_token_latency_ms": round(first_token_ms, 2) if first_token_ms is not None else None,
-                "total_latency_ms": round(total_latency_ms, 2),
-                "rss_before_kb": rss_before_kb,
-                "rss_after_kb": rss_after_kb,
-            }
-            output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
+                if args.pipeline_mode == "full-pipeline":
+                    assert helper is not None
+                    preflight = helper.request({
+                        "op": "preflight",
+                        "transcript": sample["input"],
+                        "terminalPeriodEnabled": not args.no_terminal_period,
+                    })
+                    deterministic_text = preflight["deterministicText"]
+                    should_invoke_llm = bool(preflight["shouldInvokeLLM"])
+                    result["deterministic_input"] = deterministic_text
 
-            label = "warmup" if index < args.warmup else "recorded"
-            print(
-                f"[{index + 1}/{len(dataset)}] {sample['id']} "
-                f"{label} total={result['total_latency_ms']}ms "
-                f"first={result['first_token_latency_ms']}ms"
-            )
-
-            if index >= args.warmup:
-                recorded_rows.append(result)
-
-    summary = summarize(recorded_rows)
-    summary.update(
-        {
-            "dataset": str(dataset_path),
-            "model": args.model,
-            "base_url": args.base_url,
-            "warmup": args.warmup,
-        }
-    )
-
-    summary_path.write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    print(f"\nSaved raw results to {output_path}")
-    print(f"Saved summary to {summary_path}")
-
-    # Print quality report
-    quality = summary.get("quality")
-    if quality:
-        print(f"\n{'='*60}")
-        print(f"QUALITY: {quality['period_tolerant_pct']}% period-tolerant match "
-              f"end-to-end ({quality['period_tolerant_match']}/{quality['total']})")
-        print(f"         {quality['exact_match_pct']}% exact match "
-              f"end-to-end ({quality['exact_match']}/{quality['total']})")
-        print(f"         {quality['completed_pct']}% completed "
-              f"({quality['completed']}/{quality['total']}), "
-              f"errors={quality['errors']}")
-        for bucket_name in sorted(summary.get("buckets", {})):
-            pct = summary["buckets"][bucket_name].get("period_tolerant_pct", "?")
-            cnt = summary["buckets"][bucket_name].get("samples", "?")
-            print(f"  {bucket_name:8s}: {pct}% ({cnt} samples)")
-        if quality["failures"]:
-            print(f"\nFAILURES ({len(quality['failures'])}):")
-            for f in quality["failures"]:
-                print(f"  [{f['id']}] {f['bucket']}")
-                if "error" in f:
-                    print(f"    error:    {f['error']}")
-                    if f.get("expected") is not None:
-                        print(f"    expected: {f['expected']}")
+                    if not should_invoke_llm:
+                        total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
+                        result.update({
+                            "output": deterministic_text,
+                            "normalization_path": "trivial",
+                            "llm_total_latency_ms": None,
+                            "first_token_latency_ms": None,
+                            "total_latency_ms": round(total_latency_ms, 2),
+                            "rss_before_kb": rss_before_kb,
+                            "rss_after_kb": read_rss_kb(args.server_pid),
+                        })
+                    else:
+                        try:
+                            llm_output, first_token_ms, llm_total_latency_ms = request_completion(
+                                base_url=args.base_url,
+                                model=args.model,
+                                user_text=deterministic_text,
+                                system_prompt=system_prompt,
+                                timeout=args.timeout,
+                                max_tokens=args.max_tokens,
+                                temperature=args.temperature,
+                                stop=stop_sequences,
+                            )
+                            postflight = helper.request({
+                                "op": "postflight",
+                                "deterministicText": deterministic_text,
+                                "llmOutput": llm_output,
+                                "textMode": args.text_mode,
+                                "terminalPeriodEnabled": not args.no_terminal_period,
+                            })
+                            total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
+                            result.update({
+                                "llm_output": llm_output,
+                                "output": postflight["finalText"],
+                                "normalization_path": postflight["normalizationPath"],
+                                "gate_failure_reason": postflight.get("gateFailureReason"),
+                                "llm_total_latency_ms": round(llm_total_latency_ms, 2),
+                                "first_token_latency_ms": (
+                                    round(first_token_ms, 2) if first_token_ms is not None else None
+                                ),
+                                "total_latency_ms": round(total_latency_ms, 2),
+                                "rss_before_kb": rss_before_kb,
+                                "rss_after_kb": read_rss_kb(args.server_pid),
+                            })
+                        except Exception as exc:  # noqa: BLE001
+                            postflight = helper.request({
+                                "op": "failed-postflight",
+                                "deterministicText": deterministic_text,
+                            })
+                            total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
+                            result.update({
+                                "output": postflight["finalText"],
+                                "normalization_path": postflight["normalizationPath"],
+                                "llm_total_latency_ms": None,
+                                "first_token_latency_ms": None,
+                                "total_latency_ms": round(total_latency_ms, 2),
+                                "rss_before_kb": rss_before_kb,
+                                "rss_after_kb": read_rss_kb(args.server_pid),
+                                "error": str(exc),
+                            })
+                            output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
+                            print(
+                                f"[{index + 1}/{len(dataset)}] {sample['id']}: ERROR {exc}",
+                                file=sys.stderr,
+                            )
+                            if index >= args.warmup:
+                                recorded_rows.append(result)
+                            continue
                 else:
-                    print(f"    expected: {f['expected']}")
-                    print(f"    got:      {f['output']}")
-        print(f"{'='*60}")
-    else:
-        print(json.dumps(summary, ensure_ascii=False, indent=2))
+                    try:
+                        output_text, first_token_ms, total_latency_ms = request_completion(
+                            base_url=args.base_url,
+                            model=args.model,
+                            user_text=sample["input"],
+                            system_prompt=system_prompt,
+                            timeout=args.timeout,
+                            max_tokens=args.max_tokens,
+                            temperature=args.temperature,
+                            stop=stop_sequences,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        result.update({
+                            "error": str(exc),
+                            "rss_before_kb": rss_before_kb,
+                            "rss_after_kb": read_rss_kb(args.server_pid),
+                        })
+                        output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
+                        print(
+                            f"[{index + 1}/{len(dataset)}] {sample['id']}: ERROR {exc}",
+                            file=sys.stderr,
+                        )
+                        if index >= args.warmup:
+                            recorded_rows.append(result)
+                        continue
+
+                    result.update({
+                        "output": output_text,
+                        "first_token_latency_ms": (
+                            round(first_token_ms, 2) if first_token_ms is not None else None
+                        ),
+                        "total_latency_ms": round(total_latency_ms, 2),
+                        "rss_before_kb": rss_before_kb,
+                        "rss_after_kb": read_rss_kb(args.server_pid),
+                    })
+
+                output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
+
+                label = "warmup" if index < args.warmup else "recorded"
+                print(
+                    f"[{index + 1}/{len(dataset)}] {sample['id']} "
+                    f"{label} total={result['total_latency_ms']}ms "
+                    f"first={result.get('first_token_latency_ms')}ms "
+                    f"path={result.get('normalization_path', 'llm-only')}"
+                )
+
+                if index >= args.warmup:
+                    recorded_rows.append(result)
+
+        summary = summarize(recorded_rows)
+        summary.update(
+            {
+                "dataset": str(dataset_path),
+                "model": args.model,
+                "base_url": args.base_url,
+                "warmup": args.warmup,
+                "pipeline_mode": args.pipeline_mode,
+                "text_mode": args.text_mode,
+                "expected_key": args.expected_key or (
+                    "expected_full_pipeline_or_expected"
+                    if args.pipeline_mode == "full-pipeline"
+                    else "expected"
+                ),
+            }
+        )
+
+        summary_path.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        print(f"\nSaved raw results to {output_path}")
+        print(f"Saved summary to {summary_path}")
+
+        quality = summary.get("quality")
+        if quality:
+            print(f"\n{'='*60}")
+            print(f"QUALITY: {quality['period_tolerant_pct']}% period-tolerant match "
+                  f"end-to-end ({quality['period_tolerant_match']}/{quality['total']})")
+            print(f"         {quality['exact_match_pct']}% exact match "
+                  f"end-to-end ({quality['exact_match']}/{quality['total']})")
+            print(f"         {quality['completed_pct']}% completed "
+                  f"({quality['completed']}/{quality['total']}), "
+                  f"errors={quality['errors']}")
+            for bucket_name in sorted(summary.get("buckets", {})):
+                pct = summary["buckets"][bucket_name].get("period_tolerant_pct", "?")
+                cnt = summary["buckets"][bucket_name].get("samples", "?")
+                print(f"  {bucket_name:8s}: {pct}% ({cnt} samples)")
+            if quality["failures"]:
+                print(f"\nFAILURES ({len(quality['failures'])}):")
+                for f in quality["failures"]:
+                    print(f"  [{f['id']}] {f['bucket']}")
+                    if "error" in f:
+                        print(f"    error:    {f['error']}")
+                        if f.get("expected") is not None:
+                            print(f"    expected: {f['expected']}")
+                    else:
+                        print(f"    expected: {f['expected']}")
+                        print(f"    got:      {f['output']}")
+            print(f"{'='*60}")
+        else:
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+    finally:
+        if helper is not None:
+            helper.close()
 
     return 0
 
