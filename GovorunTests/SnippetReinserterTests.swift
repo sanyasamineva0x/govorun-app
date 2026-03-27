@@ -138,4 +138,20 @@ final class SnippetReinserterTests: XCTestCase {
         )
         XCTAssertEqual(result, "Мой адрес: Аминева 9")
     }
+
+    func test_mechanicalFallback_preserves_symbols_outside_trigger() {
+        let result = SnippetReinserter.mechanicalFallback(
+            rawTranscript: "привет мой адрес и напомни про 25% и 1 000 рублей",
+            trigger: "мой адрес", content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "Привет мой адрес: Аминева 9 и напомни про 25% и 1 000 рублей")
+    }
+
+    func test_mechanicalFallback_preserves_terminal_punctuation() {
+        let result = SnippetReinserter.mechanicalFallback(
+            rawTranscript: "привет мой адрес.",
+            trigger: "мой адрес", content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "Привет мой адрес: Аминева 9.")
+    }
 }

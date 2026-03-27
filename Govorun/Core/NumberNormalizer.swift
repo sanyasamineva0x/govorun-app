@@ -87,10 +87,10 @@ enum NumberNormalizer {
 
     private enum SpanKind {
         case percent(Double)
-        case money(amount: Double, currency: Currency)
+        case money(amount: Double, currency: Currency, kopecks: Int?)
         case time(hour: Int, minute: Int)
         case duration(value: Double, unit: DurationUnit)
-        case date(day: Int, month: String)
+        case date(day: Int, month: String, year: Int?)
         case ordinal(value: Int, suffix: String)
         case cardinal(Double)
         case expandedAbbreviation(Double)
@@ -190,6 +190,25 @@ enum NumberNormalizer {
             case .usd: return ["доллар", "доллара", "долларов"][idx]
             case .eur: return "евро"
             }
+        }
+
+        func subunitForm(for value: Int) -> String? {
+            guard self == .rub else { return nil }
+
+            let absVal = abs(value)
+            let lastTwo = absVal % 100
+            let lastOne = absVal % 10
+
+            if (11...14).contains(lastTwo) {
+                return "копеек"
+            }
+            if lastOne == 1 {
+                return "копейка"
+            }
+            if (2...4).contains(lastOne) {
+                return "копейки"
+            }
+            return "копеек"
         }
     }
 
@@ -358,8 +377,12 @@ enum NumberNormalizer {
             NumberNormalizer.formatNumber(value) + "%"
         }
 
-        static func formatMoney(_ value: Double, _ currency: Currency) -> String {
-            NumberNormalizer.formatNumber(value) + " " + currency.form(for: value)
+        static func formatMoney(_ value: Double, _ currency: Currency, kopecks: Int? = nil) -> String {
+            var result = NumberNormalizer.formatNumber(value) + " " + currency.form(for: value)
+            if let kopecks, let subunit = currency.subunitForm(for: kopecks) {
+                result += " \(kopecks) \(subunit)"
+            }
+            return result
         }
 
         static func formatTime(_ hour: Int, _ minute: Int) -> String {
@@ -408,6 +431,20 @@ enum NumberNormalizer {
         var spans: [Span] = []
         var i = 0
         while i < tokens.count {
+            // Numeric: 25 процентов / 12,5 процента
+            if let numResult = parseNumericNumber(tokens, at: i), numResult.currency == nil {
+                let afterIdx = i + numResult.consumed
+                if afterIdx < tokens.count, percentWords.contains(tokens[afterIdx].core.lowercased()) {
+                    spans.append(Span(
+                        range: i..<(afterIdx + 1),
+                        kind: .percent(numResult.value),
+                        priority: SpanPriority.percent
+                    ))
+                    i = afterIdx + 1
+                    continue
+                }
+            }
+
             // Numeric: 25% (процент в core)
             if let numResult = parseNumericNumber(tokens, at: i) {
                 let lastIdx = i + numResult.consumed - 1
@@ -451,12 +488,13 @@ enum NumberNormalizer {
         while i < tokens.count {
             // Numeric с валютой: 1000₽, 500$, 1 000₽
             if let numResult = parseNumericNumber(tokens, at: i), let currency = numResult.currency {
+                let subunit = parseCurrencySubunit(tokens, at: i + numResult.consumed, currency: currency)
                 spans.append(Span(
-                    range: i..<(i + numResult.consumed),
-                    kind: .currencySymbolToWord(numResult.value, currency),
+                    range: i..<(i + numResult.consumed + (subunit?.consumed ?? 0)),
+                    kind: .money(amount: numResult.value, currency: currency, kopecks: subunit?.value),
                     priority: SpanPriority.currencySymbol
                 ))
-                i += numResult.consumed
+                i += numResult.consumed + (subunit?.consumed ?? 0)
                 continue
             }
 
@@ -466,12 +504,13 @@ enum NumberNormalizer {
                 if afterIdx < tokens.count {
                     let nextCore = tokens[afterIdx].core.lowercased()
                     if let curr = Currency.wordForms[nextCore] {
+                        let subunit = parseCurrencySubunit(tokens, at: afterIdx + 1, currency: curr)
                         spans.append(Span(
-                            range: i..<(afterIdx + 1),
-                            kind: .money(amount: numResult.value, currency: curr),
+                            range: i..<(afterIdx + 1 + (subunit?.consumed ?? 0)),
+                            kind: .money(amount: numResult.value, currency: curr, kopecks: subunit?.value),
                             priority: SpanPriority.money
                         ))
-                        i = afterIdx + 1
+                        i = afterIdx + 1 + (subunit?.consumed ?? 0)
                         continue
                     }
                 }
@@ -483,12 +522,13 @@ enum NumberNormalizer {
                 if afterIdx < tokens.count {
                     let nextCore = tokens[afterIdx].core.lowercased()
                     if let curr = Currency.wordForms[nextCore] {
+                        let subunit = parseCurrencySubunit(tokens, at: afterIdx + 1, currency: curr)
                         spans.append(Span(
-                            range: i..<(afterIdx + 1),
-                            kind: .money(amount: spoken.value, currency: curr),
+                            range: i..<(afterIdx + 1 + (subunit?.consumed ?? 0)),
+                            kind: .money(amount: spoken.value, currency: curr, kopecks: subunit?.value),
                             priority: SpanPriority.money
                         ))
-                        i = afterIdx + 1
+                        i = afterIdx + 1 + (subunit?.consumed ?? 0)
                         continue
                     }
                 }
@@ -497,6 +537,42 @@ enum NumberNormalizer {
             i += 1
         }
         return spans
+    }
+
+    private static func parseCurrencySubunit(
+        _ tokens: [Token],
+        at start: Int,
+        currency: Currency
+    ) -> (value: Int, consumed: Int)? {
+        guard currency == .rub, start < tokens.count else { return nil }
+
+        if let numeric = parseNumericNumber(tokens, at: start), numeric.currency == nil {
+            let nextIndex = start + numeric.consumed
+            if nextIndex < tokens.count,
+               kopeckWords.contains(tokens[nextIndex].core.lowercased()),
+               numeric.value.rounded(.down) == numeric.value
+            {
+                let value = Int(numeric.value)
+                if (0...99).contains(value) {
+                    return (value, numeric.consumed + 1)
+                }
+            }
+        }
+
+        if let spoken = parseSpokenNumber(tokens, at: start) {
+            let nextIndex = start + spoken.consumedCount
+            if nextIndex < tokens.count,
+               kopeckWords.contains(tokens[nextIndex].core.lowercased()),
+               spoken.value.rounded(.down) == spoken.value
+            {
+                let value = Int(spoken.value)
+                if (0...99).contains(value) {
+                    return (value, spoken.consumedCount + 1)
+                }
+            }
+        }
+
+        return nil
     }
 
     /// Abbreviation spans: 2 млн → 2 000 000
@@ -539,6 +615,28 @@ enum NumberNormalizer {
 
             // Паттерн 1: предлог + число + час (+ число + минут) → time
             if timePrepositions.contains(lower), i + 1 < tokens.count {
+                if let hourResult = parseSpokenNumber(tokens, at: i + 1) {
+                    let minuteStart = i + 1 + hourResult.consumedCount
+                    if let minuteResult = parseSpokenNumber(tokens, at: minuteStart) {
+                        let hour = Int(hourResult.value)
+                        let minutes = Int(minuteResult.value)
+                        let afterMinute = minuteStart + minuteResult.consumedCount
+
+                        if (0...23).contains(hour),
+                           (0...59).contains(minutes),
+                           !(afterMinute < tokens.count && timeOfDayWords.contains(tokens[afterMinute].core.lowercased()))
+                        {
+                            spans.append(Span(
+                                range: (i + 1)..<afterMinute,
+                                kind: .time(hour: hour, minute: minutes),
+                                priority: SpanPriority.time
+                            ))
+                            i = afterMinute
+                            continue
+                        }
+                    }
+                }
+
                 if let hourResult = parseSpokenNumber(tokens, at: i + 1) {
                     let hourIdx = i + 1 + hourResult.consumedCount
                     if hourIdx < tokens.count, hourWords.contains(tokens[hourIdx].core.lowercased()) {
@@ -635,12 +733,14 @@ enum NumberNormalizer {
                     let dayValue = tens + ord.value
                     let monthIdx = i + 2
                     if monthIdx < tokens.count, months.contains(tokens[monthIdx].core.lowercased()) {
+                        let year = parseYear(tokens, at: monthIdx + 1)
+                        let upperBound = monthIdx + 1 + (year?.consumed ?? 0)
                         spans.append(Span(
-                            range: i..<(monthIdx + 1),
-                            kind: .date(day: dayValue, month: tokens[monthIdx].core),
+                            range: i..<upperBound,
+                            kind: .date(day: dayValue, month: tokens[monthIdx].core, year: year?.value),
                             priority: SpanPriority.date
                         ))
-                        i = monthIdx + 1
+                        i = upperBound
                         continue
                     }
                 }
@@ -650,12 +750,14 @@ enum NumberNormalizer {
             if let ord = ordinalForms[lower], i + 1 < tokens.count {
                 let monthIdx = i + 1
                 if months.contains(tokens[monthIdx].core.lowercased()) {
+                    let year = parseYear(tokens, at: monthIdx + 1)
+                    let upperBound = monthIdx + 1 + (year?.consumed ?? 0)
                     spans.append(Span(
-                        range: i..<(monthIdx + 1),
-                        kind: .date(day: ord.value, month: tokens[monthIdx].core),
+                        range: i..<upperBound,
+                        kind: .date(day: ord.value, month: tokens[monthIdx].core, year: year?.value),
                         priority: SpanPriority.date
                     ))
-                    i = monthIdx + 1
+                    i = upperBound
                     continue
                 }
             }
@@ -663,6 +765,57 @@ enum NumberNormalizer {
             i += 1
         }
         return spans
+    }
+
+    private static func parseYear(_ tokens: [Token], at start: Int) -> (value: Int, consumed: Int)? {
+        guard start < tokens.count else { return nil }
+
+        if let numeric = parseNumericNumber(tokens, at: start),
+           numeric.currency == nil,
+           !numeric.isAbbreviated,
+           numeric.value.rounded(.down) == numeric.value
+        {
+            let year = Int(numeric.value)
+            if validYearRange.contains(year) {
+                let trailingYearWord = start + numeric.consumed < tokens.count &&
+                    yearWords.contains(tokens[start + numeric.consumed].core.lowercased())
+                return (year, numeric.consumed + (trailingYearWord ? 1 : 0))
+            }
+        }
+
+        let words = Array(tokens[start...]).map { $0.core.lowercased() }
+        if let spoken = parseNumber(words), spoken.value.rounded(.down) == spoken.value {
+            let year = Int(spoken.value)
+            if start + spoken.consumedCount < tokens.count,
+               let ordinal = ordinalForms[words[spoken.consumedCount]],
+               let combined = combineYear(base: year, suffixValue: ordinal.value),
+               validYearRange.contains(combined)
+            {
+                var consumed = spoken.consumedCount + 1
+                if start + consumed < tokens.count,
+                   yearWords.contains(tokens[start + consumed].core.lowercased())
+                {
+                    consumed += 1
+                }
+                return (combined, consumed)
+            }
+
+            if validYearRange.contains(year) {
+                let trailingYearWord = start + spoken.consumedCount < tokens.count &&
+                    yearWords.contains(tokens[start + spoken.consumedCount].core.lowercased())
+                return (year, spoken.consumedCount + (trailingYearWord ? 1 : 0))
+            }
+        }
+
+        return nil
+    }
+
+    private static func combineYear(base: Int, suffixValue: Int) -> Int? {
+        guard validYearRange.contains(base), suffixValue >= 0, suffixValue < 100 else { return nil }
+        let suffixWidth = suffixValue >= 10 ? 2 : 1
+        let divisor = suffixWidth == 2 ? 100 : 10
+        guard base % divisor == 0 else { return nil }
+        return base + suffixValue
     }
 
     /// Порядковые числительные (без месяца — даты обрабатываются parseDateSpans)
@@ -786,8 +939,8 @@ enum NumberNormalizer {
             switch span.kind {
             case .percent(let val):
                 formatted = CanonicalFormatter.formatPercent(val)
-            case .money(let amount, let curr):
-                formatted = CanonicalFormatter.formatMoney(amount, curr)
+            case .money(let amount, let curr, let kopecks):
+                formatted = CanonicalFormatter.formatMoney(amount, curr, kopecks: kopecks)
             case .currencySymbolToWord(let amount, let curr):
                 formatted = CanonicalFormatter.formatMoney(amount, curr)
             case .expandedAbbreviation(let val):
@@ -817,12 +970,15 @@ enum NumberNormalizer {
                     replace(&tokens, range: numRangeC, with: numFormatted, carryTrailingFrom: lastIdx - 1)
                     continue
                 }
-            case .date(let day, _):
-                guard span.range.count >= 2 else { continue }
-                // Дата: заменяем порядковое на число, месяц сохраняется
-                let numRangeC = span.range.lowerBound...(lastIdx - 1)
-                replace(&tokens, range: numRangeC, with: "\(day)", carryTrailingFrom: lastIdx - 1)
-                continue
+            case .date(let day, let month, let year):
+                if let year {
+                    formatted = "\(day) \(month) \(year)"
+                } else {
+                    guard span.range.count >= 2 else { continue }
+                    let numRangeC = span.range.lowerBound...(lastIdx - 1)
+                    replace(&tokens, range: numRangeC, with: "\(day)", carryTrailingFrom: lastIdx - 1)
+                    continue
+                }
             case .ordinal(let val, let suffix):
                 formatted = CanonicalFormatter.formatOrdinal(val, suffix)
             case .cardinal(let val):
@@ -1070,6 +1226,10 @@ enum NumberNormalizer {
         "минут", "минуты", "минуту", "минута", "минутам", "минутами", "минутах",
     ]
 
+    private static let timeOfDayWords: Set<String> = [
+        "утра", "вечера", "дня", "ночи",
+    ]
+
     // MARK: - Порядковые числительные (полный словарь форм)
 
     /// (value, suffix) — суффикс для записи "N-й", "N-е", "N-го" и т.д.
@@ -1167,6 +1327,16 @@ enum NumberNormalizer {
         "июля", "августа", "сентября", "октября", "ноября", "декабря",
     ]
 
+    private static let yearWords: Set<String> = [
+        "год", "года", "году", "годом",
+    ]
+
+    private static let kopeckWords: Set<String> = [
+        "копейка", "копейки", "копеек", "копейкам", "копейками", "копейках", "коп",
+    ]
+
+    private static let validYearRange = 1_000...2_100
+
     private static let cardinalTriggers: Set<String> = [
         "метр", "метра", "метров", "метрам",
         "километр", "километра", "километров", "километрам",
@@ -1176,9 +1346,12 @@ enum NumberNormalizer {
         "грамм", "грамма", "граммов", "граммам",
         "тонн", "тонна", "тонны", "тоннам",
         "литр", "литра", "литров", "литрам",
+        "градус", "градуса", "градусов",
         "штук", "штуки", "штука", "штукам",
         "гектар", "гектара", "гектаров",
         "раз", "раза",
+        "человек", "человека", "человеку", "человеком", "человеке",
+        "людей",
     ]
 
     // MARK: - normalize

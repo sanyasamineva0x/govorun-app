@@ -239,6 +239,10 @@ final class PercentageNormalizerTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("пять процентов годовых"), "5% годовых")
     }
 
+    func test_numeric_percent_word_form() {
+        XCTAssertEqual(NumberNormalizer.normalize("маржа выросла до 12,5 процента"), "маржа выросла до 12,5%")
+    }
+
     func test_no_match_процент_without_number() {
         XCTAssertEqual(NumberNormalizer.normalize("процентов нет"), "процентов нет")
     }
@@ -265,6 +269,13 @@ final class CurrencyNormalizerTests: XCTestCase {
 
     func test_currency_preserves_word_after() {
         XCTAssertEqual(NumberNormalizer.normalize("стоит двести рублей в месяц"), "стоит 200 рублей в месяц")
+    }
+
+    func test_девятьсот_рублей_пятьдесят_копеек() {
+        XCTAssertEqual(
+            NumberNormalizer.normalize("девятьсот рублей пятьдесят копеек"),
+            "900 рублей 50 копеек"
+        )
     }
 }
 
@@ -314,6 +325,14 @@ final class TimeNormalizerTests: XCTestCase {
     func test_три_тридцать_untouched() {
         XCTAssertEqual(NumberNormalizer.normalize("три тридцать"), "три тридцать")
     }
+
+    func test_в_пятнадцать_тридцать() {
+        XCTAssertEqual(NumberNormalizer.normalize("в пятнадцать тридцать"), "в 15:30")
+    }
+
+    func test_в_девять_вечера_stays() {
+        XCTAssertEqual(NumberNormalizer.normalize("в девять вечера"), "в девять вечера")
+    }
 }
 
 // MARK: - Даты
@@ -341,6 +360,13 @@ final class DateNormalizerTests: XCTestCase {
 
     func test_date_in_sentence() {
         XCTAssertEqual(NumberNormalizer.normalize("встреча двадцатого апреля"), "встреча 20 апреля")
+    }
+
+    func test_двадцать_третье_марта_две_тысячи_двадцать_шестого() {
+        XCTAssertEqual(
+            NumberNormalizer.normalize("двадцать третье марта две тысячи двадцать шестого"),
+            "23 марта 2026"
+        )
     }
 }
 
@@ -471,6 +497,20 @@ final class NumberNormalizerIntegrationTests: XCTestCase {
         XCTAssertEqual(
             DeterministicNormalizer.normalize("тринадцатое марта. двести рублей"),
             "13 марта. 200 рублей."
+        )
+    }
+
+    func test_temperature_canon_from_spoken_celsius() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("на улице двадцать пять градусов цельсия", terminalPeriodEnabled: false),
+            "На улице 25°C"
+        )
+    }
+
+    func test_unit_abbreviation_canon_expands_to_full_form() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("купи 5 кг яблок и 2 л молока", terminalPeriodEnabled: false),
+            "Купи 5 килограммов яблок и 2 литра молока"
         )
     }
 }
@@ -989,6 +1029,10 @@ final class V2PercentMoneySpanTests: XCTestCase {
         XCTAssertEqual(NumberNormalizer.normalize("двадцать пять процентов, и всё"), "25%, и всё")
     }
 
+    func test_numeric_percent_word_form_with_punctuation() {
+        XCTAssertEqual(NumberNormalizer.normalize("маржа выросла до 12,5 процента."), "маржа выросла до 12,5%.")
+    }
+
     // GigaAM: 1000₽ → 1 000 рублей
     func test_gigaam_rub_symbol() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}"), "1 000 рублей")
@@ -1043,6 +1087,10 @@ final class V2PercentMoneySpanTests: XCTestCase {
     /// Символ валюты с пунктуацией: 1000₽.
     func test_currency_symbol_with_trailing_period() {
         XCTAssertEqual(NumberNormalizer.normalize("1000\u{20BD}."), "1 000 рублей.")
+    }
+
+    func test_people_count_uses_digits() {
+        XCTAssertEqual(NumberNormalizer.normalize("семь человек"), "7 человек")
     }
 }
 

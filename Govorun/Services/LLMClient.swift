@@ -43,8 +43,9 @@ struct LocalLLMConfiguration: Equatable {
     static let defaultHealthcheckTimeout: TimeInterval = 1.5
     static let defaultHealthcheckTTL: TimeInterval = 30.0
     static let defaultFailureCooldown: TimeInterval = 5.0
-    static let defaultMaxOutputTokens = 192
+    static let defaultMaxOutputTokens = 128
     static let defaultTemperature = 0.0
+    static let defaultStopSequences = ["\n\n"]
 
     let baseURLString: String
     let model: String
@@ -54,6 +55,7 @@ struct LocalLLMConfiguration: Equatable {
     let failureCooldown: TimeInterval
     let maxOutputTokens: Int
     let temperature: Double
+    let stopSequences: [String]
 
     init(
         baseURLString: String = LocalLLMConfiguration.defaultBaseURLString,
@@ -63,7 +65,8 @@ struct LocalLLMConfiguration: Equatable {
         healthcheckSuccessTTL: TimeInterval = LocalLLMConfiguration.defaultHealthcheckTTL,
         failureCooldown: TimeInterval = LocalLLMConfiguration.defaultFailureCooldown,
         maxOutputTokens: Int = LocalLLMConfiguration.defaultMaxOutputTokens,
-        temperature: Double = LocalLLMConfiguration.defaultTemperature
+        temperature: Double = LocalLLMConfiguration.defaultTemperature,
+        stopSequences: [String] = LocalLLMConfiguration.defaultStopSequences
     ) {
         self.baseURLString = baseURLString
         self.model = model
@@ -73,6 +76,7 @@ struct LocalLLMConfiguration: Equatable {
         self.failureCooldown = max(0, failureCooldown)
         self.maxOutputTokens = max(1, maxOutputTokens)
         self.temperature = temperature
+        self.stopSequences = stopSequences
     }
 
     var normalizedBaseURL: URL? {
@@ -141,7 +145,8 @@ struct LocalLLMConfiguration: Equatable {
                 key: "GOVORUN_LLM_TEMPERATURE",
                 fallback: defaultTemperature,
                 environment: environment
-            )
+            ),
+            stopSequences: defaultStopSequences
         )
     }
 

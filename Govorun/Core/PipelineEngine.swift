@@ -114,6 +114,14 @@ struct SnippetMatch {
 // MARK: - Snippet Reinserter
 
 enum SnippetReinserter {
+    private static let tokenPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "\\S+")
+        } catch {
+            fatalError("Invalid snippet token regex: \(error)")
+        }
+    }()
+
     static func reinsert(llmOutput: String, content: String) -> String? {
         let token = SnippetPlaceholder.token
         let occurrences = llmOutput.components(separatedBy: token).count - 1
@@ -144,28 +152,70 @@ enum SnippetReinserter {
         trigger: String,
         content: String
     ) -> String {
-        let textTokens = SnippetEngine.tokenize(rawTranscript)
-        let triggerTokens = SnippetEngine.tokenize(trigger)
-        let windowSize = triggerTokens.count
+        if let triggerRange = triggerRange(in: rawTranscript, trigger: trigger) {
+            let prefix = rawTranscript[..<triggerRange.lowerBound]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let suffix = rawTranscript[triggerRange.upperBound...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if textTokens.count >= windowSize {
-            for i in 0...(textTokens.count - windowSize) {
-                let window = Array(textTokens[i..<(i + windowSize)])
-                if window == triggerTokens {
-                    let prefix = textTokens[0..<i]
-                    let suffix = textTokens[(i + windowSize)...]
-                    var parts: [String] = []
-                    if !prefix.isEmpty { parts.append(prefix.joined(separator: " ")) }
-                    parts.append("\(trigger): \(content)")
-                    if !suffix.isEmpty { parts.append(suffix.joined(separator: " ")) }
-                    let result = parts.joined(separator: " ")
-                    return result.prefix(1).uppercased() + result.dropFirst()
+            var result = ""
+            if !prefix.isEmpty {
+                result.append(String(prefix))
+                result.append(" ")
+            }
+
+            result.append("\(trigger): \(content)")
+
+            if !suffix.isEmpty {
+                if suffix.first?.isPunctuation == true {
+                    result.append(String(suffix))
+                } else {
+                    result.append(" ")
+                    result.append(String(suffix))
                 }
             }
+
+            return result.prefix(1).uppercased() + result.dropFirst()
         }
 
         let capitalizedTrigger = trigger.prefix(1).uppercased() + trigger.dropFirst()
         return "\(capitalizedTrigger): \(content)"
+    }
+
+    private static func triggerRange(in text: String, trigger: String) -> Range<String.Index>? {
+        if let directRange = text.range(of: trigger, options: [.caseInsensitive, .diacriticInsensitive]) {
+            return directRange
+        }
+
+        let triggerTokens = SnippetEngine.tokenize(trigger)
+        guard !triggerTokens.isEmpty else { return nil }
+
+        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = tokenPattern.matches(in: text, options: [], range: nsRange)
+
+        let textTokensWithRanges: [(token: String, range: Range<String.Index>)] = matches.compactMap { match in
+            guard let range = Range(match.range, in: text) else { return nil }
+            let rawToken = text[range]
+            let normalizedToken = String(rawToken)
+                .lowercased()
+                .trimmingCharacters(in: .punctuationCharacters)
+            guard !normalizedToken.isEmpty else { return nil }
+            return (normalizedToken, range)
+        }
+
+        let windowSize = triggerTokens.count
+        guard textTokensWithRanges.count >= windowSize else { return nil }
+
+        for i in 0...(textTokensWithRanges.count - windowSize) {
+            let window = Array(textTokensWithRanges[i..<(i + windowSize)]).map(\.token)
+            if window == triggerTokens {
+                let start = textTokensWithRanges[i].range.lowerBound
+                let end = textTokensWithRanges[i + windowSize - 1].range.upperBound
+                return start..<end
+            }
+        }
+
+        return nil
     }
 }
 
@@ -173,188 +223,6 @@ enum SnippetReinserter {
 
 protocol SnippetMatching: Sendable {
     func match(_ text: String) -> SnippetMatch?
-}
-
-// MARK: - DeterministicNormalizer (расширенный, без LLM)
-
-enum DeterministicNormalizer {
-    // Филлеры-слова: удаляются из текста (целые слова, case-insensitive)
-    private static let fillerWords: Set<String> = [
-        "эм", "ээ", "ммм", "ну", "типа", "вот", "короче", "блин", "так",
-    ]
-
-    // Филлеры-фразы: удаляются из текста (могут быть из нескольких слов)
-    private static let fillerPhrases: [String] = [
-        "это самое", "как бы",
-    ]
-
-    /// Замены слов (пусто — ок/окей оставляем как есть)
-    private static let wordReplacements: [String: String] = [:]
-
-    static func normalize(_ text: String, terminalPeriodEnabled: Bool = true) -> String {
-        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !result.isEmpty else { return "" }
-
-        // 1. Удалить филлеры-фразы (до разбивки на слова, case-insensitive)
-        for phrase in fillerPhrases {
-            result = result.replacingOccurrences(
-                of: "\\b\(NSRegularExpression.escapedPattern(for: phrase))\\b",
-                with: "",
-                options: [.regularExpression, .caseInsensitive]
-            )
-        }
-
-        // 2. Разбить на слова, удалить филлеры-слова, применить замены
-        var words = result.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-        words = words.compactMap { word in
-            let lower = word.lowercased()
-            // Слово без пунктуации для проверки
-            let stripped = lower.trimmingCharacters(in: .punctuationCharacters)
-            if fillerWords.contains(stripped) { return nil }
-            // Замены (сохраняем пунктуацию после слова)
-            if let replacement = wordReplacements[stripped] {
-                let trailing = word.drop(while: { !$0.isPunctuation })
-                // Если слово заканчивается на пунктуацию — сохранить
-                let suffix = String(word.suffix(from: word.index(word.endIndex, offsetBy: -trailing.count, limitedBy: word.startIndex) ?? word.endIndex))
-                if suffix.first?.isPunctuation != true {
-                    return replacement
-                }
-                return replacement + suffix
-            }
-            return word
-        }
-
-        // Если после удаления филлеров ничего не осталось
-        guard !words.isEmpty else { return "" }
-
-        result = words.joined(separator: " ")
-
-        // 2.5. Нормализация числительных (проценты, валюты, время, даты, порядковые, кардиналы)
-        result = NumberNormalizer.normalize(result)
-
-        // 3. Удалить двойные пробелы
-        while result.contains("  ") {
-            result = result.replacingOccurrences(of: "  ", with: " ")
-        }
-        result = result.trimmingCharacters(in: .whitespaces)
-
-        guard !result.isEmpty else { return "" }
-
-        // 4. Капитализация первой буквы
-        result = result.prefix(1).uppercased() + result.dropFirst()
-
-        // 5. Капитализация после ./?/!
-        result = capitalizeAfterSentenceEnd(result)
-
-        // 6. Terminal period policy (единый source of truth)
-        if terminalPeriodEnabled {
-            if let last = result.last, !last.isPunctuation {
-                result += "."
-            }
-        } else {
-            result = stripTrailingPeriods(result)
-        }
-
-        return result
-    }
-
-    /// Капитализация буквы после . ? !
-    private static func capitalizeAfterSentenceEnd(_ text: String) -> String {
-        var chars = Array(text)
-        var i = 0
-        while i < chars.count {
-            if chars[i] == "." || chars[i] == "?" || chars[i] == "!" {
-                // Пропустить пробелы после знака
-                var j = i + 1
-                while j < chars.count, chars[j] == " " {
-                    j += 1
-                }
-                if j < chars.count, chars[j].isLetter {
-                    chars[j] = Character(chars[j].uppercased())
-                }
-                i = j
-            } else {
-                i += 1
-            }
-        }
-        return String(chars)
-    }
-
-    /// Убирает trailing обычные точки (`.`). Не трогает `?`, `!`, `…` (U+2026).
-    static func stripTrailingPeriods(_ text: String) -> String {
-        var result = text
-        while result.hasSuffix(".") {
-            result = String(result.dropLast())
-        }
-        return result.trimmingCharacters(in: .whitespaces)
-    }
-}
-
-// MARK: - LLM Response Guard
-
-enum LLMResponseGuard {
-    enum Issue: Equatable {
-        case empty
-        case refusal
-        case disproportionateLength
-    }
-
-    /// Префиксы типичных отказов LLM safety-фильтра
-    private static let refusalPrefixes = [
-        "к сожалению",
-        "извините",
-        "я не могу",
-        "я не в состоянии",
-        "данный запрос",
-        "не могу обработать",
-        "в соответствии с правилами",
-    ]
-
-    static func firstIssue(_ response: String, rawTranscript: String) -> Issue? {
-        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return .empty }
-
-        let lower = trimmed.lowercased()
-        let rawLower = rawTranscript.lowercased()
-
-        // Refusal detection: ответ начинается с refusal-префикса,
-        // НО raw transcript НЕ начинается с того же — значит LLM отказал, а не нормализовал
-        for prefix in refusalPrefixes {
-            if lower.hasPrefix(prefix), !rawLower.hasPrefix(prefix) {
-                return .refusal
-            }
-        }
-
-        // Ответ непропорционально длиннее ввода — скорее всего объяснение, а не нормализация
-        let inputWords = rawTranscript.split(whereSeparator: \.isWhitespace).count
-        let outputWords = trimmed.split(whereSeparator: \.isWhitespace).count
-        if inputWords > 0, outputWords > inputWords * 3, outputWords > 10 {
-            return .disproportionateLength
-        }
-
-        return nil
-    }
-
-    static func isUsable(_ response: String, rawTranscript: String) -> Bool {
-        firstIssue(response, rawTranscript: rawTranscript) == nil
-    }
-}
-
-// MARK: - Trivial text check
-
-func isTrivial(_ text: String) -> Bool {
-    let words = text.split(separator: " ")
-    guard words.count <= 1 else { return false }
-
-    let correctionMarkers = [
-        "точнее", "то есть", "подожди", "в смысле",
-        "имею в виду", "или нет", "хотя нет", "а нет",
-    ]
-    let lowered = text.lowercased()
-    let hasCorrection = correctionMarkers.contains { lowered.contains($0) }
-    let hasNumbers = text.contains(where: \.isNumber)
-
-    return !hasCorrection && !hasNumbers
 }
 
 // MARK: - PipelineEngine
@@ -365,12 +233,15 @@ final class PipelineEngine: @unchecked Sendable {
     private let audioCapture: AudioRecording
     private let sttClient: STTClient
     private let snippetEngine: SnippetMatching?
+    private let saveAudioFile: @Sendable (Data, UUID) throws -> String
+    private let deleteAudioFile: @Sendable (String) -> Void
 
     private let lock = NSLock()
     private var _isCancelled = false
     private var _isRecording = false
     private var _llmClient: LLMClient
 
+    private var _productMode: ProductMode = .standard
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = .init()
     private var _terminalPeriodEnabled: Bool = true
@@ -380,6 +251,11 @@ final class PipelineEngine: @unchecked Sendable {
     var textMode: TextMode {
         get { lock.lock(); defer { lock.unlock() }; return _textMode }
         set { lock.lock(); defer { lock.unlock() }; _textMode = newValue }
+    }
+
+    var productMode: ProductMode {
+        get { lock.lock(); defer { lock.unlock() }; return _productMode }
+        set { lock.lock(); defer { lock.unlock() }; _productMode = newValue }
     }
 
     var hints: NormalizationHints {
@@ -401,12 +277,20 @@ final class PipelineEngine: @unchecked Sendable {
         audioCapture: AudioRecording,
         sttClient: STTClient,
         llmClient: LLMClient,
-        snippetEngine: SnippetMatching? = nil
+        snippetEngine: SnippetMatching? = nil,
+        saveAudioFile: (@Sendable (Data, UUID) throws -> String)? = nil,
+        deleteAudioFile: (@Sendable (String) -> Void)? = nil
     ) {
         self.audioCapture = audioCapture
         self.sttClient = sttClient
         _llmClient = llmClient
         self.snippetEngine = snippetEngine
+        self.saveAudioFile = saveAudioFile ?? { audioData, sessionId in
+            try AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
+        }
+        self.deleteAudioFile = deleteAudioFile ?? { fileName in
+            AudioHistoryStorage.deleteFile(named: fileName)
+        }
     }
 
     func updateLLMClient(_ llmClient: LLMClient) {
@@ -433,22 +317,30 @@ final class PipelineEngine: @unchecked Sendable {
         let sessionId = snapshotSessionId()
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
-        let (currentTextMode, currentHints, currentLLMClient) = snapshotConfig()
+        let (currentProductMode, currentTextMode, currentHints, currentLLMClient) = snapshotConfig()
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
         let audioData = audioCapture.stopRecording()
 
         // Сохраняем аудио на диск для истории (если включено в настройках)
-        let audioFileName: String? = if !audioData.isEmpty && saveAudioHistory {
-            try? AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
+        let audioFileName: String?
+        if !audioData.isEmpty, saveAudioHistory {
+            do {
+                audioFileName = try saveAudioFile(audioData, sessionId)
+            } catch {
+                Self.logger.error(
+                    "Failed to save audio history: \(String(describing: error), privacy: .public)"
+                )
+                audioFileName = nil
+            }
         } else {
-            nil
+            audioFileName = nil
         }
 
         func cleanupAudioOnFailure() {
             if let audioFileName {
-                AudioHistoryStorage.deleteFile(named: audioFileName)
+                deleteAudioFile(audioFileName)
             }
         }
 
@@ -494,6 +386,14 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
+        // Единый deterministic baseline до LLM:
+        // числа, валюты, время, даты и базовая очистка всегда проходят один и тот же путь.
+        let pipelinePreflight = NormalizationPipeline.preflight(
+            transcript: correctedTranscript,
+            terminalPeriodEnabled: terminalPeriodEnabled
+        )
+        let deterministicText = pipelinePreflight.deterministicText
+
         // Snippet match (на исправленном тексте)
         if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
             switch snippetMatch.kind {
@@ -517,6 +417,34 @@ final class PipelineEngine: @unchecked Sendable {
                 )
 
             case .embedded:
+                if !currentProductMode.usesLLM {
+                    let finalText = SnippetReinserter.mechanicalFallback(
+                        rawTranscript: deterministicText,
+                        trigger: snippetMatch.trigger,
+                        content: snippetMatch.content
+                    )
+                    let outputText = terminalPeriodEnabled
+                        ? finalText
+                        : DeterministicNormalizer.stripTrailingPeriods(finalText)
+                    let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+                    return PipelineResult(
+                        sessionId: sessionId,
+                        rawTranscript: rawTranscript,
+                        normalizedText: outputText,
+                        textMode: currentTextMode,
+                        normalizationPath: .snippet,
+                        sttLatencyMs: sttLatencyMs,
+                        llmLatencyMs: 0,
+                        insertionLatencyMs: 0,
+                        totalLatencyMs: totalMs,
+                        matchedSnippetTrigger: snippetMatch.trigger,
+                        snippetFallbackUsed: false,
+                        gateFailureReason: nil,
+                        audioDurationMs: audioDurationMs,
+                        audioFileName: audioFileName
+                    )
+                }
+
                 let snippetCtx = SnippetContext(trigger: snippetMatch.trigger)
                 let hintsWithSnippet = NormalizationHints(
                     personalDictionary: currentHints.personalDictionary,
@@ -539,7 +467,7 @@ final class PipelineEngine: @unchecked Sendable {
                         throw PipelineError.cancelled
                     }
                     let llmOutput = try await currentLLMClient.normalize(
-                        correctedTranscript, mode: currentTextMode, hints: hintsWithSnippet
+                        deterministicText, mode: currentTextMode, hints: hintsWithSnippet
                     )
                     guard !currentIsCancelled() else {
                         cleanupAudioOnFailure()
@@ -548,7 +476,7 @@ final class PipelineEngine: @unchecked Sendable {
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
 
                     let gateResult = NormalizationGate.evaluate(
-                        input: correctedTranscript,
+                        input: deterministicText,
                         output: llmOutput,
                         contract: currentTextMode.llmOutputContract,
                         ignoredOutputLiterals: Set([SnippetPlaceholder.token])
@@ -563,7 +491,7 @@ final class PipelineEngine: @unchecked Sendable {
                             "NormalizationGate rejected embedded snippet output: \(reasonDescription, privacy: .public)"
                         )
                         finalText = SnippetReinserter.mechanicalFallback(
-                            rawTranscript: correctedTranscript,
+                            rawTranscript: deterministicText,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     } else if let reinserted = SnippetReinserter.reinsert(
@@ -575,7 +503,7 @@ final class PipelineEngine: @unchecked Sendable {
                         snippetFallbackReason = .reinsertionFailed
                         Self.logger.warning("Snippet reinsertion failed after embedded LLM normalization")
                         finalText = SnippetReinserter.mechanicalFallback(
-                            rawTranscript: correctedTranscript,
+                            rawTranscript: deterministicText,
                             trigger: snippetMatch.trigger, content: snippetMatch.content
                         )
                     }
@@ -586,20 +514,27 @@ final class PipelineEngine: @unchecked Sendable {
                     fallbackUsed = true
                     snippetFallbackReason = .llmFailed
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+                    let failedPostflight = NormalizationPipeline.failedPostflight(
+                        deterministicText: deterministicText,
+                        failureContext: String(describing: error)
+                    )
                     Self.logger.error(
-                        "LLM failed for embedded snippet: \(String(describing: error), privacy: .public)"
+                        "LLM failed for embedded snippet: \(failedPostflight.failureContext ?? String(describing: error), privacy: .public)"
                     )
                     finalText = SnippetReinserter.mechanicalFallback(
-                        rawTranscript: correctedTranscript,
+                        rawTranscript: failedPostflight.finalText,
                         trigger: snippetMatch.trigger, content: snippetMatch.content
                     )
                 }
 
                 let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+                let outputText = terminalPeriodEnabled
+                    ? finalText
+                    : DeterministicNormalizer.stripTrailingPeriods(finalText)
                 return PipelineResult(
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
-                    normalizedText: finalText,
+                    normalizedText: outputText,
                     textMode: currentTextMode,
                     normalizationPath: .snippetPlusLLM,
                     sttLatencyMs: sttLatencyMs,
@@ -616,11 +551,8 @@ final class PipelineEngine: @unchecked Sendable {
             }
         }
 
-        // DeterministicNormalizer — всегда (филлеры, капитализация, замены)
-        let deterministicText = DeterministicNormalizer.normalize(correctedTranscript, terminalPeriodEnabled: terminalPeriodEnabled)
-
         // Trivial text → только DeterministicNormalizer, без LLM
-        if isTrivial(correctedTranscript) {
+        if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
@@ -639,7 +571,7 @@ final class PipelineEngine: @unchecked Sendable {
 
         // LLM нормализация (на уже очищенном тексте)
         let llmStart = CFAbsoluteTimeGetCurrent()
-        let normalizedText: String
+        let llmOutput: String
         let llmLatencyMs: Int
 
         do {
@@ -647,7 +579,7 @@ final class PipelineEngine: @unchecked Sendable {
                 cleanupAudioOnFailure()
                 throw PipelineError.cancelled
             }
-            normalizedText = try await currentLLMClient.normalize(
+            llmOutput = try await currentLLMClient.normalize(
                 deterministicText,
                 mode: currentTextMode,
                 hints: currentHints
@@ -664,13 +596,17 @@ final class PipelineEngine: @unchecked Sendable {
             // Graceful degradation: LLM упал → возвращаем deterministicText
             llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
             Self.logger.error("LLM failed: \(String(describing: error), privacy: .public)")
+            let failedPostflight = NormalizationPipeline.failedPostflight(
+                deterministicText: deterministicText,
+                failureContext: String(describing: error)
+            )
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
-                normalizedText: deterministicText,
+                normalizedText: failedPostflight.finalText,
                 textMode: currentTextMode,
-                normalizationPath: .llmFailed,
+                normalizationPath: mapNormalizationPath(failedPostflight.path),
                 sttLatencyMs: sttLatencyMs,
                 llmLatencyMs: llmLatencyMs,
                 insertionLatencyMs: 0,
@@ -680,34 +616,30 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
-        let gateResult = NormalizationGate.evaluate(
-            input: deterministicText,
-            output: normalizedText,
-            contract: currentTextMode.llmOutputContract
+        let postflight = NormalizationPipeline.postflight(
+            deterministicText: deterministicText,
+            llmOutput: llmOutput,
+            textMode: currentTextMode,
+            terminalPeriodEnabled: terminalPeriodEnabled
         )
-        if let failureReason = gateResult.failureReason {
+        if let failureReason = postflight.gateFailureReason {
             Self.logger.warning(
                 "NormalizationGate rejected output: \(failureReason.description, privacy: .public)"
             )
         }
 
-        // Terminal period policy — LLM часто возвращает текст с точкой
-        let finalText = terminalPeriodEnabled
-            ? gateResult.output
-            : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
-
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
         return PipelineResult(
             sessionId: sessionId,
             rawTranscript: rawTranscript,
-            normalizedText: finalText,
+            normalizedText: postflight.finalText,
             textMode: currentTextMode,
-            normalizationPath: gateResult.accepted ? .llm : .llmRejected,
+            normalizationPath: mapNormalizationPath(postflight.path),
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,
             totalLatencyMs: totalMs,
-            gateFailureReason: gateResult.failureReason,
+            gateFailureReason: postflight.gateFailureReason,
             audioDurationMs: audioDurationMs,
             audioFileName: audioFileName
         )
@@ -731,10 +663,10 @@ final class PipelineEngine: @unchecked Sendable {
         return _sessionId ?? UUID()
     }
 
-    private func snapshotConfig() -> (TextMode, NormalizationHints, LLMClient) {
+    private func snapshotConfig() -> (ProductMode, TextMode, NormalizationHints, LLMClient) {
         lock.lock()
         defer { lock.unlock() }
-        return (_textMode, _hints, _llmClient)
+        return (_productMode, _textMode, _hints, _llmClient)
     }
 
     private func prepareForRecording() {
@@ -754,5 +686,18 @@ final class PipelineEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _isCancelled
+    }
+
+    private func mapNormalizationPath(_ path: NormalizationPipelinePath) -> PipelineResult.NormalizationPath {
+        switch path {
+        case .trivial:
+            .trivial
+        case .llm:
+            .llm
+        case .llmRejected:
+            .llmRejected
+        case .llmFailed:
+            .llmFailed
+        }
     }
 }

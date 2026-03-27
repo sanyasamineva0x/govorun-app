@@ -146,10 +146,12 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
             appName: hints.appName
         )
 
+        let stopSequences = configuration.stopSequences.isEmpty ? nil : configuration.stopSequences
         let requestBody = ChatCompletionRequest(
             model: model,
             temperature: configuration.temperature,
             maxTokens: configuration.maxOutputTokens,
+            stop: stopSequences,
             stream: false,
             messages: [
                 .init(role: "system", content: systemPrompt),
@@ -280,6 +282,7 @@ private struct ChatCompletionRequest: Encodable {
     let model: String
     let temperature: Double
     let maxTokens: Int
+    let stop: [String]?
     let stream: Bool
     let messages: [Message]
 
@@ -287,6 +290,7 @@ private struct ChatCompletionRequest: Encodable {
         case model
         case temperature
         case maxTokens = "max_tokens"
+        case stop
         case stream
         case messages
     }

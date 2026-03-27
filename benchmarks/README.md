@@ -14,6 +14,14 @@ Seed-корпус для уровня 0 из `docs/llm-normalization-roadmap.md`
 
 `expected` нужен для ручной оценки качества и будущего offline scorer, но текущий benchmark harness его не валидирует автоматически.
 
+Для `full-pipeline` режима можно добавить отдельное ожидаемое поле:
+
+```json
+{"id":"short-003","bucket":"short","input":"завтра в пять","expected":"Завтра в 17:00.","expected_full_pipeline":"Завтра в 5:00."}
+```
+
+Это нужно, потому что в новой архитектуре числа, валюты, время и даты нормализует deterministic слой ДО LLM.
+
 ## Как запускать
 
 Подними локальный OpenAI-compatible endpoint, например `llama-server`, затем:
@@ -48,6 +56,31 @@ python3 scripts/benchmark-llm-normalization.py \
 Результат:
 - per-sample JSONL с output и latency;
 - агрегированный JSON summary с `p50`, `p95`, `first token latency`.
+
+## Full Pipeline
+
+Если хочешь мерить продуктовый путь, а не только сырой LLM contract:
+
+```bash
+python3 scripts/benchmark-llm-normalization.py \
+  --pipeline-mode full-pipeline \
+  --base-url http://127.0.0.1:8080/v1 \
+  --model local-model \
+  --dataset benchmarks/llm-normalization-seed.jsonl \
+  --text-mode universal \
+  --output build/llm-normalization-full-pipeline.jsonl \
+  --summary build/llm-normalization-full-pipeline-summary.json
+```
+
+В этом режиме harness:
+- генерирует production system prompt из текущего `TextMode`;
+- прогоняет `raw input -> DeterministicNormalizer -> LLM -> NormalizationGate -> final output`;
+- сравнивает `output` с `expected_full_pipeline`, если оно есть, иначе с `expected`.
+- сохраняет в summary `prompt_source`, `prompt_sha256` и `prompt_override`, чтобы было видно, мерили ли мы текущий production prompt или внешний snapshot.
+
+Если нужен старый чистый `llm-only` замер, оставь `--pipeline-mode llm-only` или не указывай флаг вовсе.
+
+Если передан `--system-prompt-file`, harness пишет warning в stderr и такой прогон уже не равен production prompt из приложения.
 
 Для временного override из приложения:
 - `GOVORUN_LLM_BASE_URL`

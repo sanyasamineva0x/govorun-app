@@ -185,9 +185,12 @@ private struct GeneralSettingsContent: View {
             WorkerStatusCard(workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
+            ProductModeCard(selection: settingsBinding(\.productMode))
+                .staggeredAppear(index: 1)
+
             // Клавиша активации
             KeyRecorderView(store: appState.settings)
-                .staggeredAppear(index: 1)
+                .staggeredAppear(index: 2)
 
             // Поведение
             VStack(alignment: .leading, spacing: 14) {
@@ -257,7 +260,7 @@ private struct GeneralSettingsContent: View {
                 )
             }
             .settingsCard()
-            .staggeredAppear(index: 2)
+            .staggeredAppear(index: 3)
 
             // Сброс
 
@@ -276,7 +279,69 @@ private struct GeneralSettingsContent: View {
                 }
                 .buttonStyle(.plain)
             }
-            .staggeredAppear(index: 3)
+            .staggeredAppear(index: 4)
+        }
+    }
+}
+
+private struct ProductModeCard: View {
+    @EnvironmentObject private var appState: AppState
+    @Binding var selection: ProductMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "Режим Говоруна", icon: "switch.2")
+
+            HStack(spacing: 12) {
+                Image(systemName: selection.usesLLM ? "sparkles" : "waveform")
+                    .font(.body)
+                    .foregroundStyle(Color.cottonCandy.opacity(0.75))
+                    .frame(width: 24, height: 24)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(selection.title)
+                        .font(.body)
+
+                    Picker("", selection: $selection) {
+                        ForEach(ProductMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(selection.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(runtimeStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .settingsCard()
+    }
+
+    private var runtimeStatusText: String {
+        if appState.effectiveProductMode != selection {
+            return "\(appState.effectiveProductMode.title) активен сейчас. Переключение применится после завершения сессии."
+        }
+
+        if !selection.usesLLM {
+            return "LLM отключён. Используются GigaAM, словарь и deterministic-нормализация."
+        }
+
+        switch appState.llmRuntimeState {
+        case .disabled:
+            return "Super включён, но локальный LLM runtime выключен."
+        case .notStarted:
+            return "Super включён. Локальный LLM runtime ещё не стартовал."
+        case .starting:
+            return "Super включён. Поднимаю локальный LLM runtime."
+        case .ready:
+            return "Super включён. Локальный LLM runtime готов."
+        case .error(let message):
+            return "Super включён, но runtime недоступен: \(message)"
         }
     }
 }
