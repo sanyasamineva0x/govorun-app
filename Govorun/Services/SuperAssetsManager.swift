@@ -50,10 +50,23 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     private let modelsDirectory: String
     private let modelAlias: String
     private let baseURLString: String
+    private let lock = NSLock()
 
-    private(set) var state: SuperAssetsState = .unknown
-    private(set) var runtimeBinaryURL: URL?
-    private(set) var modelURL: URL?
+    private var _state: SuperAssetsState = .unknown
+    private var _runtimeBinaryURL: URL?
+    private var _modelURL: URL?
+
+    var state: SuperAssetsState {
+        lock.lock(); defer { lock.unlock() }; return _state
+    }
+
+    var runtimeBinaryURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _runtimeBinaryURL
+    }
+
+    var modelURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _modelURL
+    }
 
     init(
         fileChecker: FileChecking = DefaultFileChecker(),
@@ -70,31 +83,45 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     }
 
     func check() async -> SuperAssetsState {
-        state = .checking
-        runtimeBinaryURL = nil
-        modelURL = nil
+        lock.lock()
+        _state = .checking
+        _runtimeBinaryURL = nil
+        _modelURL = nil
+        lock.unlock()
 
         if isExternalEndpoint {
-            state = .installed
-            return state
+            lock.lock()
+            _state = .installed
+            lock.unlock()
+            return .installed
         }
 
         guard let binaryURL = resolveRuntimeBinary() else {
-            state = .runtimeMissing
-            return state
+            lock.lock()
+            _state = .runtimeMissing
+            lock.unlock()
+            return .runtimeMissing
         }
 
         guard let model = resolveModel() else {
-            runtimeBinaryURL = binaryURL
-            if case .error = state { return state }
-            state = .modelMissing
-            return state
+            lock.lock()
+            _runtimeBinaryURL = binaryURL
+            let current = _state
+            if case .error = current {
+                lock.unlock()
+                return current
+            }
+            _state = .modelMissing
+            lock.unlock()
+            return .modelMissing
         }
 
-        runtimeBinaryURL = binaryURL
-        modelURL = model
-        state = .installed
-        return state
+        lock.lock()
+        _runtimeBinaryURL = binaryURL
+        _modelURL = model
+        _state = .installed
+        lock.unlock()
+        return .installed
     }
 
     private var isExternalEndpoint: Bool {
@@ -136,7 +163,9 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     private func validateModel(atPath path: String) -> URL? {
         guard fileChecker.isReadableFile(atPath: path) else { return nil }
         guard let size = fileChecker.fileSize(atPath: path), size > 100_000_000 else {
-            state = .error("Файл модели слишком маленький: \(path)")
+            lock.lock()
+            _state = .error("Файл модели слишком маленький: \(path)")
+            lock.unlock()
             return nil
         }
         return URL(fileURLWithPath: path)

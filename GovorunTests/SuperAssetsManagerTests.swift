@@ -164,7 +164,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
 // MARK: - Mock
 
-private final class MockFileChecker: FileChecking {
+private final class MockFileChecker: FileChecking, @unchecked Sendable {
     var executableFiles: Set<String> = []
     var readableFiles: [String: UInt64] = [:]
 

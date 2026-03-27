@@ -740,6 +740,10 @@ final class MockSuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     func check() async -> SuperAssetsState {
         lock.lock()
         _state = checkResult
+        if checkResult != .installed {
+            _runtimeBinaryURL = nil
+            _modelURL = nil
+        }
         lock.unlock()
         return checkResult
     }

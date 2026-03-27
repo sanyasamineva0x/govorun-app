@@ -314,31 +314,10 @@ final class AppState: ObservableObject {
             }
         }
 
-        if let llmRuntimeManager {
+        if llmRuntimeManager != nil {
             if currentProductMode.usesLLM {
                 Task {
-                    await refreshSuperAssetsReadiness()
-                    guard superAssetsState == .installed else {
-                        updateLLMRuntimeState(.disabled)
-                        return
-                    }
-                    do {
-                        if let binaryURL = superAssetsManager.runtimeBinaryURL,
-                           let modelURL = superAssetsManager.modelURL
-                        {
-                            let runtimeConfig = LocalLLMRuntimeConfiguration(
-                                baseURLString: settings.llmBaseURL,
-                                modelAlias: settings.llmModel,
-                                modelPath: modelURL.path,
-                                runtimeBinaryPath: binaryURL.path
-                            )
-                            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
-                        }
-                        try await llmRuntimeManager.start()
-                    } catch {
-                        Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
-                        self.updateLLMRuntimeState(.error(error.localizedDescription))
-                    }
+                    await startLLMRuntimeIfAssetsReady()
                 }
             } else {
                 updateLLMRuntimeState(.disabled)
@@ -549,28 +528,7 @@ final class AppState: ObservableObject {
         if productMode.usesLLM {
             if isReady {
                 Task {
-                    await refreshSuperAssetsReadiness()
-                    guard superAssetsState == .installed else {
-                        updateLLMRuntimeState(.disabled)
-                        return
-                    }
-                    do {
-                        if let binaryURL = superAssetsManager.runtimeBinaryURL,
-                           let modelURL = superAssetsManager.modelURL
-                        {
-                            let runtimeConfig = LocalLLMRuntimeConfiguration(
-                                baseURLString: settings.llmBaseURL,
-                                modelAlias: settings.llmModel,
-                                modelPath: modelURL.path,
-                                runtimeBinaryPath: binaryURL.path
-                            )
-                            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
-                        }
-                        try await llmRuntimeManager.start()
-                    } catch {
-                        Self.logger.error("LLM runtime не переключился в Super: \(String(describing: error), privacy: .public)")
-                        self.updateLLMRuntimeState(.error(error.localizedDescription))
-                    }
+                    await startLLMRuntimeIfAssetsReady()
                 }
             } else {
                 updateLLMRuntimeState(.notStarted)
@@ -586,32 +544,44 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
 
-        if currentProductMode.usesLLM, let llmRuntimeManager {
+        if currentProductMode.usesLLM, llmRuntimeManager != nil {
             Task {
-                await refreshSuperAssetsReadiness()
-                guard superAssetsState == .installed else {
-                    updateLLMRuntimeState(.disabled)
-                    return
-                }
-                do {
-                    if let binaryURL = superAssetsManager.runtimeBinaryURL,
-                       let modelURL = superAssetsManager.modelURL
-                    {
-                        let runtimeConfig = LocalLLMRuntimeConfiguration(
-                            baseURLString: settings.llmBaseURL,
-                            modelAlias: settings.llmModel,
-                            modelPath: modelURL.path,
-                            runtimeBinaryPath: binaryURL.path
-                        )
-                        try await llmRuntimeManager.updateConfiguration(runtimeConfig)
-                    }
-                } catch {
-                    Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
-                    self.updateLLMRuntimeState(.error(error.localizedDescription))
-                }
+                await startLLMRuntimeIfAssetsReady()
             }
         } else {
             updateLLMRuntimeState(.disabled)
+        }
+    }
+
+    private func startLLMRuntimeIfAssetsReady(updateConfig: Bool = true) async {
+        guard let llmRuntimeManager else { return }
+
+        await refreshSuperAssetsReadiness()
+        guard superAssetsState == .installed else {
+            updateLLMRuntimeState(.disabled)
+            return
+        }
+
+        do {
+            if updateConfig {
+                guard let binaryURL = superAssetsManager.runtimeBinaryURL,
+                      let modelURL = superAssetsManager.modelURL
+                else {
+                    updateLLMRuntimeState(.disabled)
+                    return
+                }
+                let runtimeConfig = LocalLLMRuntimeConfiguration(
+                    baseURLString: settings.llmBaseURL,
+                    modelAlias: settings.llmModel,
+                    modelPath: modelURL.path,
+                    runtimeBinaryPath: binaryURL.path
+                )
+                try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+            }
+            try await llmRuntimeManager.start()
+        } catch {
+            Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+            updateLLMRuntimeState(.error(error.localizedDescription))
         }
     }
 
