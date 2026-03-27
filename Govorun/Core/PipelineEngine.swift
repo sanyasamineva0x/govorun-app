@@ -226,6 +226,8 @@ final class PipelineEngine: @unchecked Sendable {
     private let audioCapture: AudioRecording
     private let sttClient: STTClient
     private let snippetEngine: SnippetMatching?
+    private let saveAudioFile: @Sendable (Data, UUID) throws -> String
+    private let deleteAudioFile: @Sendable (String) -> Void
 
     private let lock = NSLock()
     private var _isCancelled = false
@@ -262,12 +264,20 @@ final class PipelineEngine: @unchecked Sendable {
         audioCapture: AudioRecording,
         sttClient: STTClient,
         llmClient: LLMClient,
-        snippetEngine: SnippetMatching? = nil
+        snippetEngine: SnippetMatching? = nil,
+        saveAudioFile: (@Sendable (Data, UUID) throws -> String)? = nil,
+        deleteAudioFile: (@Sendable (String) -> Void)? = nil
     ) {
         self.audioCapture = audioCapture
         self.sttClient = sttClient
         _llmClient = llmClient
         self.snippetEngine = snippetEngine
+        self.saveAudioFile = saveAudioFile ?? { audioData, sessionId in
+            try AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
+        }
+        self.deleteAudioFile = deleteAudioFile ?? { fileName in
+            AudioHistoryStorage.deleteFile(named: fileName)
+        }
     }
 
     func updateLLMClient(_ llmClient: LLMClient) {
@@ -301,15 +311,23 @@ final class PipelineEngine: @unchecked Sendable {
         let audioData = audioCapture.stopRecording()
 
         // Сохраняем аудио на диск для истории (если включено в настройках)
-        let audioFileName: String? = if !audioData.isEmpty, saveAudioHistory {
-            try? AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
+        let audioFileName: String?
+        if !audioData.isEmpty, saveAudioHistory {
+            do {
+                audioFileName = try saveAudioFile(audioData, sessionId)
+            } catch {
+                Self.logger.error(
+                    "Failed to save audio history: \(String(describing: error), privacy: .public)"
+                )
+                audioFileName = nil
+            }
         } else {
-            nil
+            audioFileName = nil
         }
 
         func cleanupAudioOnFailure() {
             if let audioFileName {
-                AudioHistoryStorage.deleteFile(named: audioFileName)
+                deleteAudioFile(audioFileName)
             }
         }
 
@@ -455,11 +473,15 @@ final class PipelineEngine: @unchecked Sendable {
                     fallbackUsed = true
                     snippetFallbackReason = .llmFailed
                     llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+                    let failedPostflight = NormalizationPipeline.failedPostflight(
+                        deterministicText: deterministicText,
+                        failureContext: String(describing: error)
+                    )
                     Self.logger.error(
-                        "LLM failed for embedded snippet: \(String(describing: error), privacy: .public)"
+                        "LLM failed for embedded snippet: \(failedPostflight.failureContext ?? String(describing: error), privacy: .public)"
                     )
                     finalText = SnippetReinserter.mechanicalFallback(
-                        rawTranscript: deterministicText,
+                        rawTranscript: failedPostflight.finalText,
                         trigger: snippetMatch.trigger, content: snippetMatch.content
                     )
                 }

@@ -64,13 +64,15 @@ private func makePipeline(
     audio: MockAudioRecording = MockAudioRecording(),
     stt: MockSTTClient = MockSTTClient(),
     llm: MockLLMClient = MockLLMClient(),
-    snippets: MockSnippetEngine? = nil
+    snippets: MockSnippetEngine? = nil,
+    saveAudioFile: (@Sendable (Data, UUID) throws -> String)? = nil
 ) -> (PipelineEngine, MockAudioRecording, MockSTTClient, MockLLMClient) {
     let engine = PipelineEngine(
         audioCapture: audio,
         sttClient: stt,
         llmClient: llm,
-        snippetEngine: snippets
+        snippetEngine: snippets,
+        saveAudioFile: saveAudioFile
     )
     return (engine, audio, stt, llm)
 }
@@ -221,6 +223,32 @@ final class PipelineEngineTests: XCTestCase {
         let result = try await engine.stopRecording()
 
         XCTAssertEqual(result.normalizedText, "")
+        XCTAssertEqual(result.normalizationPath, .trivial)
+        XCTAssertEqual(llm.normalizeCalls.count, 0)
+    }
+
+    func test_audio_history_save_failure_does_not_break_pipeline() async throws {
+        struct SaveFailure: Error {}
+
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "ок")
+
+        let llm = MockLLMClient()
+
+        let (engine, _, _, _) = makePipeline(
+            stt: stt,
+            llm: llm,
+            saveAudioFile: { _, _ in
+                throw SaveFailure()
+            }
+        )
+        engine.saveAudioHistory = true
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Ок.")
+        XCTAssertNil(result.audioFileName)
         XCTAssertEqual(result.normalizationPath, .trivial)
         XCTAssertEqual(llm.normalizeCalls.count, 0)
     }
