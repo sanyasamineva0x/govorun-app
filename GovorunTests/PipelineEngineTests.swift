@@ -516,6 +516,32 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertNotNil(llm.normalizeCalls.first?.hints.snippetContext)
     }
 
+    func test_pipeline_embedded_happy_path_respects_terminal_period_setting() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет вот мой адрес")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Привет, мой адрес — [[[GOVORUN_SNIPPET]]]."
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "привет вот мой адрес")
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: llm,
+            snippetEngine: snippets
+        )
+        engine.terminalPeriodEnabled = false
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Привет, мой адрес — Аминева 9")
+        XCTAssertEqual(result.normalizationPath, .snippetPlusLLM)
+        XCTAssertFalse(result.snippetFallbackUsed)
+    }
+
     // MARK: - 17. Embedded fallback: LLM не вернул placeholder
 
     func test_pipeline_embedded_fallback_when_no_placeholder() async throws {
@@ -1203,24 +1229,24 @@ final class LLMResponseGuardTests: XCTestCase {
 
 final class IsTrivialTests: XCTestCase {
     func test_single_word_is_trivial() {
-        XCTAssertTrue(isTrivial("ок"))
-        XCTAssertTrue(isTrivial("привет"))
+        XCTAssertTrue(NormalizationPipeline.isTrivial("ок"))
+        XCTAssertTrue(NormalizationPipeline.isTrivial("привет"))
     }
 
     func test_two_words_not_trivial() {
-        XCTAssertFalse(isTrivial("да конечно"))
-        XCTAssertFalse(isTrivial("привет мир"))
+        XCTAssertFalse(NormalizationPipeline.isTrivial("да конечно"))
+        XCTAssertFalse(NormalizationPipeline.isTrivial("привет мир"))
     }
 
     func test_long_text_not_trivial() {
-        XCTAssertFalse(isTrivial("это длинный текст с множеством слов"))
+        XCTAssertFalse(NormalizationPipeline.isTrivial("это длинный текст с множеством слов"))
     }
 
     func test_numbers_not_trivial() {
-        XCTAssertFalse(isTrivial("в 3 часа"))
+        XCTAssertFalse(NormalizationPipeline.isTrivial("в 3 часа"))
     }
 
     func test_correction_marker_not_trivial() {
-        XCTAssertFalse(isTrivial("привет точнее"))
+        XCTAssertFalse(NormalizationPipeline.isTrivial("привет точнее"))
     }
 }

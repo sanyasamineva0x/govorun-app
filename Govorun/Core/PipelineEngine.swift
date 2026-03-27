@@ -114,6 +114,14 @@ struct SnippetMatch {
 // MARK: - Snippet Reinserter
 
 enum SnippetReinserter {
+    private static let tokenPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "\\S+")
+        } catch {
+            fatalError("Invalid snippet token regex: \(error)")
+        }
+    }()
+
     static func reinsert(llmOutput: String, content: String) -> String? {
         let token = SnippetPlaceholder.token
         let occurrences = llmOutput.components(separatedBy: token).count - 1
@@ -182,7 +190,6 @@ enum SnippetReinserter {
         let triggerTokens = SnippetEngine.tokenize(trigger)
         guard !triggerTokens.isEmpty else { return nil }
 
-        let tokenPattern = try! NSRegularExpression(pattern: "\\S+")
         let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
         let matches = tokenPattern.matches(in: text, options: [], range: nsRange)
 
@@ -487,10 +494,13 @@ final class PipelineEngine: @unchecked Sendable {
                 }
 
                 let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+                let outputText = terminalPeriodEnabled
+                    ? finalText
+                    : DeterministicNormalizer.stripTrailingPeriods(finalText)
                 return PipelineResult(
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
-                    normalizedText: finalText,
+                    normalizedText: outputText,
                     textMode: currentTextMode,
                     normalizationPath: .snippetPlusLLM,
                     sttLatencyMs: sttLatencyMs,

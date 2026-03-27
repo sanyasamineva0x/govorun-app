@@ -150,23 +150,6 @@ enum LLMResponseGuard {
     }
 }
 
-// MARK: - Простые кейсы
-
-func isTrivial(_ text: String) -> Bool {
-    let words = text.split(separator: " ")
-    guard words.count <= 1 else { return false }
-
-    let correctionMarkers = [
-        "точнее", "то есть", "подожди", "в смысле",
-        "имею в виду", "или нет", "хотя нет", "а нет",
-    ]
-    let lowered = text.lowercased()
-    let hasCorrection = correctionMarkers.contains { lowered.contains($0) }
-    let hasNumbers = text.contains(where: \.isNumber)
-
-    return !hasCorrection && !hasNumbers
-}
-
 // MARK: - Полный пайплайн
 
 enum NormalizationPipelinePath: String {
@@ -189,6 +172,21 @@ struct NormalizationPipelinePostflight: Equatable {
 }
 
 enum NormalizationPipeline {
+    static func isTrivial(_ text: String) -> Bool {
+        let words = text.split(separator: " ")
+        guard words.count <= 1 else { return false }
+
+        let correctionMarkers = [
+            "точнее", "то есть", "подожди", "в смысле",
+            "имею в виду", "или нет", "хотя нет", "а нет",
+        ]
+        let lowered = text.lowercased()
+        let hasCorrection = correctionMarkers.contains { lowered.contains($0) }
+        let hasNumbers = text.contains(where: \.isNumber)
+
+        return !hasCorrection && !hasNumbers
+    }
+
     static func preflight(
         transcript: String,
         terminalPeriodEnabled: Bool = true

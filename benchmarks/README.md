@@ -76,8 +76,11 @@ python3 scripts/benchmark-llm-normalization.py \
 - генерирует production system prompt из текущего `TextMode`;
 - прогоняет `raw input -> DeterministicNormalizer -> LLM -> NormalizationGate -> final output`;
 - сравнивает `output` с `expected_full_pipeline`, если оно есть, иначе с `expected`.
+- сохраняет в summary `prompt_source`, `prompt_sha256` и `prompt_override`, чтобы было видно, мерили ли мы текущий production prompt или внешний snapshot.
 
 Если нужен старый чистый `llm-only` замер, оставь `--pipeline-mode llm-only` или не указывай флаг вовсе.
+
+Если передан `--system-prompt-file`, harness пишет warning в stderr и такой прогон уже не равен production prompt из приложения.
 
 Для временного override из приложения:
 - `GOVORUN_LLM_BASE_URL`

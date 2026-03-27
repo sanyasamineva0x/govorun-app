@@ -37,6 +37,32 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertEqual(result.gateFailureReason, .missingProtectedTokens(["15", "30"]))
     }
 
+    func test_postflight_happy_path_returns_llm_output() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Созвон в 15:30.",
+            llmOutput: "Созвон в 15:30.",
+            textMode: .universal
+        )
+
+        XCTAssertEqual(result.finalText, "Созвон в 15:30.")
+        XCTAssertEqual(result.path, .llm)
+        XCTAssertNil(result.gateFailureReason)
+        XCTAssertNil(result.failureContext)
+    }
+
+    func test_postflight_without_terminal_period_strips_trailing_period() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Напомни про 25%.",
+            llmOutput: "Напомни про 25%.",
+            textMode: .universal,
+            terminalPeriodEnabled: false
+        )
+
+        XCTAssertEqual(result.finalText, "Напомни про 25%")
+        XCTAssertEqual(result.path, .llm)
+        XCTAssertNil(result.gateFailureReason)
+    }
+
     func test_failed_postflight_returns_deterministic_fallback() {
         let result = NormalizationPipeline.failedPostflight(
             deterministicText: "Отправь отчёт.",

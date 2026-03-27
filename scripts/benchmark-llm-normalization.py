@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -156,11 +157,20 @@ def load_dataset(path: Path) -> list[dict]:
             if not line:
                 continue
             try:
-                rows.append(json.loads(line))
+                row = json.loads(line)
             except json.JSONDecodeError as exc:
                 raise BenchmarkConfigurationError(
                     f"Invalid JSON in dataset {path}:{line_number}: {exc.msg}"
                 ) from exc
+            if not isinstance(row, dict):
+                raise BenchmarkConfigurationError(
+                    f"Dataset row {path}:{line_number} must be a JSON object"
+                )
+            if not isinstance(row.get("input"), str):
+                raise BenchmarkConfigurationError(
+                    f"Dataset row {path}:{line_number} must contain string field 'input'"
+                )
+            rows.append(row)
 
     if not rows:
         raise BenchmarkConfigurationError(f"Dataset is empty: {path}")
@@ -176,6 +186,12 @@ def load_system_prompt(path: str | None) -> str | None:
     if not prompt_path.is_file():
         raise BenchmarkConfigurationError(f"System prompt path is not a file: {prompt_path}")
     return prompt_path.read_text(encoding="utf-8").strip()
+
+
+def prompt_sha256(prompt: str | None) -> str | None:
+    if prompt is None:
+        return None
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
 
 def validate_expected_key(dataset: list[dict], expected_key: str | None) -> None:
@@ -640,11 +656,18 @@ def main() -> int:
             helper = FullPipelineHelper(helper_binary)
 
         system_prompt, prompt_source = resolve_system_prompt(args=args, helper=helper)
+        prompt_hash = prompt_sha256(system_prompt)
 
         print(f"Loaded {len(dataset)} samples from {dataset_path}")
         print(f"Pipeline mode: {args.pipeline_mode}")
         if system_prompt:
             print(f"Using system prompt from {prompt_source}")
+            print(f"Prompt SHA-256: {prompt_hash}")
+        if args.system_prompt_file:
+            print(
+                "WARNING: --system-prompt-file overrides the current production prompt.",
+                file=sys.stderr,
+            )
 
         stop_sequences = None
         if args.stop:
@@ -656,6 +679,8 @@ def main() -> int:
         recorded_rows: list[dict] = []
         with output_path.open("w", encoding="utf-8") as output_file:
             for index, sample in enumerate(dataset):
+                sample_id = str(sample.get("id", "?"))
+                input_text = sample["input"]
                 rss_before_kb = read_rss_kb(args.server_pid)
                 expected_key, expected_value = resolve_expected(sample, args)
                 pipeline_start = time.perf_counter()
@@ -671,12 +696,12 @@ def main() -> int:
                     try:
                         preflight = full_pipeline_helper.request({
                             "op": "preflight",
-                            "transcript": sample["input"],
+                            "transcript": input_text,
                             "terminalPeriodEnabled": not args.no_terminal_period,
                         })
                     except FullPipelineHelperError as exc:
                         raise type(exc)(
-                            f"[{sample.get('id', '?')}] Full-pipeline helper failed during preflight: {exc}"
+                            f"[{sample_id}] Full-pipeline helper failed during preflight: {exc}"
                         ) from exc
 
                     deterministic_text = preflight["deterministicText"]
@@ -715,7 +740,7 @@ def main() -> int:
                                 })
                             except FullPipelineHelperError as helper_exc:
                                 raise type(helper_exc)(
-                                    f"[{sample.get('id', '?')}] LLM request failed with '{exc}', "
+                                    f"[{sample_id}] LLM request failed with '{exc}', "
                                     f"then full-pipeline helper failed during failed-postflight: {helper_exc}"
                                 ) from helper_exc
 
@@ -733,7 +758,7 @@ def main() -> int:
                             })
                             output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
                             print(
-                                f"[{index + 1}/{len(dataset)}] {sample['id']}: ERROR {exc}",
+                                f"[{index + 1}/{len(dataset)}] {sample_id}: ERROR {exc}",
                                 file=sys.stderr,
                             )
                             if index >= args.warmup:
@@ -750,7 +775,7 @@ def main() -> int:
                             })
                         except FullPipelineHelperError as exc:
                             raise type(exc)(
-                                f"[{sample.get('id', '?')}] Full-pipeline helper failed during postflight: {exc}"
+                                f"[{sample_id}] Full-pipeline helper failed during postflight: {exc}"
                             ) from exc
 
                         total_latency_ms = (time.perf_counter() - pipeline_start) * 1000.0
@@ -773,14 +798,14 @@ def main() -> int:
                         output_text, first_token_ms, total_latency_ms = request_completion(
                             base_url=args.base_url,
                             model=args.model,
-                            user_text=sample["input"],
+                            user_text=input_text,
                             system_prompt=system_prompt,
                             timeout=args.timeout,
                             max_tokens=args.max_tokens,
                             temperature=args.temperature,
                             stop=stop_sequences,
                         )
-                    except Exception as exc:  # noqa: BLE001
+                    except LLMRequestError as exc:
                         result.update({
                             "error": str(exc),
                             "rss_before_kb": rss_before_kb,
@@ -788,7 +813,7 @@ def main() -> int:
                         })
                         output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
                         print(
-                            f"[{index + 1}/{len(dataset)}] {sample['id']}: ERROR {exc}",
+                            f"[{index + 1}/{len(dataset)}] {sample_id}: ERROR {exc}",
                             file=sys.stderr,
                         )
                         if index >= args.warmup:
@@ -809,7 +834,7 @@ def main() -> int:
 
                 label = "warmup" if index < args.warmup else "recorded"
                 print(
-                    f"[{index + 1}/{len(dataset)}] {sample['id']} "
+                    f"[{index + 1}/{len(dataset)}] {sample_id} "
                     f"{label} total={result['total_latency_ms']}ms "
                     f"first={result.get('first_token_latency_ms')}ms "
                     f"path={result.get('normalization_path', 'llm-only')}"
@@ -827,6 +852,9 @@ def main() -> int:
                 "warmup": args.warmup,
                 "pipeline_mode": args.pipeline_mode,
                 "text_mode": args.text_mode,
+                "prompt_source": prompt_source,
+                "prompt_sha256": prompt_hash,
+                "prompt_override": bool(args.system_prompt_file),
                 "expected_key": args.expected_key or (
                     "expected_full_pipeline_or_expected"
                     if args.pipeline_mode == "full-pipeline"
