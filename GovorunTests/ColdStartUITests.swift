@@ -572,6 +572,7 @@ private func makeColdStartTestAppState(
     mockAudio: MockAudioRecording = MockAudioRecording(),
     workerManager: ASRWorkerManaging? = nil,
     llmRuntimeManager: LLMRuntimeManaging? = nil,
+    superAssetsManager: SuperAssetsManaging = MockSuperAssetsManager(),
     settings: SettingsStore = SettingsStore(),
     productMode: ProductMode = .superMode
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
@@ -602,6 +603,7 @@ private func makeColdStartTestAppState(
         audioCapture: AudioCapture(),
         workerManager: workerManager,
         llmRuntimeManager: llmRuntimeManager,
+        superAssetsManager: superAssetsManager,
         initialWorkerState: .notStarted,
         initialLLMRuntimeState: .notStarted,
         settings: settings
@@ -657,5 +659,33 @@ final class MockLLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     func updateConfiguration(_ configuration: LocalLLMRuntimeConfiguration) async throws {
         lock.lock(); _updatedConfigurations.append(configuration); lock.unlock()
         if let updateError { throw updateError }
+    }
+}
+
+final class MockSuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _state: SuperAssetsState = .installed
+    private var _runtimeBinaryURL: URL? = URL(fileURLWithPath: "/usr/local/bin/llama-server")
+    private var _modelURL: URL? = URL(fileURLWithPath: "/tmp/test-model.gguf")
+
+    var state: SuperAssetsState {
+        lock.lock(); defer { lock.unlock() }; return _state
+    }
+
+    var runtimeBinaryURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _runtimeBinaryURL
+    }
+
+    var modelURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _modelURL
+    }
+
+    var checkResult: SuperAssetsState = .installed
+
+    func check() async -> SuperAssetsState {
+        lock.lock()
+        _state = checkResult
+        lock.unlock()
+        return checkResult
     }
 }

@@ -27,6 +27,8 @@ final class AppState: ObservableObject {
     private let workerManager: ASRWorkerManaging?
     /// Локальный LLM runtime — поднимает llama-server при локальном endpoint
     private let llmRuntimeManager: LLMRuntimeManaging?
+    /// Менеджер готовности Super-ассетов (runtime binary + модель)
+    private let superAssetsManager: SuperAssetsManaging
 
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
@@ -75,6 +77,8 @@ final class AppState: ObservableObject {
     @Published private(set) var workerState: WorkerState = .notStarted
     /// Состояние локального LLM runtime
     @Published private(set) var llmRuntimeState: LLMRuntimeState = .notStarted
+    /// Состояние Super-ассетов (runtime binary + модель)
+    @Published private(set) var superAssetsState: SuperAssetsState = .unknown
 
     /// Текущее состояние сессии (для live menubar updates)
     @Published fileprivate(set) var sessionState: SessionState = .idle
@@ -119,6 +123,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = llmConfiguration
         let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
         self.llmRuntimeManager = llmRuntimeManager
+        superAssetsManager = SuperAssetsManager()
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -210,6 +215,7 @@ final class AppState: ObservableObject {
         postInsertionMonitor: PostInsertionMonitoring? = nil,
         workerManager: ASRWorkerManaging? = nil,
         llmRuntimeManager: LLMRuntimeManaging? = nil,
+        superAssetsManager: SuperAssetsManaging = SuperAssetsManager(),
         initialWorkerState: WorkerState = .ready,
         initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
@@ -218,6 +224,7 @@ final class AppState: ObservableObject {
     ) {
         self.workerManager = workerManager
         self.llmRuntimeManager = llmRuntimeManager
+        self.superAssetsManager = superAssetsManager
         self.activationKeyMonitor = activationKeyMonitor
         self.sessionManager = sessionManager
         self.pipelineEngine = pipelineEngine
@@ -268,6 +275,12 @@ final class AppState: ObservableObject {
         llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
     }
 
+    @MainActor
+    func refreshSuperAssetsReadiness() async {
+        superAssetsState = .checking
+        superAssetsState = await superAssetsManager.check()
+    }
+
     // MARK: - Start / Stop
 
     func start() {
@@ -304,7 +317,23 @@ final class AppState: ObservableObject {
         if let llmRuntimeManager {
             if currentProductMode.usesLLM {
                 Task {
+                    await refreshSuperAssetsReadiness()
+                    guard superAssetsState == .installed else {
+                        updateLLMRuntimeState(.disabled)
+                        return
+                    }
                     do {
+                        if let binaryURL = superAssetsManager.runtimeBinaryURL,
+                           let modelURL = superAssetsManager.modelURL
+                        {
+                            let runtimeConfig = LocalLLMRuntimeConfiguration(
+                                baseURLString: settings.llmBaseURL,
+                                modelAlias: settings.llmModel,
+                                modelPath: modelURL.path,
+                                runtimeBinaryPath: binaryURL.path
+                            )
+                            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+                        }
                         try await llmRuntimeManager.start()
                     } catch {
                         Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
@@ -518,11 +547,25 @@ final class AppState: ObservableObject {
         guard let llmRuntimeManager else { return }
 
         if productMode.usesLLM {
-            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
             if isReady {
                 Task {
+                    await refreshSuperAssetsReadiness()
+                    guard superAssetsState == .installed else {
+                        updateLLMRuntimeState(.disabled)
+                        return
+                    }
                     do {
-                        try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
+                        if let binaryURL = superAssetsManager.runtimeBinaryURL,
+                           let modelURL = superAssetsManager.modelURL
+                        {
+                            let runtimeConfig = LocalLLMRuntimeConfiguration(
+                                baseURLString: settings.llmBaseURL,
+                                modelAlias: settings.llmModel,
+                                modelPath: modelURL.path,
+                                runtimeBinaryPath: binaryURL.path
+                            )
+                            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+                        }
                         try await llmRuntimeManager.start()
                     } catch {
                         Self.logger.error("LLM runtime не переключился в Super: \(String(describing: error), privacy: .public)")
@@ -544,10 +587,24 @@ final class AppState: ObservableObject {
         pendingLLMConfiguration = nil
 
         if currentProductMode.usesLLM, let llmRuntimeManager {
-            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
             Task {
+                await refreshSuperAssetsReadiness()
+                guard superAssetsState == .installed else {
+                    updateLLMRuntimeState(.disabled)
+                    return
+                }
                 do {
-                    try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
+                    if let binaryURL = superAssetsManager.runtimeBinaryURL,
+                       let modelURL = superAssetsManager.modelURL
+                    {
+                        let runtimeConfig = LocalLLMRuntimeConfiguration(
+                            baseURLString: settings.llmBaseURL,
+                            modelAlias: settings.llmModel,
+                            modelPath: modelURL.path,
+                            runtimeBinaryPath: binaryURL.path
+                        )
+                        try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+                    }
                 } catch {
                     Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
                     self.updateLLMRuntimeState(.error(error.localizedDescription))
