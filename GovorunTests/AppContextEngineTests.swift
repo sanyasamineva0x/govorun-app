@@ -165,6 +165,31 @@ final class AppContextEngineTests: XCTestCase {
         XCTAssertTrue(prompt.contains("2026"))
     }
 
+    func test_prompt_preserves_command_frame_examples() {
+        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+
+        XCTAssertTrue(prompt.contains("СОХРАНИ эту рамку"))
+        XCTAssertTrue(prompt.contains("«Запиши, что ...» НЕЛЬЗЯ превращать просто в «...»"))
+        XCTAssertTrue(prompt.contains("«Подготовь текст: ...» НЕЛЬЗЯ превращать в обычное сообщение без этой рамки"))
+        XCTAssertTrue(prompt.contains("«Запиши, что релиз переносится на 23 марта 2026»"))
+    }
+
+    func test_prompt_includes_anti_paraphrase_long_form_examples() {
+        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+
+        XCTAssertTrue(prompt.contains("НЕ компрессируй длинную диктовку"))
+        XCTAssertTrue(prompt.contains("НЕ пересказывай и НЕ упрощай инструкцию"))
+        XCTAssertTrue(prompt.contains("«Подготовь текст: demo прошло хорошо, но клиент просит добавить экспорт в PDF, офлайн-режим и синхронизацию со своим Jira Server»"))
+        XCTAssertTrue(prompt.contains("«Добавь заметку: если Sparkle-обновление не сработает, нужно проверить appcast, подпись, длину enclosure и CURRENT_PROJECT_VERSION»"))
+    }
+
+    func test_prompt_correction_examples_preserve_explicit_time_of_day() {
+        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+
+        XCTAssertTrue(prompt.contains("«позвони в восемь вечера или нет лучше в девять» → «Позвони в девять вечера»"))
+        XCTAssertTrue(prompt.contains("«позвони маме в восемь вечера или нет лучше в девять» → «Позвони маме в девять вечера»"))
+    }
+
     // MARK: - 11. Нет frontmost app → .universal
 
     func test_nil_bundle_id_is_universal() {
