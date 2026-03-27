@@ -1028,6 +1028,34 @@ final class DeterministicNormalizerTests: XCTestCase {
         )
     }
 
+    func test_builtin_brand_canon_replaces_common_russian_forms() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("открой жиру и скинь в слак в телеграм"),
+            "Открой Jira и скинь в Slack в Telegram."
+        )
+    }
+
+    func test_builtin_tech_terms_preserve_product_casing() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("github pdf ios ml qa"),
+            "GitHub PDF iOS ML QA."
+        )
+    }
+
+    func test_builtin_phrase_canon_normalizes_product_terms() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("проверь jira server и project yml с marketing version"),
+            "Проверь Jira Server и project.yml с MARKETING_VERSION."
+        )
+    }
+
+    func test_builtin_phrase_canon_normalizes_sparkle_update() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("sparkles обновление сломалось"),
+            "Sparkle-обновление сломалось."
+        )
+    }
+
     // MARK: - Terminal period policy
 
     func test_period_on_plain_text() {

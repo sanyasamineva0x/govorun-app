@@ -11,7 +11,45 @@ enum DeterministicNormalizer {
         "это самое", "как бы",
     ]
 
-    private static let wordReplacements: [String: String] = [:]
+    private static let canonicalPhraseReplacements: [String: String] = [
+        "jira server": "Jira Server",
+        "project yml": "project.yml",
+        "marketing version": "MARKETING_VERSION",
+        "current project version": "CURRENT_PROJECT_VERSION",
+        "sparkles обновление": "Sparkle-обновление",
+        "sparkle обновление": "Sparkle-обновление",
+    ]
+
+    private static let canonicalWordReplacements: [String: String] = [
+        "жира": "Jira",
+        "жиру": "Jira",
+        "жире": "Jira",
+        "джира": "Jira",
+        "джиру": "Jira",
+        "джире": "Jira",
+        "гира": "Jira",
+        "слак": "Slack",
+        "слэк": "Slack",
+        "слаке": "Slack",
+        "слэке": "Slack",
+        "ноушн": "Notion",
+        "ноушне": "Notion",
+        "телеграм": "Telegram",
+        "телеграме": "Telegram",
+        "telegram": "Telegram",
+        "гитхаб": "GitHub",
+        "гитхабе": "GitHub",
+        "github": "GitHub",
+        "зум": "Zoom",
+        "zoom": "Zoom",
+        "sparkle": "Sparkle",
+        "sparkles": "Sparkle",
+        "pdf": "PDF",
+        "csv": "CSV",
+        "ios": "iOS",
+        "ml": "ML",
+        "qa": "QA",
+    ]
 
     static func normalize(_ text: String, terminalPeriodEnabled: Bool = true) -> String {
         var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -30,22 +68,6 @@ enum DeterministicNormalizer {
             let lower = word.lowercased()
             let stripped = lower.trimmingCharacters(in: .punctuationCharacters)
             if fillerWords.contains(stripped) { return nil }
-            if let replacement = wordReplacements[stripped] {
-                let trailing = word.drop(while: { !$0.isPunctuation })
-                let suffix = String(
-                    word.suffix(
-                        from: word.index(
-                            word.endIndex,
-                            offsetBy: -trailing.count,
-                            limitedBy: word.startIndex
-                        ) ?? word.endIndex
-                    )
-                )
-                if suffix.first?.isPunctuation != true {
-                    return replacement
-                }
-                return replacement + suffix
-            }
             return word
         }
 
@@ -63,6 +85,7 @@ enum DeterministicNormalizer {
 
         result = result.prefix(1).uppercased() + result.dropFirst()
         result = capitalizeAfterSentenceEnd(result)
+        result = applyCanonicalLexicon(result)
 
         if terminalPeriodEnabled {
             if let last = result.last, !last.isPunctuation {
@@ -101,6 +124,30 @@ enum DeterministicNormalizer {
             result = String(result.dropLast())
         }
         return result.trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func applyCanonicalLexicon(_ text: String) -> String {
+        var result = text
+
+        for (source, replacement) in canonicalPhraseReplacements {
+            let escaped = NSRegularExpression.escapedPattern(for: source)
+            result = result.replacingOccurrences(
+                of: "\\b\(escaped)\\b",
+                with: replacement,
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+
+        for (source, replacement) in canonicalWordReplacements {
+            let escaped = NSRegularExpression.escapedPattern(for: source)
+            result = result.replacingOccurrences(
+                of: "\\b\(escaped)\\b",
+                with: replacement,
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+
+        return result
     }
 }
 
