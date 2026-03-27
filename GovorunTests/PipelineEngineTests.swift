@@ -1056,6 +1056,41 @@ final class DeterministicNormalizerTests: XCTestCase {
         )
     }
 
+    func test_builtin_structured_canon_normalizes_spoken_identifier() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("по инциденту номер one two three four нужен ответ"),
+            "По инциденту №1234 нужен ответ."
+        )
+    }
+
+    func test_builtin_structured_canon_normalizes_paper_format() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("создай заметку купить бумагу а четыре"),
+            "Создай заметку купить бумагу A4."
+        )
+    }
+
+    func test_builtin_structured_canon_normalizes_mixed_jira_server_phrase() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("синхронизация со своим jira сервером"),
+            "Синхронизация со своим Jira Server."
+        )
+    }
+
+    func test_builtin_structured_canon_hyphenates_tech_roles() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("ищем ml инженера и ios разработчика"),
+            "Ищем ML-инженера и iOS-разработчика."
+        )
+    }
+
+    func test_builtin_structured_canon_carries_explicit_time_of_day_on_correction() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("позвони маме в восемь вечера или нет лучше в девять"),
+            "Позвони маме в девять вечера."
+        )
+    }
+
     // MARK: - Terminal period policy
 
     func test_period_on_plain_text() {

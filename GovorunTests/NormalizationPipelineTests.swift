@@ -60,6 +60,28 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertNil(result.failureContext)
     }
 
+    func test_postflight_applies_surface_canon_before_gate() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Подготовь текст: синхронизация со своим Jira Server.",
+            llmOutput: "Подготовь текст: синхронизация со своим jira сервером.",
+            textMode: .universal
+        )
+
+        XCTAssertEqual(result.finalText, "Подготовь текст: синхронизация со своим Jira Server.")
+        XCTAssertEqual(result.path, .llm)
+        XCTAssertNil(result.gateFailureReason)
+    }
+
+    func test_preflight_carries_explicit_time_of_day_through_correction() {
+        let result = NormalizationPipeline.preflight(
+            transcript: "позвони маме в восемь вечера или нет лучше в девять",
+            terminalPeriodEnabled: false
+        )
+
+        XCTAssertEqual(result.deterministicText, "Позвони маме в девять вечера")
+        XCTAssertTrue(result.shouldInvokeLLM)
+    }
+
     func test_postflight_without_terminal_period_strips_trailing_period() {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Напомни про 25%.",

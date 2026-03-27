@@ -51,6 +51,49 @@ enum DeterministicNormalizer {
         "qa": "QA",
     ]
 
+    private static let structuredDigitWords: [String: String] = [
+        "zero": "0",
+        "one": "1",
+        "two": "2",
+        "three": "3",
+        "four": "4",
+        "five": "5",
+        "six": "6",
+        "seven": "7",
+        "eight": "8",
+        "nine": "9",
+        "ноль": "0",
+        "нуль": "0",
+        "один": "1",
+        "одна": "1",
+        "два": "2",
+        "две": "2",
+        "три": "3",
+        "четыре": "4",
+        "пять": "5",
+        "шесть": "6",
+        "семь": "7",
+        "восемь": "8",
+        "девять": "9",
+    ]
+
+    private static let paperFormatDigits: [String: String] = [
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "ноль": "0",
+        "один": "1",
+        "одна": "1",
+        "два": "2",
+        "две": "2",
+        "три": "3",
+        "четыре": "4",
+        "пять": "5",
+    ]
+
     static func normalize(_ text: String, terminalPeriodEnabled: Bool = true) -> String {
         var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !result.isEmpty else { return "" }
@@ -85,8 +128,7 @@ enum DeterministicNormalizer {
 
         result = result.prefix(1).uppercased() + result.dropFirst()
         result = capitalizeAfterSentenceEnd(result)
-        result = applyCanonicalLexicon(result)
-        result = applyCanonicalFormatting(result)
+        result = canonicalizeSurfaceForms(result)
 
         if terminalPeriodEnabled {
             if let last = result.last, !last.isPunctuation {
@@ -96,6 +138,14 @@ enum DeterministicNormalizer {
             result = stripTrailingPeriods(result)
         }
 
+        return result
+    }
+
+    static func canonicalizeSurfaceForms(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+
+        var result = applyCanonicalLexicon(text)
+        result = applyCanonicalFormatting(result)
         return result
     }
 
@@ -130,7 +180,7 @@ enum DeterministicNormalizer {
     private static func applyCanonicalLexicon(_ text: String) -> String {
         var result = text
 
-        for (source, replacement) in canonicalPhraseReplacements {
+        for (source, replacement) in canonicalWordReplacements {
             let escaped = NSRegularExpression.escapedPattern(for: source)
             result = result.replacingOccurrences(
                 of: "\\b\(escaped)\\b",
@@ -139,7 +189,7 @@ enum DeterministicNormalizer {
             )
         }
 
-        for (source, replacement) in canonicalWordReplacements {
+        for (source, replacement) in canonicalPhraseReplacements {
             let escaped = NSRegularExpression.escapedPattern(for: source)
             result = result.replacingOccurrences(
                 of: "\\b\(escaped)\\b",
@@ -153,9 +203,102 @@ enum DeterministicNormalizer {
 
     private static func applyCanonicalFormatting(_ text: String) -> String {
         var result = text
+        result = carryForwardExplicitTimeOfDay(in: result)
+        result = replaceNumberIdentifiers(in: result)
+        result = replacePaperFormats(in: result)
+        result = replaceMixedProductPhrases(in: result)
+        result = replaceHyphenatedTechRoles(in: result)
         result = replaceUnitAbbreviations(in: result)
         result = replaceTemperatureForms(in: result)
         return result
+    }
+
+    private static func carryForwardExplicitTimeOfDay(in text: String) -> String {
+        replacingMatches(in: text, regex: explicitTimeOfDayCorrectionPattern) { match, source in
+            guard
+                let prepositionRange = Range(match.range(at: 1), in: source),
+                let timeOfDayRange = Range(match.range(at: 3), in: source),
+                let correctedTimeRange = Range(match.range(at: 4), in: source)
+            else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            let preposition = String(source[prepositionRange])
+            let timeOfDay = String(source[timeOfDayRange]).lowercased()
+            let correctedTime = String(source[correctedTimeRange])
+            return "\(preposition) \(correctedTime) \(timeOfDay)"
+        }
+    }
+
+    private static func replaceNumberIdentifiers(in text: String) -> String {
+        var result = replacingMatches(in: text, regex: numericIdentifierPattern) { match, source in
+            guard let digitsRange = Range(match.range(at: 1), in: source) else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            let digits = source[digitsRange].filter(\.isNumber)
+            guard !digits.isEmpty else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            return "№\(digits)"
+        }
+
+        result = replacingMatches(in: result, regex: spokenIdentifierPattern) { match, source in
+            guard let sequenceRange = Range(match.range(at: 1), in: source) else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            let words = source[sequenceRange]
+                .split(whereSeparator: \.isWhitespace)
+                .map { $0.lowercased() }
+            let digits = words.compactMap { structuredDigitWords[$0] }.joined()
+            guard digits.count == words.count else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            return "№\(digits)"
+        }
+
+        return result
+    }
+
+    private static func replacePaperFormats(in text: String) -> String {
+        replacingMatches(in: text, regex: paperFormatPattern) { match, source in
+            guard
+                let contextRange = Range(match.range(at: 1), in: source),
+                let valueRange = Range(match.range(at: 2), in: source)
+            else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            let context = String(source[contextRange])
+            let rawValue = String(source[valueRange]).lowercased()
+            guard let digit = paperFormatDigits[rawValue] else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            return "\(context) A\(digit)"
+        }
+    }
+
+    private static func replaceMixedProductPhrases(in text: String) -> String {
+        replacingMatches(in: text, regex: jiraServerPattern) { _, _ in
+            "Jira Server"
+        }
+    }
+
+    private static func replaceHyphenatedTechRoles(in text: String) -> String {
+        replacingMatches(in: text, regex: techRolePattern) { match, source in
+            guard
+                let tokenRange = Range(match.range(at: 1), in: source),
+                let roleRange = Range(match.range(at: 2), in: source)
+            else {
+                return matchedSubstring(for: match, in: source)
+            }
+
+            return "\(source[tokenRange])-\(source[roleRange])"
+        }
     }
 
     private static func replaceUnitAbbreviations(in text: String) -> String {
@@ -274,6 +417,73 @@ enum DeterministicNormalizer {
             fatalError("Invalid celsius spacing regex: \(error)")
         }
     }()
+
+    private static let explicitTimeOfDayCorrectionPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(
+                pattern: "(?i)\\b(в|к|до|после)\\s+([\\p{L}\\d:]+)\\s+(утра|вечера|дня|ночи)(?:\\s+или\\s+нет)?\\s+(?:лучше|точнее|вернее)\\s+\\1\\s+([\\p{L}\\d:]+)\\b"
+            )
+        } catch {
+            fatalError("Invalid explicit time-of-day correction regex: \(error)")
+        }
+    }()
+
+    private static let numericIdentifierPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "(?i)\\bномер\\s+(\\d(?:[\\d\\s]{0,14}\\d)?)\\b")
+        } catch {
+            fatalError("Invalid numeric identifier regex: \(error)")
+        }
+    }()
+
+    private static let spokenIdentifierPattern: NSRegularExpression = {
+        let digitPattern = structuredDigitWords.keys
+            .sorted { $0.count > $1.count }
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+
+        do {
+            return try NSRegularExpression(
+                pattern: "(?i)\\bномер\\s+((?:\(digitPattern))(?:\\s+(?:\(digitPattern)))*)\\b"
+            )
+        } catch {
+            fatalError("Invalid spoken identifier regex: \(error)")
+        }
+    }()
+
+    private static let paperFormatPattern: NSRegularExpression = {
+        let valuePattern = paperFormatDigits.keys
+            .sorted { $0.count > $1.count }
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+
+        do {
+            return try NSRegularExpression(
+                pattern: "(?i)\\b(бумаг\\w*|лист\\w*|формат\\w*)[\\.,:]?\\s+[aа]\\s*(?:-|)?\\s*(\(valuePattern))\\b"
+            )
+        } catch {
+            fatalError("Invalid paper format regex: \(error)")
+        }
+    }()
+
+    private static let jiraServerPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "(?i)\\bjira\\s+сервер(?:а|у|ом|е)?\\b")
+        } catch {
+            fatalError("Invalid Jira Server regex: \(error)")
+        }
+    }()
+
+    private static let techRolePattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(
+                pattern: "\\b(ML|iOS|QA)\\s+(инженер[а-яё]*|разработчик[а-яё]*)\\b",
+                options: [.caseInsensitive]
+            )
+        } catch {
+            fatalError("Invalid tech role regex: \(error)")
+        }
+    }()
 }
 
 // MARK: - Базовая валидация LLM
@@ -385,9 +595,10 @@ enum NormalizationPipeline {
         terminalPeriodEnabled: Bool = true,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationPipelinePostflight {
+        let canonicalOutput = DeterministicNormalizer.canonicalizeSurfaceForms(llmOutput)
         let gateResult = NormalizationGate.evaluate(
             input: deterministicText,
-            output: llmOutput,
+            output: canonicalOutput,
             contract: textMode.llmOutputContract,
             ignoredOutputLiterals: ignoredOutputLiterals
         )
