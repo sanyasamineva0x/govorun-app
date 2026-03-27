@@ -86,6 +86,7 @@ enum DeterministicNormalizer {
         result = result.prefix(1).uppercased() + result.dropFirst()
         result = capitalizeAfterSentenceEnd(result)
         result = applyCanonicalLexicon(result)
+        result = applyCanonicalFormatting(result)
 
         if terminalPeriodEnabled {
             if let last = result.last, !last.isPunctuation {
@@ -149,6 +150,130 @@ enum DeterministicNormalizer {
 
         return result
     }
+
+    private static func applyCanonicalFormatting(_ text: String) -> String {
+        var result = text
+        result = replaceUnitAbbreviations(in: result)
+        result = replaceTemperatureForms(in: result)
+        return result
+    }
+
+    private static func replaceUnitAbbreviations(in text: String) -> String {
+        let patterns: [(NSRegularExpression, (String) -> String)] = [
+            (unitPattern("\\d+(?:,\\d+)?", "кг"), { formatMeasuredUnit(number: $0, forms: ("килограмм", "килограмма", "килограммов")) }),
+            (unitPattern("\\d+(?:,\\d+)?", "л"), { formatMeasuredUnit(number: $0, forms: ("литр", "литра", "литров")) }),
+            (unitPattern("\\d+(?:,\\d+)?", "км"), { formatMeasuredUnit(number: $0, forms: ("километр", "километра", "километров")) }),
+        ]
+
+        var result = text
+        for (regex, replacement) in patterns {
+            result = replacingMatches(in: result, regex: regex) { match, source in
+                guard let numberRange = Range(match.range(at: 1), in: source) else {
+                    return matchedSubstring(for: match, in: source)
+                }
+                let number = String(source[numberRange])
+                return replacement(number)
+            }
+        }
+        return result
+    }
+
+    private static func replaceTemperatureForms(in text: String) -> String {
+        var result = replacingMatches(in: text, regex: celsiusWordPattern) { match, source in
+            guard let numberRange = Range(match.range(at: 1), in: source) else {
+                return matchedSubstring(for: match, in: source)
+            }
+            return "\(source[numberRange])°C"
+        }
+
+        result = replacingMatches(in: result, regex: celsiusSpacingPattern) { match, source in
+            guard let numberRange = Range(match.range(at: 1), in: source) else {
+                return matchedSubstring(for: match, in: source)
+            }
+            return "\(source[numberRange])°C"
+        }
+        return result
+    }
+
+    private static func formatMeasuredUnit(
+        number: String,
+        forms: (String, String, String)
+    ) -> String {
+        let normalized = number.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized) else {
+            return "\(number) \(forms.2)"
+        }
+        let unit = pluralizedUnit(for: value, forms: forms)
+        return "\(number) \(unit)"
+    }
+
+    private static func pluralizedUnit(
+        for value: Double,
+        forms: (String, String, String)
+    ) -> String {
+        if value.rounded(.down) != value {
+            return forms.1
+        }
+
+        let intValue = abs(Int(value))
+        let lastTwo = intValue % 100
+        let lastOne = intValue % 10
+        if (11...14).contains(lastTwo) {
+            return forms.2
+        }
+        if lastOne == 1 {
+            return forms.0
+        }
+        if (2...4).contains(lastOne) {
+            return forms.1
+        }
+        return forms.2
+    }
+
+    private static func replacingMatches(
+        in text: String,
+        regex: NSRegularExpression,
+        replacement: (NSTextCheckingResult, String) -> String
+    ) -> String {
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text))
+        guard !matches.isEmpty else { return text }
+
+        var result = text
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result) else { continue }
+            result.replaceSubrange(matchRange, with: replacement(match, result))
+        }
+        return result
+    }
+
+    private static func matchedSubstring(for match: NSTextCheckingResult, in source: String) -> String {
+        guard let range = Range(match.range, in: source) else { return "" }
+        return String(source[range])
+    }
+
+    private static func unitPattern(_ numberPattern: String, _ unit: String) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: "(?i)\\b(\(numberPattern))\\s*\(NSRegularExpression.escapedPattern(for: unit))\\b")
+        } catch {
+            fatalError("Invalid unit regex: \(error)")
+        }
+    }
+
+    private static let celsiusWordPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "(?i)\\b(\\d+(?:,\\d+)?)\\s+градус(?:а|ов)?(?:\\s+цельсия)?\\b")
+        } catch {
+            fatalError("Invalid celsius word regex: \(error)")
+        }
+    }()
+
+    private static let celsiusSpacingPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: "(?i)\\b(\\d+(?:,\\d+)?)\\s*°\\s*c\\b")
+        } catch {
+            fatalError("Invalid celsius spacing regex: \(error)")
+        }
+    }()
 }
 
 // MARK: - Базовая валидация LLM

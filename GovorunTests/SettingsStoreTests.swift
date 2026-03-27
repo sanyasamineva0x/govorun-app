@@ -184,8 +184,8 @@ final class SettingsStoreTests: XCTestCase {
 
     // MARK: - 9. terminalPeriodEnabled
 
-    func test_terminalPeriodEnabled_default_true() {
-        XCTAssertTrue(store.terminalPeriodEnabled)
+    func test_terminalPeriodEnabled_default_false() {
+        XCTAssertFalse(store.terminalPeriodEnabled)
     }
 
     func test_terminalPeriodEnabled_set_and_get() {
@@ -202,7 +202,7 @@ final class SettingsStoreTests: XCTestCase {
     func test_terminalPeriodEnabled_reset_to_defaults() {
         store.terminalPeriodEnabled = false
         store.resetToDefaults()
-        XCTAssertTrue(store.terminalPeriodEnabled)
+        XCTAssertFalse(store.terminalPeriodEnabled)
     }
 
     // MARK: - 10. Local LLM runtime settings

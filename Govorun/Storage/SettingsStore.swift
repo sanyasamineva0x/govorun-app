@@ -37,7 +37,7 @@ final class SettingsStore: ObservableObject {
             Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: false,
-            Keys.terminalPeriodEnabled: true,
+            Keys.terminalPeriodEnabled: false,
             Keys.llmBaseURL: LocalLLMConfiguration.defaultBaseURLString,
             Keys.llmModel: LocalLLMConfiguration.defaultModel,
             Keys.llmRequestTimeout: LocalLLMConfiguration.defaultRequestTimeout,

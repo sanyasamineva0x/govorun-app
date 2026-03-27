@@ -266,6 +266,13 @@ final class CurrencyNormalizerTests: XCTestCase {
     func test_currency_preserves_word_after() {
         XCTAssertEqual(NumberNormalizer.normalize("стоит двести рублей в месяц"), "стоит 200 рублей в месяц")
     }
+
+    func test_девятьсот_рублей_пятьдесят_копеек() {
+        XCTAssertEqual(
+            NumberNormalizer.normalize("девятьсот рублей пятьдесят копеек"),
+            "900 рублей 50 копеек"
+        )
+    }
 }
 
 // MARK: - Время
@@ -314,6 +321,14 @@ final class TimeNormalizerTests: XCTestCase {
     func test_три_тридцать_untouched() {
         XCTAssertEqual(NumberNormalizer.normalize("три тридцать"), "три тридцать")
     }
+
+    func test_в_пятнадцать_тридцать() {
+        XCTAssertEqual(NumberNormalizer.normalize("в пятнадцать тридцать"), "в 15:30")
+    }
+
+    func test_в_девять_вечера_stays() {
+        XCTAssertEqual(NumberNormalizer.normalize("в девять вечера"), "в девять вечера")
+    }
 }
 
 // MARK: - Даты
@@ -341,6 +356,13 @@ final class DateNormalizerTests: XCTestCase {
 
     func test_date_in_sentence() {
         XCTAssertEqual(NumberNormalizer.normalize("встреча двадцатого апреля"), "встреча 20 апреля")
+    }
+
+    func test_двадцать_третье_марта_две_тысячи_двадцать_шестого() {
+        XCTAssertEqual(
+            NumberNormalizer.normalize("двадцать третье марта две тысячи двадцать шестого"),
+            "23 марта 2026"
+        )
     }
 }
 
@@ -471,6 +493,20 @@ final class NumberNormalizerIntegrationTests: XCTestCase {
         XCTAssertEqual(
             DeterministicNormalizer.normalize("тринадцатое марта. двести рублей"),
             "13 марта. 200 рублей."
+        )
+    }
+
+    func test_temperature_canon_from_spoken_celsius() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("на улице двадцать пять градусов цельсия", terminalPeriodEnabled: false),
+            "На улице 25°C"
+        )
+    }
+
+    func test_unit_abbreviation_canon_expands_to_full_form() {
+        XCTAssertEqual(
+            DeterministicNormalizer.normalize("купи 5 кг яблок и 2 л молока", terminalPeriodEnabled: false),
+            "Купи 5 килограммов яблок и 2 литра молока"
         )
     }
 }
