@@ -6,14 +6,14 @@
 
 ## Цель этого PR
 
-Readiness foundation: discovery ассетов, state machine, UI статусов, блокировка старта без ассетов. Скачивание/установка — следующий PR.
+Readiness foundation + bundling: discovery ассетов, state machine, UI статусов, блокировка старта без ассетов, llama-server в app bundle. Скачивание модели — следующий PR.
 
 ## Ассеты Super
 
-| Ассет | Источник | Путь | Размер |
-|-------|----------|------|--------|
-| llama-server binary | App bundle (`Resources/llama-server`) | `Bundle.main.resourcePath` | ~5 MB |
-| GigaChat GGUF model | Скачивается отдельно (будущий PR) | `~/.govorun/models/` | ~6 GB |
+| Ассет | Источник | Путь | Размер | В этом PR |
+|-------|----------|------|--------|-----------|
+| llama-server binary | App bundle (`Resources/llama-server`) | `Bundle.main.resourcePath` | ~5 MB | Да (build script) |
+| GigaChat GGUF model | Скачивается отдельно | `~/.govorun/models/{model-alias}.gguf` | ~6 GB | Нет (следующий PR) |
 
 ## SuperAssetsManager
 
@@ -52,13 +52,13 @@ unknown → checking → installed
 ### Discovery логика
 
 1. Ищем llama-server:
-   - `Bundle.main.resourceURL/llama-server`
-   - Fallback: `which llama-server` (PATH) — для dev-режима
+   - `Bundle.main.resourceURL/llama-server` (primary — release)
+   - Fallback: PATH lookup — **только в `#if DEBUG`** (dev-режим). В release PATH fallback отключён, чтобы не маскировать сломанный bundle.
    - Не найден → `.runtimeMissing`
 
 2. Ищем GGUF модель:
-   - `~/.govorun/models/*.gguf` — первый найденный файл
-   - Env override: `GOVORUN_LLM_MODEL_PATH`
+   - Точное имя из конфига: `~/.govorun/models/{SettingsStore.llmModel}.gguf` (default: `gigachat-gguf.gguf`)
+   - Env override: `GOVORUN_LLM_MODEL_PATH` (полный путь к файлу)
    - Не найден → `.modelMissing`
 
 3. Валидация:
@@ -68,6 +68,24 @@ unknown → checking → installed
 
 4. Оба на месте → `.installed`, заполняем `runtimeBinaryURL` и `modelURL`
 
+### External Endpoint Bypass
+
+Если `SettingsStore.llmBaseURL` указывает не на managed local endpoint (не `localhost:8080`), ассеты не нужны — пользователь использует внешний LLM сервер. В этом случае:
+
+```swift
+func check() async -> SuperAssetsState {
+    if configuration.isExternalEndpoint {
+        // Внешний endpoint — ассеты не требуются
+        runtimeBinaryURL = nil
+        modelURL = nil
+        return .installed
+    }
+    // ...обычная discovery логика
+}
+```
+
+`LLMRuntimeManager` уже различает managed/external в `resolveStartMode()` и не запускает процесс для внешнего endpoint.
+
 ### Resolved Paths
 
 `LLMRuntimeManager` больше не ищет файлы сам. `AppState` передаёт resolved paths из `SuperAssetsManager`:
@@ -75,20 +93,41 @@ unknown → checking → installed
 ```swift
 // AppState
 let assetsState = await assetsManager.check()
-guard assetsState == .installed,
-      let binaryURL = assetsManager.runtimeBinaryURL,
-      let modelURL = assetsManager.modelURL else {
+guard assetsState == .installed else {
     updateLLMRuntimeState(.disabled)
     return
 }
-let config = LocalLLMRuntimeConfiguration(
-    runtimeBinaryPath: binaryURL.path,
-    modelPath: modelURL.path,
-    ...
-)
-try await llmRuntimeManager.updateConfiguration(config)
+// Для external endpoint paths будут nil — LLMRuntimeManager использует HTTP
+if let binaryURL = assetsManager.runtimeBinaryURL,
+   let modelURL = assetsManager.modelURL {
+    let config = LocalLLMRuntimeConfiguration(
+        runtimeBinaryPath: binaryURL.path,
+        modelPath: modelURL.path,
+        ...
+    )
+    try await llmRuntimeManager.updateConfiguration(config)
+}
 try await llmRuntimeManager.start()
 ```
+
+## Source of Truth в AppState
+
+```swift
+// AppState
+@Published private(set) var superAssetsState: SuperAssetsState = .unknown
+
+private let assetsManager: SuperAssetsManaging
+
+func refreshSuperAssetsReadiness() async {
+    superAssetsState = .checking
+    superAssetsState = await assetsManager.check()
+}
+```
+
+Вызовы `refreshSuperAssetsReadiness()`:
+- Cold start (`start()`)
+- Переключение product mode в Settings
+- Открытие Settings (чтобы подхватить ручное копирование модели)
 
 ## Изменения в AppState
 
@@ -96,73 +135,88 @@ try await llmRuntimeManager.start()
 
 ```
 start()
-├─ assetsManager.check()
-├─ if .installed → runtimeManager.start(resolvedPaths)
-├─ if .modelMissing → llmRuntimeState = .disabled, log
-├─ if .runtimeMissing → llmRuntimeState = .disabled, log
+├─ refreshSuperAssetsReadiness()
+├─ if superAssetsState == .installed && productMode.usesLLM
+│  → runtimeManager.start(resolvedPaths)
+├─ if superAssetsState != .installed && productMode.usesLLM
+│  → llmRuntimeState = .disabled, log
 └─ Standard mode не зависит от ассетов
 ```
 
-### Mode Switch (standard → super)
+### Mode Switch
 
-```
-handleSettingsChanged(productMode: .superMode)
-├─ assetsManager.check()
-├─ if .installed → applyProductMode(.superMode)
-├─ if != .installed → остаёмся на .standard, UI показывает причину
-```
+Переключение на Super контролируется через UI: picker Super disabled если `superAssetsState != .installed`. AppState не содержит special-case логику "stays on standard" — блокировка целиком в SettingsView.
 
 ## Изменения в SettingsView
 
 ### ProductModeCard — расширение
 
-Picker Super заблокирован если `assetsState != .installed`. Под picker — явная причина:
+Picker Super segment disabled если `superAssetsState != .installed`. Под picker — явная причина:
 
 | State | Текст | Иконка |
 |-------|-------|--------|
 | `.unknown` / `.checking` | "Проверяю готовность Super..." | `progress` |
-| `.installed` | "Super готов к работе" | `checkmark.circle` |
-| `.modelMissing` | "Модель не найдена. Скачайте GigaChat GGUF в ~/.govorun/models/" | `exclamationmark.triangle` |
-| `.runtimeMissing` | "Бинарник llama-server отсутствует" | `xmark.circle` |
+| `.installed` | (показывает runtime status как сейчас) | `sparkles` |
+| `.modelMissing` | "Модель не найдена. Скопируйте GGUF в ~/.govorun/models/" | `exclamationmark.triangle` |
+| `.runtimeMissing` | "Компонент llama-server отсутствует в приложении" | `xmark.circle` |
 | `.error(msg)` | "Ошибка: {msg}" | `xmark.circle` |
 
-Picker disabled когда state ∉ {`.installed`} и пользователь пытается выбрать Super. Переключение на Standard всегда доступно.
+Переключение на Standard всегда доступно.
 
 ## Изменения в LLMRuntimeManager
 
 ### Убрать internal discovery
 
-`resolveModelPath()` и `resolveRuntimeBinary()` удаляются из `LLMRuntimeManager`. Вместо этого `LLMRuntimeConfiguration` получает явные `runtimeBinaryPath` и `modelPath` от `AppState`, который берёт их из `SuperAssetsManager`.
+`resolveModelPath()` и `resolveRuntimeBinary()` удаляются. `LLMRuntimeConfiguration` получает явные пути от `AppState` (через `SuperAssetsManager`).
 
 ### resolveStartMode упрощается
 
 ```swift
 func resolveStartMode() throws -> StartMode {
-    // Только проверяем что config содержит валидные пути
+    guard isLocalManagedEndpoint else { return .externalEndpoint }
     guard !configuration.runtimeBinaryPath.isEmpty else {
         throw LLMRuntimeError.configurationMissing("runtimeBinaryPath не задан")
     }
     guard !configuration.modelPath.isEmpty else {
         throw LLMRuntimeError.configurationMissing("modelPath не задан")
     }
-    // ...остальная логика endpoint detection
+    // ...build launch request
 }
 ```
+
+## Bundling llama-server
+
+В `scripts/build-unsigned-dmg.sh` добавить копирование бинарника в app bundle:
+
+```bash
+# Копируем llama-server в Resources
+LLAMA_SERVER=$(which llama-server 2>/dev/null)
+if [[ -n "$LLAMA_SERVER" ]]; then
+    cp "$LLAMA_SERVER" "$APP_RESOURCES/llama-server"
+    chmod +x "$APP_RESOURCES/llama-server"
+    echo "[build] llama-server скопирован в bundle"
+else
+    echo "[build] ВНИМАНИЕ: llama-server не найден, Super mode будет недоступен"
+fi
+```
+
+Не блокирует сборку — если llama-server не установлен, DMG собирается без него, Super показывает `runtimeMissing`.
 
 ## Тесты
 
 ### SuperAssetsManagerTests
-- `test_check_withBothAssets_returnsInstalled` — mock файловая система, оба файла есть
-- `test_check_withoutModel_returnsModelMissing` — бинарник есть, модели нет
-- `test_check_withoutBinary_returnsRuntimeMissing` — бинарника нет
-- `test_check_withUnreadableModel_returnsError` — файл есть но нечитаем
-- `test_resolvedPaths_populatedWhenInstalled` — runtimeBinaryURL и modelURL заполнены
-- `test_resolvedPaths_nilWhenNotInstalled` — runtimeBinaryURL/modelURL = nil
+- `test_check_withBothAssets_returnsInstalled`
+- `test_check_withoutModel_returnsModelMissing`
+- `test_check_withoutBinary_returnsRuntimeMissing`
+- `test_check_withUnreadableModel_returnsError`
+- `test_resolvedPaths_populatedWhenInstalled`
+- `test_resolvedPaths_nilWhenNotInstalled`
+- `test_externalEndpoint_bypassesAssetCheck`
+- `test_modelDiscovery_usesExactFilename`
 
 ### AppState/ColdStartUITests
 - `test_superMode_coldStart_withInstalledAssets_startsRuntime`
 - `test_superMode_coldStart_withMissingModel_disablesRuntime`
-- `test_switchToSuper_withMissingAssets_staysOnStandard`
 - `test_standardMode_ignoresAssetsState`
 
 ### PipelineEngineTests
@@ -174,14 +228,14 @@ func resolveStartMode() throws -> StartMode {
 |------|----------|
 | `Govorun/Services/SuperAssetsManager.swift` | NEW |
 | `GovorunTests/SuperAssetsManagerTests.swift` | NEW |
-| `Govorun/App/AppState.swift` | MODIFY — wiring assetsManager |
+| `Govorun/App/AppState.swift` | MODIFY — superAssetsState, refreshSuperAssetsReadiness, wiring |
 | `Govorun/Views/SettingsView.swift` | MODIFY — assetsState в ProductModeCard |
 | `Govorun/Services/LLMRuntimeManager.swift` | MODIFY — убрать discovery, принимать resolved paths |
 | `GovorunTests/ColdStartUITests.swift` | MODIFY — тесты assets + runtime |
+| `scripts/build-unsigned-dmg.sh` | MODIFY — копировать llama-server в bundle |
 
 ## Не в scope
 
 - Скачивание модели (следующий PR)
-- Bundling llama-server в DMG (build script, отдельно)
 - First-run setup wizard
 - Автоматический retry при ошибке ассетов
