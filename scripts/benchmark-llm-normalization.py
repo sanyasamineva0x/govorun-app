@@ -40,6 +40,10 @@ class FullPipelineHelperUnavailableError(FullPipelineHelperError):
     pass
 
 
+class LLMRequestError(BenchmarkError):
+    pass
+
+
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
 
@@ -254,6 +258,8 @@ class FullPipelineHelper:
     def _stderr_snapshot(self) -> str:
         if self.process.stderr is None:
             return ""
+        if self.process.poll() is None:
+            return ""
         return self.process.stderr.read().strip()
 
     def request(self, payload: dict) -> dict:
@@ -395,7 +401,10 @@ def request_completion(
                 if data == "[DONE]":
                     break
 
-                chunk = json.loads(data)
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError as exc:
+                    raise LLMRequestError(f"Malformed SSE chunk: {data}") from exc
                 choices = chunk.get("choices") or []
                 if not choices:
                     continue
@@ -411,9 +420,9 @@ def request_completion(
                 output_parts.append(content)
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
+        raise LLMRequestError(f"HTTP {exc.code}: {body}") from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"Connection error: {exc}") from exc
+        raise LLMRequestError(f"Connection error: {exc}") from exc
 
     total_latency_ms = (time.perf_counter() - start) * 1000.0
     return "".join(output_parts).strip(), first_token_latency_ms, total_latency_ms
@@ -666,7 +675,7 @@ def main() -> int:
                             "terminalPeriodEnabled": not args.no_terminal_period,
                         })
                     except FullPipelineHelperError as exc:
-                        raise FullPipelineHelperError(
+                        raise type(exc)(
                             f"[{sample.get('id', '?')}] Full-pipeline helper failed during preflight: {exc}"
                         ) from exc
 
@@ -697,7 +706,7 @@ def main() -> int:
                                 temperature=args.temperature,
                                 stop=stop_sequences,
                             )
-                        except Exception as exc:  # noqa: BLE001
+                        except LLMRequestError as exc:
                             try:
                                 postflight = full_pipeline_helper.request({
                                     "op": "failed-postflight",
@@ -705,7 +714,7 @@ def main() -> int:
                                     "failureContext": str(exc),
                                 })
                             except FullPipelineHelperError as helper_exc:
-                                raise FullPipelineHelperError(
+                                raise type(helper_exc)(
                                     f"[{sample.get('id', '?')}] LLM request failed with '{exc}', "
                                     f"then full-pipeline helper failed during failed-postflight: {helper_exc}"
                                 ) from helper_exc
@@ -740,7 +749,7 @@ def main() -> int:
                                 "terminalPeriodEnabled": not args.no_terminal_period,
                             })
                         except FullPipelineHelperError as exc:
-                            raise FullPipelineHelperError(
+                            raise type(exc)(
                                 f"[{sample.get('id', '?')}] Full-pipeline helper failed during postflight: {exc}"
                             ) from exc
 
