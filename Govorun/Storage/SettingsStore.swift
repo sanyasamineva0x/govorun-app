@@ -9,6 +9,7 @@ final class SettingsStore: ObservableObject {
     // MARK: - Keys
 
     private enum Keys {
+        static let productMode = "productMode"
         static let defaultTextMode = "defaultTextMode"
         static let recordingMode = "recordingMode"
         static let soundEnabled = "soundEnabled"
@@ -33,6 +34,7 @@ final class SettingsStore: ObservableObject {
 
     private func registerDefaults() {
         defaults.register(defaults: [
+            Keys.productMode: ProductMode.standard.rawValue,
             Keys.defaultTextMode: "universal",
             Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
@@ -53,6 +55,23 @@ final class SettingsStore: ObservableObject {
     }
 
     // MARK: - Properties
+
+    var productMode: ProductMode {
+        get {
+            guard let raw = defaults.string(forKey: Keys.productMode) else {
+                return .standard
+            }
+            guard let mode = ProductMode(rawValue: raw) else {
+                print("[Govorun] ProductMode: неизвестное значение '\(raw)', используем standard")
+                return .standard
+            }
+            return mode
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: Keys.productMode)
+            objectWillChange.send()
+        }
+    }
 
     var defaultTextMode: String {
         get { defaults.string(forKey: Keys.defaultTextMode) ?? "universal" }
@@ -210,6 +229,7 @@ final class SettingsStore: ObservableObject {
     // MARK: - Reset
 
     func resetToDefaults() {
+        defaults.removeObject(forKey: Keys.productMode)
         defaults.removeObject(forKey: Keys.defaultTextMode)
         defaults.removeObject(forKey: Keys.recordingMode)
         defaults.removeObject(forKey: Keys.soundEnabled)

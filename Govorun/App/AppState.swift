@@ -37,6 +37,10 @@ final class AppState: ObservableObject {
     private var currentActivationKey: ActivationKey
     /// Отложенная клавиша (ждёт idle)
     private var pendingActivationKey: ActivationKey?
+    /// Текущий продуктовый режим
+    private var currentProductMode: ProductMode
+    /// Отложенный продуктовый режим (ждёт idle)
+    private var pendingProductMode: ProductMode?
     /// Текущий режим записи
     private var currentRecordingMode: RecordingMode
     /// Отложенный режим записи (ждёт idle)
@@ -58,6 +62,10 @@ final class AppState: ObservableObject {
     /// Может отличаться от settings.recordingMode, если смена режима отложена до idle.
     var effectiveRecordingMode: RecordingMode {
         currentRecordingMode
+    }
+
+    var effectiveProductMode: ProductMode {
+        currentProductMode
     }
 
     /// Последний результат (для StatusBar)
@@ -129,6 +137,7 @@ final class AppState: ObservableObject {
         eventMonitor.recordingMode = settings.recordingMode
         self.eventMonitor = eventMonitor
         currentActivationKey = settings.activationKey
+        currentProductMode = settings.productMode
         currentRecordingMode = settings.recordingMode
 
         audioCapture = audio
@@ -138,6 +147,7 @@ final class AppState: ObservableObject {
             llmClient: llm,
             snippetEngine: snippetEngine
         )
+        pipelineEngine.productMode = settings.productMode
         textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
@@ -166,6 +176,7 @@ final class AppState: ObservableObject {
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
         updaterService = UpdaterService()
+        llmRuntimeState = settings.productMode.usesLLM ? .notStarted : .disabled
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -223,12 +234,14 @@ final class AppState: ObservableObject {
         self.settings = settings
         self.eventMonitor = eventMonitor
         currentActivationKey = settings.activationKey
+        currentProductMode = settings.productMode
         currentRecordingMode = settings.recordingMode
         currentLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         self.updaterService = updaterService
 
         workerState = initialWorkerState
-        llmRuntimeState = initialLLMRuntimeState
+        llmRuntimeState = settings.productMode.usesLLM ? initialLLMRuntimeState : .disabled
+        self.pipelineEngine.productMode = settings.productMode
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -245,7 +258,7 @@ final class AppState: ObservableObject {
     }
 
     func updateLLMRuntimeState(_ state: LLMRuntimeState) {
-        llmRuntimeState = state
+        llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
     }
 
     // MARK: - Start / Stop
@@ -282,12 +295,16 @@ final class AppState: ObservableObject {
         }
 
         if let llmRuntimeManager {
-            Task {
-                do {
-                    try await llmRuntimeManager.start()
-                } catch {
-                    Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+            if currentProductMode.usesLLM {
+                Task {
+                    do {
+                        try await llmRuntimeManager.start()
+                    } catch {
+                        Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+                    }
                 }
+            } else {
+                updateLLMRuntimeState(.disabled)
             }
         }
     }
@@ -413,23 +430,29 @@ final class AppState: ObservableObject {
 
     private func handleSettingsChanged() {
         let newKey = settings.activationKey
+        let newProductMode = settings.productMode
         let newMode = settings.recordingMode
         let newLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         let keyChanged = newKey != currentActivationKey
+        let productModeChanged = newProductMode != currentProductMode
         let modeChanged = newMode != currentRecordingMode
         let llmConfigurationChanged = newLLMConfiguration != currentLLMConfiguration
 
-        guard keyChanged || modeChanged || llmConfigurationChanged else { return }
+        guard keyChanged || productModeChanged || modeChanged || llmConfigurationChanged else { return }
 
         if sessionManager.state == .idle {
             if keyChanged || modeChanged {
                 recreateMonitor(key: newKey, mode: newMode)
+            }
+            if productModeChanged {
+                applyProductMode(newProductMode)
             }
             if llmConfigurationChanged {
                 applyLLMConfiguration(newLLMConfiguration)
             }
         } else {
             if keyChanged { pendingActivationKey = newKey }
+            if productModeChanged { pendingProductMode = newProductMode }
             if modeChanged { pendingRecordingMode = newMode }
             if llmConfigurationChanged { pendingLLMConfiguration = newLLMConfiguration }
         }
@@ -455,16 +478,51 @@ final class AppState: ObservableObject {
 
     fileprivate func applyPendingSettings() {
         let key = pendingActivationKey ?? currentActivationKey
+        let productMode = pendingProductMode ?? currentProductMode
         let mode = pendingRecordingMode ?? currentRecordingMode
         let llmConfiguration = pendingLLMConfiguration
 
-        guard pendingActivationKey != nil || pendingRecordingMode != nil || llmConfiguration != nil else { return }
+        guard pendingActivationKey != nil
+            || pendingProductMode != nil
+            || pendingRecordingMode != nil
+            || llmConfiguration != nil
+        else { return }
 
         if pendingActivationKey != nil || pendingRecordingMode != nil {
             recreateMonitor(key: key, mode: mode)
         }
+        if pendingProductMode != nil {
+            applyProductMode(productMode)
+        }
         if let llmConfiguration {
             applyLLMConfiguration(llmConfiguration)
+        }
+    }
+
+    private func applyProductMode(_ productMode: ProductMode) {
+        pipelineEngine.productMode = productMode
+        currentProductMode = productMode
+        pendingProductMode = nil
+
+        guard let llmRuntimeManager else { return }
+
+        if productMode.usesLLM {
+            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
+            if isReady {
+                Task {
+                    do {
+                        try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
+                        try await llmRuntimeManager.start()
+                    } catch {
+                        Self.logger.error("LLM runtime не переключился в Super: \(String(describing: error), privacy: .public)")
+                    }
+                }
+            } else {
+                updateLLMRuntimeState(.notStarted)
+            }
+        } else {
+            llmRuntimeManager.stop()
+            updateLLMRuntimeState(.disabled)
         }
     }
 
@@ -473,7 +531,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
 
-        if let llmRuntimeManager {
+        if currentProductMode.usesLLM, let llmRuntimeManager {
             let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
             Task {
                 do {
@@ -482,6 +540,8 @@ final class AppState: ObservableObject {
                     Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
                 }
             }
+        } else {
+            updateLLMRuntimeState(.disabled)
         }
     }
 
@@ -649,6 +709,7 @@ final class AppState: ObservableObject {
         let dictionary = loadDictionaryHints()
 
         pipelineEngine.textMode = context.textMode
+        pipelineEngine.productMode = currentProductMode
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
@@ -660,6 +721,7 @@ final class AppState: ObservableObject {
         Task {
             await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
+                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
                 AnalyticsMetadataKey.textMode: context.textMode.rawValue,
             ])
         }
@@ -822,6 +884,7 @@ final class AppState: ObservableObject {
         if completedPaths.contains(result.normalizationPath), !normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
+                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
             ]
@@ -834,6 +897,7 @@ final class AppState: ObservableObject {
         if normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
+                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
             ]
@@ -846,6 +910,7 @@ final class AppState: ObservableObject {
         if result.snippetFallbackUsed {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
+                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
             ]
             if let snippetFallbackReason = result.snippetFallbackReason {
                 metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue

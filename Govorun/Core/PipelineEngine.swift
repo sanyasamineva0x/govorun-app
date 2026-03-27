@@ -241,6 +241,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _isRecording = false
     private var _llmClient: LLMClient
 
+    private var _productMode: ProductMode = .superMode
     private var _textMode: TextMode = .universal
     private var _hints: NormalizationHints = .init()
     private var _terminalPeriodEnabled: Bool = true
@@ -250,6 +251,11 @@ final class PipelineEngine: @unchecked Sendable {
     var textMode: TextMode {
         get { lock.lock(); defer { lock.unlock() }; return _textMode }
         set { lock.lock(); defer { lock.unlock() }; _textMode = newValue }
+    }
+
+    var productMode: ProductMode {
+        get { lock.lock(); defer { lock.unlock() }; return _productMode }
+        set { lock.lock(); defer { lock.unlock() }; _productMode = newValue }
     }
 
     var hints: NormalizationHints {
@@ -311,7 +317,7 @@ final class PipelineEngine: @unchecked Sendable {
         let sessionId = snapshotSessionId()
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
-        let (currentTextMode, currentHints, currentLLMClient) = snapshotConfig()
+        let (currentProductMode, currentTextMode, currentHints, currentLLMClient) = snapshotConfig()
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
@@ -411,6 +417,34 @@ final class PipelineEngine: @unchecked Sendable {
                 )
 
             case .embedded:
+                if !currentProductMode.usesLLM {
+                    let finalText = SnippetReinserter.mechanicalFallback(
+                        rawTranscript: deterministicText,
+                        trigger: snippetMatch.trigger,
+                        content: snippetMatch.content
+                    )
+                    let outputText = terminalPeriodEnabled
+                        ? finalText
+                        : DeterministicNormalizer.stripTrailingPeriods(finalText)
+                    let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+                    return PipelineResult(
+                        sessionId: sessionId,
+                        rawTranscript: rawTranscript,
+                        normalizedText: outputText,
+                        textMode: currentTextMode,
+                        normalizationPath: .snippet,
+                        sttLatencyMs: sttLatencyMs,
+                        llmLatencyMs: 0,
+                        insertionLatencyMs: 0,
+                        totalLatencyMs: totalMs,
+                        matchedSnippetTrigger: snippetMatch.trigger,
+                        snippetFallbackUsed: false,
+                        gateFailureReason: nil,
+                        audioDurationMs: audioDurationMs,
+                        audioFileName: audioFileName
+                    )
+                }
+
                 let snippetCtx = SnippetContext(trigger: snippetMatch.trigger)
                 let hintsWithSnippet = NormalizationHints(
                     personalDictionary: currentHints.personalDictionary,
@@ -518,7 +552,7 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // Trivial text → только DeterministicNormalizer, без LLM
-        if !pipelinePreflight.shouldInvokeLLM {
+        if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
@@ -629,10 +663,10 @@ final class PipelineEngine: @unchecked Sendable {
         return _sessionId ?? UUID()
     }
 
-    private func snapshotConfig() -> (TextMode, NormalizationHints, LLMClient) {
+    private func snapshotConfig() -> (ProductMode, TextMode, NormalizationHints, LLMClient) {
         lock.lock()
         defer { lock.unlock() }
-        return (_textMode, _hints, _llmClient)
+        return (_productMode, _textMode, _hints, _llmClient)
     }
 
     private func prepareForRecording() {

@@ -13,6 +13,7 @@ final class RecreateMonitorTests: XCTestCase {
         let suiteName = "com.govorun.tests.recreate.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)!
         settings = SettingsStore(defaults: defaults)
+        settings.productMode = .superMode
     }
 
     override func tearDown() async throws {

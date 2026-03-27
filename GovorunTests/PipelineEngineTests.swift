@@ -132,6 +132,48 @@ final class PipelineEngineTests: XCTestCase {
         XCTAssertEqual(nextLLM.normalizeCalls.count, 1)
     }
 
+    func test_standard_mode_skips_llm_even_for_nontrivial_text() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет марк ой точнее саша")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "LLM не должен вызываться"
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .standard
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Привет марк ой точнее саша.")
+        XCTAssertEqual(result.normalizationPath, .trivial)
+        XCTAssertEqual(llm.normalizeCalls.count, 0)
+        XCTAssertEqual(result.llmLatencyMs, 0)
+    }
+
+    func test_standard_mode_embedded_snippet_uses_mechanical_fallback_without_llm() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "лена вот мой адрес")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "LLM не должен вызываться"
+
+        let snippets = MockSnippetEngine()
+        snippets.configureEmbedded("мой адрес", content: "Аминева 9", forInput: "лена вот мой адрес")
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm, snippets: snippets)
+        engine.productMode = .standard
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Лена мой адрес: Аминева 9.")
+        XCTAssertEqual(result.normalizationPath, .snippet)
+        XCTAssertEqual(result.matchedSnippetTrigger, "мой адрес")
+        XCTAssertFalse(result.snippetFallbackUsed)
+        XCTAssertEqual(llm.normalizeCalls.count, 0)
+    }
+
     // MARK: - 3. cancel останавливает всё
 
     func test_cancel_stops_everything() throws {

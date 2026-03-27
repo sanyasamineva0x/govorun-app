@@ -24,6 +24,7 @@ final class SettingsStoreTests: XCTestCase {
     // MARK: - 1. Дефолтные значения
 
     func test_default_values() {
+        XCTAssertEqual(store.productMode, .standard)
         XCTAssertEqual(store.defaultTextMode, "universal")
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
@@ -37,6 +38,14 @@ final class SettingsStoreTests: XCTestCase {
     }
 
     // MARK: - 2. Сохранение и чтение
+
+    func test_set_product_mode() {
+        store.productMode = .superMode
+        XCTAssertEqual(store.productMode, .superMode)
+
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.productMode, .superMode)
+    }
 
     func test_set_default_text_mode() {
         store.defaultTextMode = "chat"
@@ -77,11 +86,13 @@ final class SettingsStoreTests: XCTestCase {
     // MARK: - 4. Persistence между экземплярами
 
     func test_persistence_across_instances() {
+        store.productMode = .superMode
         store.defaultTextMode = "email"
         store.recordingMode = .toggle
         store.soundEnabled = false
 
         let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.productMode, .superMode)
         XCTAssertEqual(store2.defaultTextMode, "email")
         XCTAssertEqual(store2.recordingMode, .toggle)
         XCTAssertFalse(store2.soundEnabled)
@@ -91,12 +102,14 @@ final class SettingsStoreTests: XCTestCase {
     // MARK: - 5. Сброс к дефолтам
 
     func test_reset_to_defaults() {
+        store.productMode = .superMode
         store.defaultTextMode = "code"
         store.recordingMode = .toggle
         store.soundEnabled = false
 
         store.resetToDefaults()
 
+        XCTAssertEqual(store.productMode, .standard)
         XCTAssertEqual(store.defaultTextMode, "universal")
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)

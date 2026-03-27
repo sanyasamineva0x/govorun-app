@@ -104,6 +104,11 @@ final class ColdStartAppStateTests: XCTestCase {
         XCTAssertEqual(appState.llmRuntimeState, .notStarted)
     }
 
+    func test_llmRuntimeState_defaults_to_disabled_in_standard_mode() {
+        let (appState, _, _) = makeColdStartTestAppState(productMode: .standard)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
     func test_updateWorkerState_changes_state() {
         let (appState, _, _) = makeColdStartTestAppState()
 
@@ -266,6 +271,20 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         XCTAssertTrue(mockLLMRuntime.startCalled)
     }
 
+    func test_start_in_standard_mode_does_not_launch_llm_runtime_manager() async throws {
+        let mockLLMRuntime = MockLLMRuntimeManager()
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            productMode: .standard
+        )
+
+        appState.start()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertFalse(mockLLMRuntime.startCalled)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
     func test_stop_stops_llm_runtime_manager() {
         let mockLLMRuntime = MockLLMRuntimeManager()
         let (appState, _, _) = makeColdStartTestAppState(llmRuntimeManager: mockLLMRuntime)
@@ -300,6 +319,40 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
 
         let updated = try XCTUnwrap(mockLLMRuntime.updatedConfigurations.last)
         XCTAssertEqual(updated.normalizedModelAlias, "gigachat-super")
+
+        withExtendedLifetime(appState) {}
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    func test_switching_product_mode_to_standard_stops_llm_runtime() async throws {
+        let suiteName = "ColdStartProductMode-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let settings = SettingsStore(defaults: defaults)
+        settings.productMode = .superMode
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            settings: settings,
+            productMode: .superMode
+        )
+
+        appState.start()
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockLLMRuntime.startCalled { break }
+        }
+
+        settings.productMode = .standard
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockLLMRuntime.stopCalled { break }
+        }
+
+        XCTAssertTrue(mockLLMRuntime.stopCalled)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
 
         withExtendedLifetime(appState) {}
         defaults.removePersistentDomain(forName: suiteName)
@@ -519,13 +572,15 @@ private func makeColdStartTestAppState(
     mockAudio: MockAudioRecording = MockAudioRecording(),
     workerManager: ASRWorkerManaging? = nil,
     llmRuntimeManager: LLMRuntimeManaging? = nil,
-    settings: SettingsStore = SettingsStore()
+    settings: SettingsStore = SettingsStore(),
+    productMode: ProductMode = .superMode
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
     let eventMonitor = MockEventMonitoring()
     let stt = MockSTTClient()
     stt.recognizeResult = STTResult(text: "тест")
     let llm = MockLLMClient()
     llm.normalizeResult = "Тест."
+    settings.productMode = productMode
 
     let pipeline = PipelineEngine(
         audioCapture: mockAudio,

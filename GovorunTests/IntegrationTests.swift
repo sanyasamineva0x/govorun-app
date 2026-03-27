@@ -45,7 +45,8 @@ private func makeTestAppState(
     clipboard: MockClipboard = MockClipboard(),
     modelContainer: ModelContainer? = nil,
     recordingMode: RecordingMode = .pushToTalk,
-    analytics: AnalyticsEmitting = NoOpAnalyticsService()
+    analytics: AnalyticsEmitting = NoOpAnalyticsService(),
+    productMode: ProductMode = .superMode
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
@@ -74,6 +75,7 @@ private func makeTestAppState(
     // Изолированный SettingsStore — тесты не зависят от UserDefaults.standard
     let testDefaults = UserDefaults(suiteName: "com.govorun.integration-test.\(UUID().uuidString)")!
     let settings = SettingsStore(defaults: testDefaults)
+    settings.productMode = productMode
 
     let appState = AppState(
         activationKeyMonitor: ActivationKeyMonitor(
@@ -390,9 +392,49 @@ final class IntegrationTests: XCTestCase {
         try await Task.sleep(nanoseconds: 800_000_000)
 
         XCTAssertNotNil(appState.lastResult)
-        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет.")
+        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет")
         XCTAssertEqual(appState.lastResult?.normalizationPath, .trivial)
         XCTAssertEqual(mockLLM.normalizeCalls.count, 0) // LLM не вызвали
+    }
+
+    func test_standard_mode_uses_deterministic_path_without_normalization_events() async throws {
+        let mockAudio = MockAudioRecording()
+        mockAudio.audioData = Data([0x01])
+
+        let mockSTT = MockSTTClient()
+        mockSTT.recognizeResult = STTResult(text: "привет марк ой точнее саша")
+
+        let mockLLM = MockLLMClient()
+        mockLLM.normalizeResult = "LLM не должен вызываться"
+
+        let mockAccessibility = MockAccessibility()
+        let mockElement = MockAXElement()
+        mockElement.settableAttributes = ["AXSelectedText"]
+        mockAccessibility.focusedElement = mockElement
+
+        let analytics = MockAnalyticsCollector()
+
+        let (appState, _, _) = makeTestAppState(
+            mockAudio: mockAudio,
+            sttClient: mockSTT,
+            llmClient: mockLLM,
+            accessibility: mockAccessibility,
+            analytics: analytics,
+            productMode: .standard
+        )
+
+        appState.activationKeyMonitor.onActivated?()
+        await Task.yield()
+        appState.activationKeyMonitor.onDeactivated?()
+        await Task.yield()
+
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет марк ой точнее саша")
+        XCTAssertEqual(appState.lastResult?.normalizationPath, .trivial)
+        XCTAssertEqual(mockLLM.normalizeCalls.count, 0)
+        XCTAssertFalse(analytics.events.contains { $0.0 == .normalizationCompleted })
+        XCTAssertFalse(analytics.events.contains { $0.0 == .normalizationFailed })
     }
 
     // MARK: - 6. Pipeline error → bottomBar показывает ошибку
@@ -553,7 +595,7 @@ final class IntegrationTests: XCTestCase {
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertNotNil(appState.lastResult)
-        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет.")
+        XCTAssertEqual(appState.lastResult?.normalizedText, "Привет")
     }
 
     // MARK: - 10. Toggle mode: cancel через onCancelled

@@ -27,6 +27,7 @@ private func makeToggleAppState(
 
     let testDefaults = UserDefaults(suiteName: "com.govorun.toggle-recovery.\(UUID().uuidString)")!
     let settings = SettingsStore(defaults: testDefaults)
+    settings.productMode = .superMode
     settings.recordingMode = recordingMode
 
     let appState = AppState(
@@ -373,6 +374,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
         let eventMonitor = MockEventMonitoring()
         let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.t2p.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
+        settings.productMode = .superMode
         settings.recordingMode = .toggle
 
         let stt = MockSTTClient()
@@ -439,6 +441,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
         let eventMonitor = MockEventMonitoring()
         let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.t2pe.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
+        settings.productMode = .superMode
         settings.recordingMode = .toggle
 
         let stt = MockSTTClient()
@@ -502,6 +505,7 @@ final class ToggleToPushToTalkTransitionTests: XCTestCase {
         let eventMonitor = MockEventMonitoring()
         let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.erm.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
+        settings.productMode = .superMode
 
         let stt = MockSTTClient()
         stt.recognizeResult = STTResult(text: "тест")
@@ -575,6 +579,7 @@ final class ErrorAutoDismissTests: XCTestCase {
         let eventMonitor = MockEventMonitoring()
         let testDefaults = try XCTUnwrap(UserDefaults(suiteName: "com.govorun.ead.\(UUID().uuidString)"))
         let settings = SettingsStore(defaults: testDefaults)
+        settings.productMode = .superMode
 
         let stt = MockSTTClient()
         stt.recognizeResult = STTResult(text: "тест")
