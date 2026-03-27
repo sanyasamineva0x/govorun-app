@@ -54,6 +54,17 @@ for f in server.py setup.sh requirements.txt VERSION; do
 done
 chmod +x "$APP/Contents/Resources/worker/setup.sh"
 
+# llama-server для Говорун Super
+LLAMA_SERVER=$(which llama-server 2>/dev/null)
+if [[ -n "$LLAMA_SERVER" ]]; then
+    echo "==> Копирую llama-server в bundle..."
+    cp "$LLAMA_SERVER" "$APP/Contents/Resources/llama-server"
+    chmod +x "$APP/Contents/Resources/llama-server"
+    echo "    llama-server скопирован ($(du -h "$APP/Contents/Resources/llama-server" | cut -f1))"
+else
+    echo "==> ВНИМАНИЕ: llama-server не найден в PATH, Super mode будет недоступен в этой сборке"
+fi
+
 # Wheels для офлайн установки
 if [ -d "worker/wheels" ] && ls worker/wheels/*.whl 1>/dev/null 2>&1; then
     echo "==> Копирую wheels в bundle..."
