@@ -19,7 +19,7 @@ protocol FileChecking: Sendable {
     func fileSize(atPath path: String) -> UInt64?
 }
 
-final class DefaultFileChecker: FileChecking {
+final class DefaultFileChecker: FileChecking, Sendable {
     func isExecutableFile(atPath path: String) -> Bool {
         FileManager.default.isExecutableFile(atPath: path)
     }
@@ -39,7 +39,7 @@ protocol SuperAssetsManaging: AnyObject, Sendable {
     var state: SuperAssetsState { get }
     var runtimeBinaryURL: URL? { get }
     var modelURL: URL? { get }
-    func check() -> SuperAssetsState
+    func check() async -> SuperAssetsState
 }
 
 // MARK: - Implementation
@@ -66,7 +66,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         self.modelAlias = modelAlias
     }
 
-    func check() -> SuperAssetsState {
+    func check() async -> SuperAssetsState {
         state = .checking
         runtimeBinaryURL = nil
         modelURL = nil
@@ -98,7 +98,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         }
 
 #if DEBUG
-        if let pathBinary = Self.findInPath("llama-server") {
+        if let pathBinary = findInPath("llama-server") {
             return URL(fileURLWithPath: pathBinary)
         }
 #endif
@@ -128,11 +128,11 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     }
 
 #if DEBUG
-    private static func findInPath(_ name: String) -> String? {
+    private func findInPath(_ name: String) -> String? {
         guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else { return nil }
         for dir in pathEnv.split(separator: ":") {
             let candidate = "\(dir)/\(name)"
-            if FileManager.default.isExecutableFile(atPath: candidate) {
+            if fileChecker.isExecutableFile(atPath: candidate) {
                 return candidate
             }
         }

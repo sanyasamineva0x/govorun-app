@@ -14,7 +14,7 @@ final class SuperAssetsManagerTests: XCTestCase {
         XCTAssertNil(manager.modelURL)
     }
 
-    func test_check_withBothAssets_returnsInstalled() {
+    func test_check_withBothAssets_returnsInstalled() async {
         let checker = MockFileChecker()
         checker.executableFiles = ["/bundle/llama-server"]
         checker.readableFiles = ["/models/gigachat-gguf.gguf": 6_000_000_000]
@@ -26,14 +26,14 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "gigachat-gguf"
         )
 
-        let result = manager.check()
+        let result = await manager.check()
 
         XCTAssertEqual(result, .installed)
         XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
         XCTAssertEqual(manager.modelURL, URL(fileURLWithPath: "/models/gigachat-gguf.gguf"))
     }
 
-    func test_check_withoutModel_returnsModelMissing() {
+    func test_check_withoutModel_returnsModelMissing() async {
         let checker = MockFileChecker()
         checker.executableFiles = ["/bundle/llama-server"]
 
@@ -44,14 +44,14 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "gigachat-gguf"
         )
 
-        let result = manager.check()
+        let result = await manager.check()
 
         XCTAssertEqual(result, .modelMissing)
         XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
         XCTAssertNil(manager.modelURL)
     }
 
-    func test_check_withoutBinary_returnsRuntimeMissing() {
+    func test_check_withoutBinary_returnsRuntimeMissing() async {
         let checker = MockFileChecker()
         checker.readableFiles = ["/models/gigachat-gguf.gguf": 6_000_000_000]
 
@@ -62,14 +62,14 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "gigachat-gguf"
         )
 
-        let result = manager.check()
+        let result = await manager.check()
 
         XCTAssertEqual(result, .runtimeMissing)
         XCTAssertNil(manager.runtimeBinaryURL)
         XCTAssertNil(manager.modelURL)
     }
 
-    func test_check_withTooSmallModel_returnsError() {
+    func test_check_withTooSmallModel_returnsError() async {
         let checker = MockFileChecker()
         checker.executableFiles = ["/bundle/llama-server"]
         checker.readableFiles = ["/models/gigachat-gguf.gguf": 1_000]
@@ -81,7 +81,7 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "gigachat-gguf"
         )
 
-        let result = manager.check()
+        let result = await manager.check()
 
         if case .error(let msg) = result {
             XCTAssertTrue(msg.contains("слишком маленький"))
@@ -90,7 +90,7 @@ final class SuperAssetsManagerTests: XCTestCase {
         }
     }
 
-    func test_modelDiscovery_usesExactFilename() {
+    func test_modelDiscovery_usesExactFilename() async {
         let checker = MockFileChecker()
         checker.executableFiles = ["/bundle/llama-server"]
         checker.readableFiles = [
@@ -105,13 +105,13 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "custom-alias"
         )
 
-        let result = manager.check()
+        let result = await manager.check()
 
         XCTAssertEqual(result, .installed)
         XCTAssertEqual(manager.modelURL, URL(fileURLWithPath: "/models/custom-alias.gguf"))
     }
 
-    func test_resolvedPaths_nilWhenNotInstalled() {
+    func test_resolvedPaths_nilWhenNotInstalled() async {
         let checker = MockFileChecker()
 
         let manager = SuperAssetsManager(
@@ -121,7 +121,7 @@ final class SuperAssetsManagerTests: XCTestCase {
             modelAlias: "gigachat-gguf"
         )
 
-        _ = manager.check()
+        _ = await manager.check()
 
         XCTAssertNil(manager.runtimeBinaryURL)
         XCTAssertNil(manager.modelURL)
