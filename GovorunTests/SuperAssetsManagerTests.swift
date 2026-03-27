@@ -111,6 +111,40 @@ final class SuperAssetsManagerTests: XCTestCase {
         XCTAssertEqual(manager.modelURL, URL(fileURLWithPath: "/models/custom-alias.gguf"))
     }
 
+    func test_externalEndpoint_bypassesAssetCheck() async {
+        let checker = MockFileChecker()
+
+        let manager = SuperAssetsManager(
+            fileChecker: checker,
+            bundleResourcePath: "/bundle",
+            modelsDirectory: "/models",
+            modelAlias: "gigachat-gguf",
+            baseURLString: "http://192.168.1.100:8080/v1"
+        )
+
+        let result = await manager.check()
+
+        XCTAssertEqual(result, .installed)
+        XCTAssertNil(manager.runtimeBinaryURL)
+        XCTAssertNil(manager.modelURL)
+    }
+
+    func test_localEndpoint_requiresAssets() async {
+        let checker = MockFileChecker()
+
+        let manager = SuperAssetsManager(
+            fileChecker: checker,
+            bundleResourcePath: "/bundle",
+            modelsDirectory: "/models",
+            modelAlias: "gigachat-gguf",
+            baseURLString: "http://127.0.0.1:8080/v1"
+        )
+
+        let result = await manager.check()
+
+        XCTAssertEqual(result, .runtimeMissing)
+    }
+
     func test_resolvedPaths_nilWhenNotInstalled() async {
         let checker = MockFileChecker()
 

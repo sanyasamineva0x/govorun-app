@@ -123,7 +123,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = llmConfiguration
         let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
         self.llmRuntimeManager = llmRuntimeManager
-        superAssetsManager = SuperAssetsManager()
+        superAssetsManager = SuperAssetsManager(baseURLString: settings.llmBaseURL)
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 

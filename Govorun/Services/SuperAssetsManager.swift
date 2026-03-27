@@ -49,6 +49,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     private let bundleResourcePath: String?
     private let modelsDirectory: String
     private let modelAlias: String
+    private let baseURLString: String
 
     private(set) var state: SuperAssetsState = .unknown
     private(set) var runtimeBinaryURL: URL?
@@ -58,18 +59,25 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         fileChecker: FileChecking = DefaultFileChecker(),
         bundleResourcePath: String? = Bundle.main.resourcePath,
         modelsDirectory: String = NSHomeDirectory() + "/.govorun/models",
-        modelAlias: String = "gigachat-gguf"
+        modelAlias: String = "gigachat-gguf",
+        baseURLString: String = LocalLLMConfiguration.defaultBaseURLString
     ) {
         self.fileChecker = fileChecker
         self.bundleResourcePath = bundleResourcePath
         self.modelsDirectory = modelsDirectory
         self.modelAlias = modelAlias
+        self.baseURLString = baseURLString
     }
 
     func check() async -> SuperAssetsState {
         state = .checking
         runtimeBinaryURL = nil
         modelURL = nil
+
+        if isExternalEndpoint {
+            state = .installed
+            return state
+        }
 
         guard let binaryURL = resolveRuntimeBinary() else {
             state = .runtimeMissing
@@ -87,6 +95,13 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         modelURL = model
         state = .installed
         return state
+    }
+
+    private var isExternalEndpoint: Bool {
+        guard let url = URL(string: baseURLString),
+              let host = url.host else { return false }
+        let localHosts = ["127.0.0.1", "localhost", "0.0.0.0", "::1"]
+        return !localHosts.contains(host)
     }
 
     private func resolveRuntimeBinary() -> URL? {
