@@ -49,7 +49,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.govorun.app", category: "SuperAssetsManager")
 
     private let fileChecker: FileChecking
-    private let bundleResourcePath: String?
+    private let bundleHelpersPath: String?
     private let modelsDirectory: String
     private let lock = NSLock()
 
@@ -71,11 +71,11 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
 
     init(
         fileChecker: FileChecking = DefaultFileChecker(),
-        bundleResourcePath: String? = Bundle.main.resourcePath,
+        bundleHelpersPath: String? = Bundle.main.bundlePath + "/Contents/Helpers",
         modelsDirectory: String = NSHomeDirectory() + "/.govorun/models"
     ) {
         self.fileChecker = fileChecker
-        self.bundleResourcePath = bundleResourcePath
+        self.bundleHelpersPath = bundleHelpersPath
         self.modelsDirectory = modelsDirectory
     }
 
@@ -149,9 +149,9 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     }
 
     private func resolveRuntimeBinary() -> URL? {
-        if let resourcePath = bundleResourcePath {
-            let bundled = (resourcePath as NSString).appendingPathComponent("llama-server")
-            Self.logger.debug("resolveRuntimeBinary: проверяю bundle — \(bundled, privacy: .public)")
+        if let helpersPath = bundleHelpersPath {
+            let bundled = (helpersPath as NSString).appendingPathComponent("llama-server")
+            Self.logger.debug("resolveRuntimeBinary: проверяю bundle helpers — \(bundled, privacy: .public)")
             if fileChecker.isExecutableFile(atPath: bundled) {
                 return URL(fileURLWithPath: bundled)
             }

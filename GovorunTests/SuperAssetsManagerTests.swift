@@ -5,7 +5,7 @@ final class SuperAssetsManagerTests: XCTestCase {
     func test_initialState_isUnknown() {
         let manager = SuperAssetsManager(
             fileChecker: MockFileChecker(),
-            bundleResourcePath: "/fake/bundle",
+            bundleHelpersPath: "/fake/helpers",
             modelsDirectory: "/fake/models"
         )
         XCTAssertEqual(manager.state, .unknown)
@@ -15,36 +15,36 @@ final class SuperAssetsManagerTests: XCTestCase {
 
     func test_check_withBothAssets_returnsInstalled() async {
         let checker = MockFileChecker()
-        checker.executableFiles = ["/bundle/llama-server"]
+        checker.executableFiles = ["/helpers/llama-server"]
         checker.readableFiles = ["/models/gigachat-gguf.gguf": 6_000_000_000]
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
         let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .installed)
-        XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
+        XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/helpers/llama-server"))
         XCTAssertEqual(manager.modelURL, URL(fileURLWithPath: "/models/gigachat-gguf.gguf"))
     }
 
     func test_check_withoutModel_returnsModelMissing() async {
         let checker = MockFileChecker()
-        checker.executableFiles = ["/bundle/llama-server"]
+        checker.executableFiles = ["/helpers/llama-server"]
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
         let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .modelMissing)
-        XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
+        XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/helpers/llama-server"))
         XCTAssertNil(manager.modelURL)
     }
 
@@ -54,7 +54,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
@@ -67,12 +67,12 @@ final class SuperAssetsManagerTests: XCTestCase {
 
     func test_check_withTooSmallModel_returnsError() async {
         let checker = MockFileChecker()
-        checker.executableFiles = ["/bundle/llama-server"]
+        checker.executableFiles = ["/helpers/llama-server"]
         checker.readableFiles = ["/models/gigachat-gguf.gguf": 1_000]
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
@@ -87,7 +87,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
     func test_modelDiscovery_usesExactFilename() async {
         let checker = MockFileChecker()
-        checker.executableFiles = ["/bundle/llama-server"]
+        checker.executableFiles = ["/helpers/llama-server"]
         checker.readableFiles = [
             "/models/other-model.gguf": 6_000_000_000,
             "/models/custom-alias.gguf": 6_000_000_000,
@@ -95,7 +95,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
@@ -110,7 +110,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
@@ -126,7 +126,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
@@ -140,7 +140,7 @@ final class SuperAssetsManagerTests: XCTestCase {
 
         let manager = SuperAssetsManager(
             fileChecker: checker,
-            bundleResourcePath: "/bundle",
+            bundleHelpersPath: "/helpers",
             modelsDirectory: "/models"
         )
 
