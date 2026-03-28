@@ -146,6 +146,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
     func download(from spec: SuperModelDownloadSpec) async {
         guard !isActive else { return }
 
+        // Fast path
         setState(.checkingExisting)
         if FileManager.default.fileExists(atPath: spec.destination.path) {
             if let hash = Self.sha256(ofFileAt: spec.destination),
@@ -156,7 +157,10 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
             }
         }
 
-        let partialSize = (try? FileManager.default.attributesOfItem(atPath: partialURL(for: spec).path))?[.size] as? Int64 ?? 0
+        // Disk space check (with overflow protection)
+        let partialSize = (try? FileManager.default.attributesOfItem(
+            atPath: partialURL(for: spec).path
+        ))?[.size] as? Int64 ?? 0
         let remaining = spec.expectedSize.subtractingReportingOverflow(partialSize).partialValue
         let (neededBytes, overflow) = remaining.addingReportingOverflow(SuperModelCatalog.minimumDiskSpaceBuffer)
         let neededBytesSafe = overflow ? Int64.max : neededBytes
@@ -165,15 +169,171 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
             return
         }
 
+        // Create directory
         let dir = spec.destination.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        setState(.failed(.networkError("download not implemented yet")))
+        // Resume check
+        let partial = partialURL(for: spec)
+        var resumeOffset: Int64 = 0
+        if let meta = readMeta(for: spec),
+           meta.expectedSHA256 == spec.expectedSHA256,
+           meta.url == spec.url.absoluteString,
+           FileManager.default.fileExists(atPath: partial.path)
+        {
+            resumeOffset = meta.downloadedBytes
+        } else {
+            try? FileManager.default.removeItem(at: partial)
+            deleteMeta(for: spec)
+        }
+
+        var request = URLRequest(url: spec.url)
+        if resumeOffset > 0 {
+            request.setValue("bytes=\(resumeOffset)-", forHTTPHeaderField: "Range")
+        }
+
+        setState(.downloading(progress: 0, downloadedBytes: resumeOffset, totalBytes: spec.expectedSize))
+
+        // Prepare file
+        if resumeOffset == 0 || !FileManager.default.fileExists(atPath: partial.path) {
+            FileManager.default.createFile(atPath: partial.path, contents: nil)
+        }
+        guard let fileHandle = try? FileHandle(forWritingTo: partial) else {
+            setState(.failed(.fileSystemError("Не удалось открыть файл для записи")))
+            return
+        }
+        if resumeOffset > 0 { fileHandle.seekToEndOfFile() }
+
+        do {
+            let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                fileHandle.closeFile()
+                setState(.failed(.networkError("Не HTTP ответ")))
+                return
+            }
+
+            if httpResponse.statusCode == 200, resumeOffset > 0 {
+                resumeOffset = 0
+                fileHandle.truncateFile(atOffset: 0)
+                fileHandle.seek(toFileOffset: 0)
+            } else if httpResponse.statusCode != 200, httpResponse.statusCode != 206 {
+                fileHandle.closeFile()
+                setState(.failed(.networkError("HTTP \(httpResponse.statusCode)")))
+                return
+            }
+
+            let etag = httpResponse.value(forHTTPHeaderField: "ETag")
+            var downloadedBytes = resumeOffset
+            let totalBytes = spec.expectedSize
+            var lastProgressUpdate = Date()
+            var buffer = Data()
+            let bufferFlushSize = 256 * 1_024
+
+            for try await byte in asyncBytes {
+                if Task.isCancelled {
+                    if !buffer.isEmpty {
+                        fileHandle.write(buffer)
+                        downloadedBytes += Int64(buffer.count)
+                    }
+                    fileHandle.closeFile()
+                    writeMeta(PartialDownloadMeta(
+                        url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
+                        expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
+                    ), for: spec)
+                    setState(.cancelled)
+                    return
+                }
+
+                buffer.append(byte)
+
+                if buffer.count >= bufferFlushSize {
+                    fileHandle.write(buffer)
+                    downloadedBytes += Int64(buffer.count)
+                    buffer.removeAll(keepingCapacity: true)
+
+                    let now = Date()
+                    if now.timeIntervalSince(lastProgressUpdate) >= 0.5 {
+                        lastProgressUpdate = now
+                        let progress = Double(downloadedBytes)/Double(totalBytes)
+                        setState(.downloading(
+                            progress: progress, downloadedBytes: downloadedBytes, totalBytes: totalBytes
+                        ))
+                        writeMeta(PartialDownloadMeta(
+                            url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
+                            expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
+                        ), for: spec)
+                    }
+                }
+            }
+
+            if !buffer.isEmpty {
+                fileHandle.write(buffer)
+                downloadedBytes += Int64(buffer.count)
+            }
+            fileHandle.closeFile()
+
+            writeMeta(PartialDownloadMeta(
+                url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
+                expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
+            ), for: spec)
+
+        } catch {
+            fileHandle.closeFile()
+            if Task.isCancelled {
+                setState(.cancelled)
+            } else {
+                setState(.failed(.networkError(error.localizedDescription)))
+            }
+            return
+        }
+
+        // Verification
+        setState(.verifying)
+        switch verifyAndFinalize(spec: spec) {
+        case .success:
+            setState(.completed)
+        case .failure(let error):
+            if case .integrityCheckFailed = error {
+                try? FileManager.default.removeItem(at: partial)
+                deleteMeta(for: spec)
+            }
+            setState(.failed(error))
+        }
     }
 
-    // MARK: - Cancel (stub — Task 4)
+    // MARK: - Verify
+
+    func verifyAndFinalize(spec: SuperModelDownloadSpec) -> Result<Void, SuperModelDownloadError> {
+        let partial = partialURL(for: spec)
+        guard let hash = Self.sha256(ofFileAt: partial) else {
+            return .failure(.fileSystemError("Не удалось прочитать файл для проверки"))
+        }
+        guard hash == spec.expectedSHA256 else {
+            return .failure(.integrityCheckFailed)
+        }
+        do {
+            if FileManager.default.fileExists(atPath: spec.destination.path) {
+                try FileManager.default.removeItem(at: spec.destination)
+            }
+            try FileManager.default.moveItem(at: partial, to: spec.destination)
+            deleteMeta(for: spec)
+            return .success(())
+        } catch {
+            return .failure(.fileSystemError("Не удалось переместить файл: \(error.localizedDescription)"))
+        }
+    }
+
+    // MARK: - Cancel
 
     func cancel() {
-        // будет реализовано в Task 4
+        lock.withLock {
+            if case .downloading = _state {
+                _state = .cancelled
+                let callback = onStateChanged
+                Task { @MainActor in
+                    callback?(.cancelled)
+                }
+            }
+        }
     }
 }

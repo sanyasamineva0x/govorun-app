@@ -293,4 +293,62 @@ final class SuperModelDownloadManagerImplTests: XCTestCase {
         let hash = SuperModelDownloadManager.sha256(of: data)
         XCTAssertEqual(hash, expected)
     }
+
+    // MARK: - SHA256 verification
+
+    func test_verify_correct_sha_renames_to_destination() throws {
+        let content = Data("verified model data".utf8)
+        let sha = SuperModelDownloadManager.sha256(of: content)
+        let partial = tempDir.appendingPathComponent("model.gguf.partial")
+        try content.write(to: partial)
+        let verifySpec = try SuperModelDownloadSpec(
+            url: XCTUnwrap(URL(string: "https://example.com/model.gguf")),
+            destination: tempDir.appendingPathComponent("model.gguf"),
+            expectedSHA256: sha, expectedSize: Int64(content.count)
+        )
+        let manager = SuperModelDownloadManager()
+        let result = manager.verifyAndFinalize(spec: verifySpec)
+        switch result {
+        case .success:
+            XCTAssertTrue(FileManager.default.fileExists(atPath: verifySpec.destination.path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: partial.path))
+        case .failure(let error):
+            XCTFail("Ожидался success, получен \(error)")
+        }
+    }
+
+    func test_verify_wrong_sha_returns_integrityCheckFailed() throws {
+        let content = Data("bad data".utf8)
+        let partial = tempDir.appendingPathComponent("model.gguf.partial")
+        try content.write(to: partial)
+        let verifySpec = try SuperModelDownloadSpec(
+            url: XCTUnwrap(URL(string: "https://example.com/model.gguf")),
+            destination: tempDir.appendingPathComponent("model.gguf"),
+            expectedSHA256: "wrong-sha-256", expectedSize: Int64(content.count)
+        )
+        let manager = SuperModelDownloadManager()
+        let result = manager.verifyAndFinalize(spec: verifySpec)
+        if case .failure(.integrityCheckFailed) = result {} else {
+            XCTFail("Ожидался .integrityCheckFailed, получен \(result)")
+        }
+    }
+
+    func test_verify_missing_partial_returns_fileSystemError() throws {
+        let verifySpec = try SuperModelDownloadSpec(
+            url: XCTUnwrap(URL(string: "https://example.com/model.gguf")),
+            destination: tempDir.appendingPathComponent("model.gguf"),
+            expectedSHA256: "abc", expectedSize: 100
+        )
+        let manager = SuperModelDownloadManager()
+        let result = manager.verifyAndFinalize(spec: verifySpec)
+        if case .failure(.fileSystemError) = result {} else {
+            XCTFail("Ожидался .fileSystemError, получен \(result)")
+        }
+    }
+
+    func test_cancel_without_active_download_does_nothing() {
+        let manager = SuperModelDownloadManager()
+        manager.cancel()
+        XCTAssertEqual(manager.state, .idle)
+    }
 }
