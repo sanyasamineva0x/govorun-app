@@ -79,6 +79,10 @@ final class AppState: ObservableObject {
     @Published private(set) var llmRuntimeState: LLMRuntimeState = .notStarted
     /// Состояние Super-ассетов (runtime binary + модель)
     @Published private(set) var superAssetsState: SuperAssetsState = .unknown
+    /// Состояние скачивания Super-модели
+    @Published private(set) var superModelDownloadState: SuperModelDownloadState = .idle
+    private let superModelDownloadManager: any SuperModelDownloading
+    private var downloadTask: Task<Void, Never>?
 
     /// Текущее состояние сессии (для live menubar updates)
     @Published fileprivate(set) var sessionState: SessionState = .idle
@@ -124,6 +128,7 @@ final class AppState: ObservableObject {
         let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
         self.llmRuntimeManager = llmRuntimeManager
         superAssetsManager = SuperAssetsManager()
+        superModelDownloadManager = SuperModelDownloadManager()
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -199,6 +204,16 @@ final class AppState: ObservableObject {
         wireLLMRuntimeManager()
         wireSettingsChange()
         wireSleepNotification()
+
+        superModelDownloadManager.onStateChanged = { [weak self] state in
+            self?.superModelDownloadState = state
+            if state == .completed {
+                Task { [weak self] in
+                    await self?.handleSuperAssetsChanged()
+                }
+            }
+        }
+        superModelDownloadManager.restoreStateFromDisk(for: SuperModelCatalog.current)
     }
 
     /// Тестовый init с инжектированными зависимостями
@@ -217,6 +232,7 @@ final class AppState: ObservableObject {
         workerManager: ASRWorkerManaging? = nil,
         llmRuntimeManager: LLMRuntimeManaging? = nil,
         superAssetsManager: SuperAssetsManaging = SuperAssetsManager(),
+        superModelDownloadManager: any SuperModelDownloading = SuperModelDownloadManager(),
         initialWorkerState: WorkerState = .ready,
         initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
@@ -226,6 +242,7 @@ final class AppState: ObservableObject {
         self.workerManager = workerManager
         self.llmRuntimeManager = llmRuntimeManager
         self.superAssetsManager = superAssetsManager
+        self.superModelDownloadManager = superModelDownloadManager
         self.activationKeyMonitor = activationKeyMonitor
         self.sessionManager = sessionManager
         self.pipelineEngine = pipelineEngine
@@ -264,6 +281,15 @@ final class AppState: ObservableObject {
         wireSnippetNotifications()
         wireLLMRuntimeManager()
         wireSettingsChange()
+
+        self.superModelDownloadManager.onStateChanged = { [weak self] state in
+            self?.superModelDownloadState = state
+            if state == .completed {
+                Task { [weak self] in
+                    await self?.handleSuperAssetsChanged()
+                }
+            }
+        }
     }
 
     // MARK: - Worker State
@@ -283,6 +309,85 @@ final class AppState: ObservableObject {
             baseURLString: settings.llmBaseURL,
             modelAlias: settings.llmModel
         )
+    }
+
+    // MARK: - Super Model Download
+
+    func startSuperModelDownload() async {
+        guard !superModelDownloadManager.isActive else { return }
+        guard superAssetsState == .modelMissing else { return }
+        let task = Task {
+            await superModelDownloadManager.download(from: SuperModelCatalog.current)
+        }
+        downloadTask = task
+        await task.value
+    }
+
+    func cancelSuperModelDownload() {
+        downloadTask?.cancel()
+        superModelDownloadManager.cancel()
+    }
+
+    func clearPartialSuperModelDownload() {
+        superModelDownloadManager.clearPartialDownload(for: SuperModelCatalog.current)
+    }
+
+    func deleteCorruptedModelAndRedownload() async {
+        let spec = SuperModelCatalog.current
+        try? FileManager.default.removeItem(at: spec.destination)
+        await refreshSuperAssetsReadiness()
+        await startSuperModelDownload()
+    }
+
+    var superModelFileExists: Bool {
+        FileManager.default.fileExists(atPath: SuperModelCatalog.current.destination.path)
+    }
+
+    // MARK: - handleSuperAssetsChanged (coordinator)
+
+    func handleSuperAssetsChanged() async {
+        await refreshSuperAssetsReadiness()
+
+        guard effectiveProductMode.usesLLM else { return }
+
+        guard let llmRuntimeManager else {
+            pipelineEngine.productMode = currentProductMode
+            return
+        }
+
+        guard superAssetsState == .installed else {
+            let currentAssetsState = superAssetsState
+            Self.logger.info("LLM runtime не стартует: \(String(describing: currentAssetsState), privacy: .public)")
+            llmRuntimeManager.stop()
+            updateLLMRuntimeState(.disabled)
+            pipelineEngine.productMode = .standard
+            return
+        }
+
+        do {
+            var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
+            if let binaryURL = superAssetsManager.runtimeBinaryURL,
+               let modelURL = superAssetsManager.modelURL
+            {
+                runtimeConfig = LocalLLMRuntimeConfiguration(
+                    baseURLString: runtimeConfig.baseURLString,
+                    modelAlias: runtimeConfig.normalizedModelAlias,
+                    modelPath: modelURL.path,
+                    runtimeBinaryPath: binaryURL.path,
+                    startupTimeout: runtimeConfig.startupTimeout,
+                    healthcheckInterval: runtimeConfig.healthcheckInterval,
+                    contextSize: runtimeConfig.contextSize,
+                    gpuLayers: runtimeConfig.gpuLayers
+                )
+            }
+            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+            try await llmRuntimeManager.start()
+            pipelineEngine.productMode = currentProductMode
+        } catch {
+            Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+            updateLLMRuntimeState(.error(error.localizedDescription))
+            pipelineEngine.productMode = .standard
+        }
     }
 
     // MARK: - Start / Stop
@@ -321,12 +426,7 @@ final class AppState: ObservableObject {
         if llmRuntimeManager != nil {
             if currentProductMode.usesLLM {
                 Task {
-                    await startLLMRuntimeIfAssetsReady()
-                    if superAssetsState == .installed {
-                        pipelineEngine.productMode = currentProductMode
-                    } else {
-                        pipelineEngine.productMode = .standard
-                    }
+                    await handleSuperAssetsChanged()
                 }
             } else {
                 updateLLMRuntimeState(.disabled)
@@ -539,13 +639,7 @@ final class AppState: ObservableObject {
         if productMode.usesLLM {
             if isReady {
                 Task {
-                    await startLLMRuntimeIfAssetsReady()
-                    if superAssetsState == .installed {
-                        pipelineEngine.productMode = productMode
-                    } else {
-                        // Assets не готовы — оставляем deterministic path
-                        pipelineEngine.productMode = .standard
-                    }
+                    await handleSuperAssetsChanged()
                 }
             } else {
                 updateLLMRuntimeState(.notStarted)
@@ -564,47 +658,10 @@ final class AppState: ObservableObject {
 
         if currentProductMode.usesLLM, llmRuntimeManager != nil {
             Task {
-                await startLLMRuntimeIfAssetsReady()
+                await handleSuperAssetsChanged()
             }
         } else {
             updateLLMRuntimeState(.disabled)
-        }
-    }
-
-    private func startLLMRuntimeIfAssetsReady() async {
-        guard let llmRuntimeManager else { return }
-
-        await refreshSuperAssetsReadiness()
-        guard superAssetsState == .installed else {
-            let currentAssetsState = superAssetsState
-            Self.logger.info("LLM runtime не стартует: \(String(describing: currentAssetsState), privacy: .public)")
-            llmRuntimeManager.stop()
-            updateLLMRuntimeState(.disabled)
-            return
-        }
-
-        do {
-            // Всегда обновляем конфигурацию — для external endpoint без paths, для local с paths
-            var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
-            if let binaryURL = superAssetsManager.runtimeBinaryURL,
-               let modelURL = superAssetsManager.modelURL
-            {
-                runtimeConfig = LocalLLMRuntimeConfiguration(
-                    baseURLString: runtimeConfig.baseURLString,
-                    modelAlias: runtimeConfig.normalizedModelAlias,
-                    modelPath: modelURL.path,
-                    runtimeBinaryPath: binaryURL.path,
-                    startupTimeout: runtimeConfig.startupTimeout,
-                    healthcheckInterval: runtimeConfig.healthcheckInterval,
-                    contextSize: runtimeConfig.contextSize,
-                    gpuLayers: runtimeConfig.gpuLayers
-                )
-            }
-            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
-            try await llmRuntimeManager.start()
-        } catch {
-            Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
-            updateLLMRuntimeState(.error(error.localizedDescription))
         }
     }
 
