@@ -43,6 +43,7 @@ macOS menu bar приложение для голосового ввода на 
 # Первая сборка
 bash scripts/fetch-python-framework.sh  # Python.framework (63 МБ)
 bash scripts/download-wheels.sh         # wheels для pip (124 МБ)
+bash scripts/build-llama-server.sh      # Static llama-server arm64 (12 МБ, ~5 мин)
 xcodegen generate
 
 # Собрать DMG и установить (однострочник)
@@ -99,6 +100,6 @@ LLM параметры: temperature=0, max_tokens=128, stop=["\n\n"], llama-serv
 
 ## Известные особенности
 
-- Python.framework и wheels в .gitignore — скачивать через scripts/
+- Python.framework, wheels, Helpers/llama-server в .gitignore — скачивать/собирать через scripts/
 - Accessibility сбрасывается при reinstall (code signature), Sparkle сохраняет
 - Flaky тест `test_stop_then_start_relaunches_worker` — race condition, не блокер

@@ -102,11 +102,12 @@ worker/                            # Python ASR worker
 ├── test_server.py
 └── VERSION
 scripts/
-├── build-unsigned-dmg.sh          # Framework + worker + wheels → DMG
+├── build-unsigned-dmg.sh          # Framework + worker + wheels + llama-server → DMG
+├── build-llama-server.sh          # Static arm64 llama-server (cmake, pinned tag)
 ├── build-dmg.sh                   # Signed + notarized
 ├── fetch-python-framework.sh
 ├── download-wheels.sh
-├── run-gigachat-llm.sh            # Dev: запуск llama-server
+├── run-gigachat-llm.sh            # Dev: запуск llama-server (Helpers/ → PATH → build-temp)
 ├── benchmark-llm-normalization.py # LLM/full-pipeline benchmark
 └── benchmark-full-pipeline-helper.swift
 benchmarks/
@@ -136,7 +137,7 @@ Ping:          {"cmd": "ping"} → {"status": "ok", "version": "1"}
 1. Bump `MARKETING_VERSION` и `CURRENT_PROJECT_VERSION` в `project.yml`
 2. Коммит + push
 3. `git tag v0.X.Y && git push --tags`
-4. `release.yml`: xcodegen → тесты → DMG → Sparkle EdDSA → GitHub Release → appcast.xml → Homebrew Cask
+4. `release.yml`: xcodegen → llama-server (cache/build + validate) → тесты → DMG → Sparkle EdDSA → GitHub Release → appcast.xml → Homebrew Cask
 
 `CURRENT_PROJECT_VERSION` = patch segment (для `v0.1.11` → 11).
 
