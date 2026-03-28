@@ -105,6 +105,19 @@ jobs:
             echo "::error::Helpers/llama-server missing or not executable"
             exit 1
           fi
+          # Архитектура
+          ARCH=$(file Helpers/llama-server)
+          echo "Architecture: $ARCH"
+          if ! echo "$ARCH" | grep -q "arm64"; then
+            echo "::error::llama-server is not arm64"
+            exit 1
+          fi
+          # Зависимости — только системные
+          BAD=$(otool -L Helpers/llama-server | tail -n +2 | awk '{print $1}' | grep -vE '^(/System/Library/Frameworks/|/usr/lib/)' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::llama-server has non-system deps: $BAD"
+            exit 1
+          fi
           echo "llama-server OK: $(du -h Helpers/llama-server | cut -f1)"
 
       # ── 12. Generate Xcode project ───────────────────────────────

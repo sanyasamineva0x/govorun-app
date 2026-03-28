@@ -17,8 +17,8 @@ if [ -f "$OUTPUT_BIN" ]; then
     if ! "$OUTPUT_BIN" --version 2>&1 | head -1; then
         echo "WARN: кешированный бинарник не запускается, пересобираю..." >&2
         rm -f "$OUTPUT_BIN"
-    elif otool -L "$OUTPUT_BIN" | tail -n +2 | grep -q "homebrew\|/usr/local/\|/opt/homebrew/"; then
-        echo "WARN: кешированный бинарник динамически слинкован, пересобираю..." >&2
+    elif otool -L "$OUTPUT_BIN" | tail -n +2 | awk '{print $1}' | grep -qvE '^(/System/Library/Frameworks/|/usr/lib/)'; then
+        echo "WARN: кешированный бинарник имеет несистемные зависимости, пересобираю..." >&2
         rm -f "$OUTPUT_BIN"
     else
         exit 0
@@ -61,12 +61,26 @@ echo "==> Ad-hoc подпись..."
 codesign --force --sign - "$OUTPUT_BIN"
 
 echo "==> Проверка зависимостей..."
-DEPS=$(otool -L "$OUTPUT_BIN" | tail -n +2)
+DEPS=$(otool -L "$OUTPUT_BIN" | tail -n +2 | awk '{print $1}')
 echo "$DEPS"
 
-# Проверяем что нет brew/homebrew зависимостей
-if echo "$DEPS" | grep -q "homebrew\|/usr/local/\|/opt/homebrew/"; then
-    echo "ERROR: бинарник зависит от brew библиотек!" >&2
+# Allowlist: только системные фреймворки и библиотеки
+ALLOWED_PREFIXES="/System/Library/Frameworks/ /usr/lib/"
+BAD_DEPS=""
+while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    ok=false
+    for prefix in $ALLOWED_PREFIXES; do
+        case "$dep" in "$prefix"*) ok=true; break;; esac
+    done
+    if ! $ok; then
+        BAD_DEPS="$BAD_DEPS  $dep\n"
+    fi
+done <<< "$DEPS"
+
+if [ -n "$BAD_DEPS" ]; then
+    echo "ERROR: бинарник зависит от несистемных библиотек:" >&2
+    echo -e "$BAD_DEPS" >&2
     exit 1
 fi
 
