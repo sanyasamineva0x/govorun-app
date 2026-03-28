@@ -13,7 +13,7 @@ macOS menu bar приложение для голосового ввода на 
 - Silero VAD (нарезка длинного аудио)
 - Sparkle 2 (автообновление с EdDSA подписью)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (799 тестов)
+- XCTest (955 тестов)
 
 ## Сборка и запуск тестовой версии
 
@@ -218,7 +218,8 @@ Govorun/
 ├── Core/
 │   ├── ActivationKeyMonitor.swift # modifier/keyCode/combo + push-to-talk/toggle
 │   ├── SessionManager.swift
-│   ├── PipelineEngine.swift
+│   ├── PipelineEngine.swift        # Orchestrator: ASR → normalize → insert
+│   ├── NormalizationPipeline.swift # DeterministicNormalizer + LLMResponseGuard + isTrivial + preflight/postflight
 │   ├── AudioCapture.swift
 │   ├── TextInserter.swift         # 3-strategy waterfall (AX → composition → clipboard)
 │   ├── AppContextEngine.swift
@@ -235,7 +236,9 @@ Govorun/
 │   ├── LocalSTTClient.swift       # 300s fixed timeout, precondition, setsockopt check
 │   ├── ModelManager.swift
 │   ├── STTClient.swift
-│   ├── LLMClient.swift            # PlaceholderLLMClient → GigaChat 3.1 Lightning (Phase 5)
+│   ├── LLMClient.swift            # LocalLLMClient + LocalLLMConfiguration + PlaceholderLLMClient
+│   ├── LocalLLMClient.swift       # HTTP client к llama-server (OpenAI-compatible API)
+│   ├── SuperAssetsManager.swift   # Discovery llama-server + GGUF модели, readiness state machine
 │   ├── UpdaterService.swift       # Sparkle 2, UpdateChecking protocol, @MainActor
 │   └── AnalyticsService.swift
 ├── Models/
@@ -245,7 +248,8 @@ Govorun/
 │   ├── DictionaryEntry.swift
 │   ├── Snippet.swift
 │   ├── HistoryItem.swift
-│   └── AnalyticsEvent.swift
+│   ├── AnalyticsEvent.swift
+│   └── ProductMode.swift            # standard / superMode, usesLLM flag
 ├── Storage/
 │   ├── SettingsStore.swift        # activationKey (JSON), recordingMode, logging на fallback
 │   ├── DictionaryStore.swift
@@ -265,7 +269,7 @@ Govorun/
 └── Resources/
     ├── Assets.xcassets            # AppIcon (bird + waveform)
     └── Sounds/
-GovorunTests/                      # 761 тестов
+GovorunTests/                      # 955 тестов
 worker/                            # Python ASR worker
 ├── server.py
 ├── requirements.txt
@@ -316,15 +320,23 @@ brew install --cask govorun
 |--------|--------|-----|------------|--------|
 | GigaAM-v3 e2e_rnnt (3 ONNX, fp32) | ~892 MB | ~1.5 GB | ASR | Используется |
 | Silero VAD (ONNX) | ~2 MB | ~50 MB | Нарезка аудио | Используется |
-| GigaChat 3.1 Lightning (GGUF Q4_K_M) | ~TBD | ~TBD | Нормализация текста (Phase 5) | Планируется |
+| GigaChat 3.1 10B-A1.8B (GGUF Q4_K_M) | ~6 GB | ~7-8 GB | LLM-нормализация (Говорун Super) | Реализовано |
 
 ASR кэш: `~/.cache/huggingface/hub/`
+LLM модель: `~/.govorun/models/gigachat-gguf.gguf`
 
-### Phase 5: LLM нормализация
+### LLM-нормализация (Говорун Super)
 
-Текущий `PlaceholderLLMClient` будет заменён на локальный инференс GigaChat 3.1 Lightning (GGUF Q4_K_M).
-Задача: умная нормализация после ASR — пунктуация, стиль, контекстные замены.
-Инференс полностью офлайн, без API. Runtime: llama.cpp или MLX.
+LocalLLMClient → llama-server (OpenAI-compatible API, localhost:8080).
+GigaChat 3.1 10B-A1.8B Q4_K_M — MoE, 1.8B активных параметров, MIT лицензия.
+SuperAssetsManager проверяет наличие бинарника и модели перед запуском.
+NormalizationPipeline: preflight (deterministic) → LLM → postflight (gate).
+Prompt v3b: 97% quality на 36-sample seed dataset.
+Параметры: temperature=0, max_tokens=128, stop=["\n\n"].
+
+Два режима:
+- **Говорун** (standard) — deterministic only, дефолт, всегда работает
+- **Говорун Super** — deterministic + LLM, opt-in, требует llama-server + GGUF
 
 ## Известные особенности
 
