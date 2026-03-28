@@ -36,7 +36,7 @@ struct OnboardingView: View {
         case .model:
             appState.workerState == .ready || modelSkipped
         case .superModel:
-            appState.superModelDownloadState == .completed || superModelSkipped
+            appState.superModelDownloadState == .completed || appState.superAssetsState == .installed || superModelSkipped
         case .tryIt:
             false
         }

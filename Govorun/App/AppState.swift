@@ -315,6 +315,11 @@ final class AppState: ObservableObject {
 
     func startSuperModelDownload() async {
         guard !superModelDownloadManager.isActive else { return }
+        // В онбординге superAssetsState может быть .unknown (start() ещё не вызван)
+        // Разрешаем скачивание при .modelMissing и .unknown
+        if superAssetsState == .unknown {
+            await refreshSuperAssetsReadiness()
+        }
         guard superAssetsState == .modelMissing else { return }
         let task = Task {
             await superModelDownloadManager.download(from: SuperModelCatalog.current)
