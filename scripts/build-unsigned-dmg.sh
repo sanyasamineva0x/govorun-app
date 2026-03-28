@@ -54,9 +54,16 @@ for f in server.py setup.sh requirements.txt VERSION; do
 done
 chmod +x "$APP/Contents/Resources/worker/setup.sh"
 
-# llama-server для Говорун Super (dev: PATH lookup, release: требуется статический бинарник)
-# Текущий brew-бинарник динамически слинкован и не работает без зависимостей.
-# TODO: собрать статический llama-server или бандлить dylib с @rpath
+# llama-server для Говорун Super
+if [ -f "Helpers/llama-server" ]; then
+    echo "==> Копирую llama-server в bundle..."
+    mkdir -p "$APP/Contents/Helpers"
+    cp "Helpers/llama-server" "$APP/Contents/Helpers/"
+    chmod +x "$APP/Contents/Helpers/llama-server"
+else
+    echo "WARN: Helpers/llama-server не найден. Говорун Super будет использовать PATH fallback." >&2
+    echo "      Соберите: bash scripts/build-llama-server.sh" >&2
+fi
 
 # Wheels для офлайн установки
 if [ -d "worker/wheels" ] && ls worker/wheels/*.whl 1>/dev/null 2>&1; then
@@ -78,6 +85,10 @@ if [ -d "$APP/Contents/Frameworks/Python.framework" ]; then
         [ -f "$bin" ] && codesign --force --sign - "$bin" 2>/dev/null || true
     done
     codesign --force --sign - "$APP/Contents/Frameworks/Python.framework" 2>/dev/null || true
+fi
+if [ -f "$APP/Contents/Helpers/llama-server" ]; then
+    echo "    llama-server..."
+    codesign --force --sign - "$APP/Contents/Helpers/llama-server"
 fi
 codesign --force --sign - --entitlements "Govorun/Govorun.entitlements" "$APP"
 
