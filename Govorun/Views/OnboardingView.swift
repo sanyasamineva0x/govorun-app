@@ -9,6 +9,7 @@ enum OnboardingStep: Int, CaseIterable {
     case microphone
     case accessibility
     case model
+    case superModel
     case tryIt
 }
 
@@ -20,6 +21,7 @@ struct OnboardingView: View {
     @State private var micPermissionGranted = false
     @State private var accessibilityGranted = false
     @State private var modelSkipped = false
+    @State private var superModelSkipped = false
     var onComplete: () -> Void = {}
     var settingsStore: SettingsStore = .init()
 
@@ -33,6 +35,8 @@ struct OnboardingView: View {
             accessibilityGranted
         case .model:
             appState.workerState == .ready || modelSkipped
+        case .superModel:
+            appState.superModelDownloadState == .completed || superModelSkipped
         case .tryIt:
             false
         }
@@ -78,6 +82,8 @@ struct OnboardingView: View {
                     AccessibilityStepView(accessibilityGranted: $accessibilityGranted)
                 case .model:
                     ModelStepView(modelSkipped: $modelSkipped)
+                case .superModel:
+                    SuperModelStepView(skipped: $superModelSkipped)
                 case .tryIt:
                     TryItStepView(onComplete: completeOnboarding)
                 }
@@ -128,6 +134,10 @@ struct OnboardingView: View {
               allCases.index(after: idx) < allCases.endIndex else { return }
         var nextIdx = allCases.index(after: idx)
         if allCases[nextIdx] == .model, appState.workerState == .ready {
+            nextIdx = allCases.index(after: nextIdx)
+            guard nextIdx < allCases.endIndex else { return }
+        }
+        if allCases[nextIdx] == .superModel, appState.superAssetsState == .runtimeMissing {
             nextIdx = allCases.index(after: nextIdx)
             guard nextIdx < allCases.endIndex else { return }
         }
@@ -416,7 +426,126 @@ private struct ModelStepView: View {
     }
 }
 
-// MARK: - Шаг 5: Попробуйте!
+// MARK: - Шаг 5: Супер-режим
+
+private struct SuperModelStepView: View {
+    @EnvironmentObject private var appState: AppState
+    @Binding var skipped: Bool
+
+    private var downloadState: SuperModelDownloadState {
+        appState.superModelDownloadState
+    }
+
+    private var networkMonitor: NetworkMonitor {
+        appState.networkMonitor
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 44))
+                .foregroundStyle(Color.cottonCandy)
+                .staggeredAppear(index: 0)
+
+            VStack(spacing: 8) {
+                Text("Супер-режим")
+                    .font(.system(size: 22, weight: .bold))
+                    .staggeredAppear(index: 1)
+                Text("ИИ-модель для Супер-режима улучшает качество текста. Полностью офлайн.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .staggeredAppear(index: 2)
+            }
+
+            VStack(spacing: 12) {
+                switch downloadState {
+                case .completed:
+                    OnboardingStatusBadge(
+                        text: "ИИ-модель для Супер-режима готова",
+                        icon: "checkmark.circle.fill",
+                        color: .oceanMist
+                    )
+
+                case .downloading(let progress, _, _):
+                    VStack(spacing: 8) {
+                        ProgressView(value: progress, total: 1.0)
+                            .progressViewStyle(.linear)
+                            .tint(Color.cottonCandy)
+                            .frame(width: 240)
+                        Text("Скачиваю… \(Int(progress * 100))%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Отменить") {
+                            appState.cancelSuperModelDownload()
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .buttonStyle(.plain)
+                    }
+
+                case .verifying, .checkingExisting:
+                    VStack(spacing: 8) {
+                        ProgressView()
+                            .tint(Color.cottonCandy)
+                        Text(downloadState == .verifying ? "Проверяю файл…" : "Проверяю…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                case .failed(let error):
+                    VStack(spacing: 10) {
+                        OnboardingStatusBadge(
+                            text: error.errorDescription ?? "Ошибка загрузки",
+                            icon: "exclamationmark.triangle.fill",
+                            color: .red
+                        )
+                        HStack(spacing: 12) {
+                            BrandedButton(title: "Повторить", style: .primary) {
+                                Task { await appState.startSuperModelDownload() }
+                            }
+                            BrandedButton(title: "Пропустить", style: .secondary) {
+                                appState.cancelSuperModelDownload()
+                                skipped = true
+                            }
+                        }
+                    }
+
+                case .idle, .cancelled, .partialReady:
+                    VStack(spacing: 10) {
+                        if !networkMonitor.isCurrentlyConnected {
+                            OnboardingStatusBadge(
+                                text: "Нет интернета",
+                                icon: "wifi.slash",
+                                color: .orange
+                            )
+                        }
+                        BrandedButton(title: "Скачать (~5.8 ГБ)", style: .primary) {
+                            Task { await appState.startSuperModelDownload() }
+                        }
+                        .disabled(!networkMonitor.isCurrentlyConnected)
+                        .opacity(networkMonitor.isCurrentlyConnected ? 1 : 0.5)
+                    }
+                }
+            }
+            .settingsCard()
+            .staggeredAppear(index: 3)
+
+            if downloadState != .completed {
+                Button("Настроить позже") {
+                    appState.cancelSuperModelDownload()
+                    skipped = true
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+}
+
+// MARK: - Шаг 6: Попробуйте!
 
 private struct TryItStepView: View {
     @EnvironmentObject private var appState: AppState
