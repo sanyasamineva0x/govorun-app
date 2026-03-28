@@ -13,12 +13,17 @@ if [[ -z "$MODEL_PATH" ]]; then
   exit 1
 fi
 
-if command -v llama-server >/dev/null 2>&1; then
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+if [[ -x "$PROJECT_DIR/Helpers/llama-server" ]]; then
+  LLAMA_SERVER_BIN="$PROJECT_DIR/Helpers/llama-server"
+elif command -v llama-server >/dev/null 2>&1; then
   LLAMA_SERVER_BIN="llama-server"
-elif [[ -x "./llama.cpp/build/bin/llama-server" ]]; then
-  LLAMA_SERVER_BIN="./llama.cpp/build/bin/llama-server"
+elif [[ -x "$PROJECT_DIR/.build-llama-server/build/bin/llama-server" ]]; then
+  LLAMA_SERVER_BIN="$PROJECT_DIR/.build-llama-server/build/bin/llama-server"
 else
-  echo "llama-server not found. Install llama.cpp or add llama-server to PATH."
+  echo "llama-server not found. Run: bash scripts/build-llama-server.sh"
   exit 1
 fi
 
