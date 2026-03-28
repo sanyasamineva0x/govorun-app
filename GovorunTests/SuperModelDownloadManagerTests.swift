@@ -351,4 +351,98 @@ final class SuperModelDownloadManagerImplTests: XCTestCase {
         manager.cancel()
         XCTAssertEqual(manager.state, .idle)
     }
+
+    // MARK: - sha256(ofFileAt:)
+
+    func test_sha256_of_file_matches_in_memory() throws {
+        let content = Data("file-based hash test content".utf8)
+        let filePath = tempDir.appendingPathComponent("hashtest.bin")
+        try content.write(to: filePath)
+        let memoryHash = SuperModelDownloadManager.sha256(of: content)
+        let fileHash = SuperModelDownloadManager.sha256(ofFileAt: filePath)
+        XCTAssertEqual(memoryHash, fileHash)
+    }
+
+    func test_sha256_of_nonexistent_file_returns_nil() {
+        let result = SuperModelDownloadManager.sha256(ofFileAt: tempDir.appendingPathComponent("nonexistent"))
+        XCTAssertNil(result)
+    }
+
+    // MARK: - verifyAndFinalize with existing destination
+
+    func test_verify_replaces_existing_destination() throws {
+        let oldContent = Data("old model".utf8)
+        let newContent = Data("new model".utf8)
+        let sha = SuperModelDownloadManager.sha256(of: newContent)
+
+        try oldContent.write(to: spec.destination)
+        let partial = tempDir.appendingPathComponent("model.gguf.partial")
+        try newContent.write(to: partial)
+
+        let verifySpec = SuperModelDownloadSpec(
+            url: spec.url, destination: spec.destination,
+            expectedSHA256: sha, expectedSize: Int64(newContent.count)
+        )
+
+        let manager = SuperModelDownloadManager()
+        let result = manager.verifyAndFinalize(spec: verifySpec)
+        if case .success = result {
+            let finalData = try Data(contentsOf: spec.destination)
+            XCTAssertEqual(finalData, newContent)
+        } else {
+            XCTFail("Expected success")
+        }
+    }
+
+    // MARK: - restoreStateFromDisk with mismatched URL
+
+    func test_restore_partial_with_mismatched_url_deletes_and_stays_idle() throws {
+        try Data("data".utf8).write(to: partialPath)
+        let meta = PartialDownloadMeta(
+            url: "https://different-url.com/model.gguf",
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: spec.expectedSize,
+            etag: nil,
+            downloadedBytes: 4
+        )
+        try JSONEncoder().encode(meta).write(to: metaPath)
+
+        let manager = SuperModelDownloadManager()
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .idle)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: partialPath.path))
+    }
+
+    // MARK: - clearPartialDownload resets state
+
+    func test_clear_sets_state_to_idle() throws {
+        let manager = SuperModelDownloadManager()
+        // Restore to partialReady first
+        try Data(repeating: 0, count: 500).write(to: partialPath)
+        let meta = PartialDownloadMeta(
+            url: spec.url.absoluteString,
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: spec.expectedSize,
+            etag: nil,
+            downloadedBytes: 500
+        )
+        try JSONEncoder().encode(meta).write(to: metaPath)
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .partialReady(downloadedBytes: 500, totalBytes: spec.expectedSize))
+
+        manager.clearPartialDownload(for: spec)
+        XCTAssertEqual(manager.state, .idle)
+    }
+
+    // MARK: - Catalog placeholder check
+
+    func test_catalog_placeholder_values_are_marked() {
+        // Этот тест документирует что каталог содержит placeholder значения.
+        // Перед релизом: заменить FILL_ на реальные и обновить этот тест.
+        let spec = SuperModelCatalog.current
+        XCTAssertTrue(spec.url.absoluteString.contains("FILL_"),
+                      "URL каталога должен содержать FILL_ до заполнения реальными значениями")
+        XCTAssertTrue(spec.expectedSHA256.hasPrefix("FILL_"),
+                      "SHA256 каталога должен содержать FILL_ до заполнения реальными значениями")
+    }
 }

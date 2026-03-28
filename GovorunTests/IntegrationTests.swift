@@ -735,4 +735,32 @@ final class SuperModelDownloadWiringTests: XCTestCase {
 
         XCTAssertTrue(downloader.cancelCalled)
     }
+
+    // MARK: - handleSuperAssetsChanged
+
+    @MainActor
+    func test_handleSuperAssetsChanged_with_installed_assets_starts_runtime() async {
+        let (appState, _, _, _) = await makeTestAppState(productMode: .superMode)
+        await appState.handleSuperAssetsChanged()
+        // MockSuperAssetsManager returns .installed by default
+        // After handleSuperAssetsChanged, assets state should be .installed
+        XCTAssertEqual(appState.superAssetsState, .installed)
+    }
+
+    @MainActor
+    func test_handleSuperAssetsChanged_with_standard_mode_does_not_start_runtime() async {
+        let (appState, _, _, _) = await makeTestAppState(productMode: .standard)
+        await appState.handleSuperAssetsChanged()
+        // In standard mode, runtime should not be started
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
+    // MARK: - clearPartialSuperModelDownload
+
+    @MainActor
+    func test_clearPartialSuperModelDownload_calls_clear() async {
+        let (appState, _, _, downloader) = await makeTestAppState(productMode: .superMode)
+        appState.clearPartialSuperModelDownload()
+        XCTAssertTrue(downloader.clearCalled)
+    }
 }
