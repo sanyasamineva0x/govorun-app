@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - State
 
@@ -45,6 +46,8 @@ protocol SuperAssetsManaging: AnyObject, Sendable {
 // MARK: - Implementation
 
 final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.govorun.app", category: "SuperAssetsManager")
+
     private let fileChecker: FileChecking
     private let bundleResourcePath: String?
     private let modelsDirectory: String
@@ -77,13 +80,25 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     }
 
     func check(baseURLString: String, modelAlias: String) async -> SuperAssetsState {
+        Self.logger.info("check: baseURL=\(baseURLString, privacy: .public) modelAlias=\(modelAlias, privacy: .public)")
+
         lock.lock()
         _state = .checking
         _runtimeBinaryURL = nil
         _modelURL = nil
         lock.unlock()
 
+        // Валидация URL — некорректный непустой URL → ошибка вместо молчаливого fallback
+        if URL(string: baseURLString)?.host == nil, !baseURLString.isEmpty {
+            Self.logger.error("check: некорректный URL — \(baseURLString, privacy: .public)")
+            lock.lock()
+            _state = .error("Некорректный URL: \(baseURLString)")
+            lock.unlock()
+            return state
+        }
+
         if Self.isExternalEndpoint(baseURLString) {
+            Self.logger.info("check: external endpoint, assets не требуются")
             lock.lock()
             _state = .installed
             lock.unlock()
@@ -91,6 +106,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         }
 
         guard let binaryURL = resolveRuntimeBinary() else {
+            Self.logger.warning("check: runtime binary не найден → .runtimeMissing")
             lock.lock()
             _state = .runtimeMissing
             lock.unlock()
@@ -103,10 +119,12 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
             let current = _state
             if case .error = current {
                 lock.unlock()
+                Self.logger.error("check: завершён с ошибкой — \(String(describing: current), privacy: .public)")
                 return current
             }
             _state = .modelMissing
             lock.unlock()
+            Self.logger.warning("check: модель не найдена → .modelMissing")
             return .modelMissing
         }
 
@@ -115,26 +133,34 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         _modelURL = model
         _state = .installed
         lock.unlock()
+        Self.logger.info("check: все ассеты на месте → .installed")
         return .installed
     }
 
     private static func isExternalEndpoint(_ baseURLString: String) -> Bool {
         guard let url = URL(string: baseURLString),
               let host = url.host else { return false }
-        let localHosts = ["127.0.0.1", "localhost", "0.0.0.0", "::1"]
-        return !localHosts.contains(host)
+        let normalized = host.lowercased()
+        return !(normalized == "localhost"
+            || normalized == "::1"
+            || normalized == "[::1]"
+            || normalized.hasPrefix("127.")
+            || normalized == "0.0.0.0")
     }
 
     private func resolveRuntimeBinary() -> URL? {
         if let resourcePath = bundleResourcePath {
             let bundled = (resourcePath as NSString).appendingPathComponent("llama-server")
+            Self.logger.debug("resolveRuntimeBinary: проверяю bundle — \(bundled, privacy: .public)")
             if fileChecker.isExecutableFile(atPath: bundled) {
                 return URL(fileURLWithPath: bundled)
             }
         }
 
 #if DEBUG
+        Self.logger.debug("resolveRuntimeBinary: ищу llama-server в PATH")
         if let pathBinary = findInPath("llama-server") {
+            Self.logger.debug("resolveRuntimeBinary: найден в PATH — \(pathBinary, privacy: .public)")
             return URL(fileURLWithPath: pathBinary)
         }
 #endif
@@ -146,17 +172,28 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         if let envPath = ProcessInfo.processInfo.environment["GOVORUN_LLM_MODEL_PATH"],
            !envPath.isEmpty
         {
+            Self.logger.debug("resolveModel: проверяю env GOVORUN_LLM_MODEL_PATH — \(envPath, privacy: .public)")
             return validateModel(atPath: envPath)
         }
 
         let standardPath = (modelsDirectory as NSString)
             .appendingPathComponent("\(modelAlias).gguf")
+        Self.logger.debug("resolveModel: проверяю стандартный путь — \(standardPath, privacy: .public)")
         return validateModel(atPath: standardPath)
     }
 
     private func validateModel(atPath path: String) -> URL? {
         guard fileChecker.isReadableFile(atPath: path) else { return nil }
-        guard let size = fileChecker.fileSize(atPath: path), size > 100_000_000 else {
+        let size = fileChecker.fileSize(atPath: path)
+        guard let size else {
+            Self.logger.error("validateModel: не удалось получить размер файла — \(path, privacy: .public)")
+            lock.lock()
+            _state = .error("Не удалось проверить размер файла: \(path)")
+            lock.unlock()
+            return nil
+        }
+        guard size > 100_000_000 else {
+            Self.logger.error("validateModel: файл слишком маленький (\(size) байт) — \(path, privacy: .public)")
             lock.lock()
             _state = .error("Файл модели слишком маленький: \(path)")
             lock.unlock()

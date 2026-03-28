@@ -256,7 +256,7 @@ final class AppState: ObservableObject {
 
         workerState = initialWorkerState
         llmRuntimeState = settings.productMode.usesLLM ? initialLLMRuntimeState : .disabled
-        self.pipelineEngine.productMode = settings.productMode
+        self.pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -771,7 +771,9 @@ final class AppState: ObservableObject {
         let dictionary = loadDictionaryHints()
 
         pipelineEngine.textMode = context.textMode
-        pipelineEngine.productMode = currentProductMode
+        pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+            ? .standard
+            : currentProductMode
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(

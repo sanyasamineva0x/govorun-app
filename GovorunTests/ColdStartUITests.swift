@@ -439,6 +439,7 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         XCTAssertFalse(mockLLMRuntime.startCalled)
         XCTAssertEqual(appState.llmRuntimeState, .disabled)
         XCTAssertEqual(appState.superAssetsState, .modelMissing)
+        XCTAssertEqual(appState.pipelineEngine.productMode, .standard)
     }
 
     func test_superMode_coldStart_withInstalledAssets_startsRuntime() async throws {
@@ -460,6 +461,10 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
 
         XCTAssertTrue(mockLLMRuntime.startCalled)
         XCTAssertEqual(appState.superAssetsState, .installed)
+
+        let config = try XCTUnwrap(mockLLMRuntime.updatedConfigurations.last)
+        XCTAssertFalse(config.modelPath.isEmpty, "Model path should be set from assets manager")
+        XCTAssertFalse(config.runtimeBinaryPath.isEmpty, "Binary path should be set from assets manager")
     }
 
     func test_standardMode_ignoresAssetsState() async throws {
@@ -643,7 +648,7 @@ private func makeColdStartTestAppState(
         sttClient: stt,
         llmClient: llm
     )
-    pipeline.productMode = productMode
+    pipeline.productMode = productMode.usesLLM ? .standard : productMode
     let inserter = TextInserterEngine(
         accessibility: MockAccessibility(),
         clipboard: MockClipboard()
