@@ -276,10 +276,6 @@ final class AppState: ObservableObject {
         llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
     }
 
-    func updateSuperAssetsState(_ state: SuperAssetsState) {
-        superAssetsState = state
-    }
-
     @MainActor
     func refreshSuperAssetsReadiness() async {
         superAssetsState = .checking
