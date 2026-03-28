@@ -101,3 +101,108 @@ final class SuperModelDownloadManagerTests: XCTestCase {
         }
     }
 }
+
+// MARK: - SuperModelDownloadManager Tests
+
+final class SuperModelDownloadManagerImplTests: XCTestCase {
+    private var tempDir: URL!
+    private var spec: SuperModelDownloadSpec!
+
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("govorun-test-\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        spec = SuperModelDownloadSpec(
+            url: URL(string: "https://example.com/model.gguf")!,
+            destination: tempDir.appendingPathComponent("model.gguf"),
+            expectedSHA256: "abc123def456",
+            expectedSize: 1_000
+        )
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
+    }
+
+    private var partialPath: URL {
+        spec.destination.appendingPathExtension("partial")
+    }
+
+    private var metaPath: URL {
+        spec.destination.appendingPathExtension("partial.meta")
+    }
+
+    func test_restore_no_partial_stays_idle() {
+        let manager = SuperModelDownloadManager()
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .idle)
+    }
+
+    func test_restore_partial_without_meta_stays_idle() throws {
+        try Data("partial data".utf8).write(to: partialPath)
+        let manager = SuperModelDownloadManager()
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .idle)
+    }
+
+    func test_restore_partial_with_matching_meta_becomes_partialReady() throws {
+        let partialData = Data(repeating: 0, count: 500)
+        try partialData.write(to: partialPath)
+
+        let meta = PartialDownloadMeta(
+            url: spec.url.absoluteString,
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: spec.expectedSize,
+            etag: nil,
+            downloadedBytes: 500
+        )
+        try JSONEncoder().encode(meta).write(to: metaPath)
+
+        let manager = SuperModelDownloadManager()
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .partialReady(downloadedBytes: 500, totalBytes: spec.expectedSize))
+    }
+
+    func test_restore_partial_with_mismatched_sha_deletes_and_stays_idle() throws {
+        try Data("partial data".utf8).write(to: partialPath)
+
+        let meta = PartialDownloadMeta(
+            url: spec.url.absoluteString,
+            expectedSHA256: "wrong-sha",
+            expectedSize: spec.expectedSize,
+            etag: nil,
+            downloadedBytes: 12
+        )
+        try JSONEncoder().encode(meta).write(to: metaPath)
+
+        let manager = SuperModelDownloadManager()
+        manager.restoreStateFromDisk(for: spec)
+        XCTAssertEqual(manager.state, .idle)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: partialPath.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: metaPath.path))
+    }
+
+    func test_clear_removes_partial_and_meta() throws {
+        try Data("data".utf8).write(to: partialPath)
+        let meta = PartialDownloadMeta(
+            url: spec.url.absoluteString,
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: spec.expectedSize,
+            etag: nil,
+            downloadedBytes: 4
+        )
+        try JSONEncoder().encode(meta).write(to: metaPath)
+
+        let manager = SuperModelDownloadManager()
+        manager.clearPartialDownload(for: spec)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: partialPath.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: metaPath.path))
+    }
+
+    func test_clear_on_nonexistent_files_does_not_crash() {
+        let manager = SuperModelDownloadManager()
+        manager.clearPartialDownload(for: spec)
+    }
+}
