@@ -41,7 +41,8 @@ cmake -S "$BUILD_TMP/llama.cpp" -B "$BUILD_TMP/build" \
     -DGGML_METAL_EMBED_LIBRARY=ON \
     -DGGML_BLAS=ON \
     -DGGML_BLAS_VENDOR=Apple \
-    -DLLAMA_CURL=OFF
+    -DLLAMA_CURL=OFF \
+    -DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=ON
 
 cmake --build "$BUILD_TMP/build" --target llama-server -j"$(sysctl -n hw.ncpu)"
 
