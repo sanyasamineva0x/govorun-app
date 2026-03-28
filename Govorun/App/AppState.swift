@@ -1046,6 +1046,7 @@ final class AppState: ObservableObject {
 
     /// Обновление уровня аудио
     fileprivate func handleAudioLevelUpdate(_ level: Float) {
+        guard sessionManager.state == .recording else { return }
         bottomBar.showRecording(audioLevel: level)
     }
 }
