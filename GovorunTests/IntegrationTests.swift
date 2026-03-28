@@ -46,8 +46,9 @@ private func makeTestAppState(
     modelContainer: ModelContainer? = nil,
     recordingMode: RecordingMode = .pushToTalk,
     analytics: AnalyticsEmitting = NoOpAnalyticsService(),
-    productMode: ProductMode = .superMode
-) async -> (AppState, MockAudioRecording, MockEventMonitoring) {
+    productMode: ProductMode = .superMode,
+    superModelDownloader: MockSuperModelDownloader = MockSuperModelDownloader()
+) async -> (AppState, MockAudioRecording, MockEventMonitoring, MockSuperModelDownloader) {
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
         let m = MockSTTClient()
@@ -92,6 +93,7 @@ private func makeTestAppState(
         modelContainer: modelContainer,
         analytics: analytics,
         superAssetsManager: MockSuperAssetsManager(),
+        superModelDownloadManager: superModelDownloader,
         settings: settings
     )
 
@@ -100,7 +102,7 @@ private func makeTestAppState(
         await appState.refreshSuperAssetsReadiness()
     }
 
-    return (appState, mockAudio, eventMonitor)
+    return (appState, mockAudio, eventMonitor, superModelDownloader)
 }
 
 // MARK: - Интеграционные тесты AppState
@@ -124,7 +126,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -169,7 +171,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -212,7 +214,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -248,7 +250,7 @@ final class IntegrationTests: XCTestCase {
     func test_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
-        let (appState, _, _) = await makeTestAppState(mockAudio: mockAudio)
+        let (appState, _, _, _) = await makeTestAppState(mockAudio: mockAudio)
 
         // Активация
         appState.activationKeyMonitor.onActivated?()
@@ -273,7 +275,7 @@ final class IntegrationTests: XCTestCase {
 
         let controlledSTT = ControlledSTTClient()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: controlledSTT
         )
@@ -305,7 +307,7 @@ final class IntegrationTests: XCTestCase {
 
         let controlledSTT = ControlledSTTClient()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: controlledSTT
         )
@@ -347,7 +349,7 @@ final class IntegrationTests: XCTestCase {
 
         let mockClipboard = MockClipboard()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             clipboard: mockClipboard
@@ -384,7 +386,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -421,7 +423,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -453,7 +455,7 @@ final class IntegrationTests: XCTestCase {
         let mockSTT = MockSTTClient()
         mockSTT.recognizeError = STTError.connectionFailed("connection refused")
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT
         )
@@ -477,7 +479,7 @@ final class IntegrationTests: XCTestCase {
     // MARK: - 7. Start/stop lifecycle
 
     func test_start_stop_lifecycle() async {
-        let (appState, _, _) = await makeTestAppState()
+        let (appState, _, _, _) = await makeTestAppState()
 
         XCTAssertFalse(appState.isReady)
 
@@ -507,7 +509,7 @@ final class IntegrationTests: XCTestCase {
         let mockClipboard = MockClipboard()
         mockClipboard.savedItems = []
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -545,7 +547,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -580,7 +582,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             accessibility: mockAccessibility,
@@ -610,7 +612,7 @@ final class IntegrationTests: XCTestCase {
     func test_toggle_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             recordingMode: .toggle
         )
@@ -657,7 +659,7 @@ final class DictionaryWiringTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = await makeTestAppState(
+        let (appState, _, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -687,7 +689,7 @@ final class DictionaryWiringTests: XCTestCase {
 @MainActor
 final class StatusBarControllerTests: XCTestCase {
     func test_status_bar_creates_with_app_state() async throws {
-        let (appState, _, _) = await makeTestAppState()
+        let (appState, _, _, _) = await makeTestAppState()
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: DictionaryEntry.self, Snippet.self, HistoryItem.self,
@@ -697,5 +699,68 @@ final class StatusBarControllerTests: XCTestCase {
         let sut = StatusBarController(appState: appState, settingsWindowController: settingsWC)
         // Просто проверяем что не крашится
         XCTAssertNotNil(sut)
+    }
+}
+
+// MARK: - Super Model Download Wiring тесты
+
+@MainActor
+final class SuperModelDownloadWiringTests: XCTestCase {
+    func test_startSuperModelDownload_guards_when_already_active() async {
+        let downloader = MockSuperModelDownloader()
+        await downloader.simulateStateChange(.downloading(progress: 0.5, downloadedBytes: 100, totalBytes: 200))
+        let (appState, _, _, _) = await makeTestAppState(superModelDownloader: downloader)
+
+        await appState.startSuperModelDownload()
+
+        XCTAssertFalse(downloader.downloadCalled)
+    }
+
+    func test_startSuperModelDownload_guards_when_not_modelMissing() async {
+        let downloader = MockSuperModelDownloader()
+        // MockSuperAssetsManager.check() по умолчанию возвращает .installed
+        let (appState, _, _, _) = await makeTestAppState(superModelDownloader: downloader)
+
+        XCTAssertEqual(appState.superAssetsState, .installed)
+        await appState.startSuperModelDownload()
+
+        XCTAssertFalse(downloader.downloadCalled)
+    }
+
+    func test_cancelSuperModelDownload_calls_cancel() async {
+        let downloader = MockSuperModelDownloader()
+        let (appState, _, _, _) = await makeTestAppState(superModelDownloader: downloader)
+
+        appState.cancelSuperModelDownload()
+
+        XCTAssertTrue(downloader.cancelCalled)
+    }
+
+    // MARK: - handleSuperAssetsChanged
+
+    @MainActor
+    func test_handleSuperAssetsChanged_with_installed_assets_starts_runtime() async {
+        let (appState, _, _, _) = await makeTestAppState(productMode: .superMode)
+        await appState.handleSuperAssetsChanged()
+        // MockSuperAssetsManager returns .installed by default
+        // After handleSuperAssetsChanged, assets state should be .installed
+        XCTAssertEqual(appState.superAssetsState, .installed)
+    }
+
+    @MainActor
+    func test_handleSuperAssetsChanged_with_standard_mode_does_not_start_runtime() async {
+        let (appState, _, _, _) = await makeTestAppState(productMode: .standard)
+        await appState.handleSuperAssetsChanged()
+        // In standard mode, runtime should not be started
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
+    // MARK: - clearPartialSuperModelDownload
+
+    @MainActor
+    func test_clearPartialSuperModelDownload_calls_clear() async {
+        let (appState, _, _, downloader) = await makeTestAppState(productMode: .superMode)
+        appState.clearPartialSuperModelDownload()
+        XCTAssertTrue(downloader.clearCalled)
     }
 }
