@@ -560,7 +560,12 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
         if needsRestart {
             Task { [weak self] in
-                try? await self?.start()
+                do {
+                    try await self?.start()
+                } catch {
+                    Self.logger.error("Deferred restart failed: \(String(describing: error), privacy: .public)")
+                    self?.setState(.error(error.localizedDescription))
+                }
             }
         }
     }

@@ -576,6 +576,8 @@ final class AppState: ObservableObject {
 
         await refreshSuperAssetsReadiness()
         guard superAssetsState == .installed else {
+            let currentAssetsState = superAssetsState
+            Self.logger.info("LLM runtime не стартует: assets state = \(String(describing: currentAssetsState), privacy: .public)")
             updateLLMRuntimeState(.disabled)
             return
         }
