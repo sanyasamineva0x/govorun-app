@@ -577,18 +577,18 @@ final class AppState: ObservableObject {
         await refreshSuperAssetsReadiness()
         guard superAssetsState == .installed else {
             let currentAssetsState = superAssetsState
-            Self.logger.info("LLM runtime не стартует: assets state = \(String(describing: currentAssetsState), privacy: .public)")
+            Self.logger.info("LLM runtime не стартует: \(String(describing: currentAssetsState), privacy: .public)")
+            llmRuntimeManager.stop()
             updateLLMRuntimeState(.disabled)
             return
         }
 
         do {
-            // Для managed local runtime — нужны resolved paths
-            // Для external endpoint — paths не нужны, SuperAssetsManager вернёт .installed с nil URLs
+            // Всегда обновляем конфигурацию — для external endpoint без paths, для local с paths
+            var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
             if let binaryURL = superAssetsManager.runtimeBinaryURL,
                let modelURL = superAssetsManager.modelURL
             {
-                var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
                 runtimeConfig = LocalLLMRuntimeConfiguration(
                     baseURLString: runtimeConfig.baseURLString,
                     modelAlias: runtimeConfig.normalizedModelAlias,
@@ -599,9 +599,8 @@ final class AppState: ObservableObject {
                     contextSize: runtimeConfig.contextSize,
                     gpuLayers: runtimeConfig.gpuLayers
                 )
-                try await llmRuntimeManager.updateConfiguration(runtimeConfig)
             }
-            // start() вызывается всегда — LLMRuntimeManager сам определит managed vs external
+            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
             try await llmRuntimeManager.start()
         } catch {
             Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
@@ -787,7 +786,7 @@ final class AppState: ObservableObject {
         Task {
             await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.textMode: context.textMode.rawValue,
             ])
         }
@@ -954,7 +953,7 @@ final class AppState: ObservableObject {
         if completedPaths.contains(result.normalizationPath), !normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
             ]
@@ -967,7 +966,7 @@ final class AppState: ObservableObject {
         if normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
             ]
@@ -980,7 +979,7 @@ final class AppState: ObservableObject {
         if result.snippetFallbackUsed {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
             ]
             if let snippetFallbackReason = result.snippetFallbackReason {
                 metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue

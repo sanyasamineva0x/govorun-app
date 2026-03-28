@@ -157,13 +157,11 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
             }
         }
 
-#if DEBUG
         Self.logger.debug("resolveRuntimeBinary: ищу llama-server в PATH")
         if let pathBinary = findInPath("llama-server") {
             Self.logger.debug("resolveRuntimeBinary: найден в PATH — \(pathBinary, privacy: .public)")
             return URL(fileURLWithPath: pathBinary)
         }
-#endif
 
         return nil
     }
@@ -202,7 +200,6 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         return URL(fileURLWithPath: path)
     }
 
-#if DEBUG
     private func findInPath(_ name: String) -> String? {
         guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else { return nil }
         for dir in pathEnv.split(separator: ":") {
@@ -213,5 +210,4 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         }
         return nil
     }
-#endif
 }
