@@ -434,15 +434,15 @@ final class SuperModelDownloadManagerImplTests: XCTestCase {
         XCTAssertEqual(manager.state, .idle)
     }
 
-    // MARK: - Catalog placeholder check
+    // MARK: - Catalog values
 
-    func test_catalog_placeholder_values_are_marked() {
-        // Этот тест документирует что каталог содержит placeholder значения.
-        // Перед релизом: заменить FILL_ на реальные и обновить этот тест.
+    func test_catalog_has_real_values() {
         let spec = SuperModelCatalog.current
-        XCTAssertTrue(spec.url.absoluteString.contains("FILL_"),
-                      "URL каталога должен содержать FILL_ до заполнения реальными значениями")
-        XCTAssertTrue(spec.expectedSHA256.hasPrefix("FILL_"),
-                      "SHA256 каталога должен содержать FILL_ до заполнения реальными значениями")
+        XCTAssertFalse(spec.url.absoluteString.contains("FILL_"),
+                       "URL каталога не должен содержать placeholder")
+        XCTAssertFalse(spec.expectedSHA256.hasPrefix("FILL_"),
+                       "SHA256 каталога не должен содержать placeholder")
+        XCTAssertEqual(spec.expectedSHA256.count, 64, "SHA256 должен быть 64 символа")
+        XCTAssertTrue(spec.expectedSize > 1_000_000_000, "Размер модели должен быть > 1 ГБ")
     }
 }
