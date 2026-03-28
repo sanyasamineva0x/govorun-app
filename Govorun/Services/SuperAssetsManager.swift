@@ -156,6 +156,8 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
                 return URL(fileURLWithPath: bundled)
             }
             Self.logger.warning("resolveRuntimeBinary: бинарник не найден в bundle — \(bundled, privacy: .public), fallback на PATH")
+        } else {
+            Self.logger.warning("resolveRuntimeBinary: bundleHelpersPath is nil, пропускаю проверку bundle")
         }
 
         Self.logger.debug("resolveRuntimeBinary: ищу llama-server в PATH")

@@ -14,7 +14,7 @@ trap 'rc=$?; rm -rf "$BUILD_TMP"; [ $rc -ne 0 ] && rm -f "$OUTPUT_BIN"; exit $rc
 
 if [ -f "$OUTPUT_BIN" ]; then
     echo "llama-server уже собран в $OUTPUT_BIN"
-    if ! "$OUTPUT_BIN" --version 2>&1 | head -1; then
+    if ! VERSION_OUT=$("$OUTPUT_BIN" --version 2>&1); then
         echo "WARN: кешированный бинарник не запускается, пересобираю..." >&2
         rm -f "$OUTPUT_BIN"
     elif otool -L "$OUTPUT_BIN" | tail -n +2 | awk '{print $1}' | grep -qvE '^(/System/Library/Frameworks/|/usr/lib/)'; then

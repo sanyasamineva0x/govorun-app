@@ -23,6 +23,7 @@ elif command -v llama-server >/dev/null 2>&1; then
   echo "WARN: используется PATH llama-server (может быть динамически слинкован). Для prod: bash scripts/build-llama-server.sh" >&2
 elif [[ -x "$PROJECT_DIR/.build-llama-server/build/bin/llama-server" ]]; then
   LLAMA_SERVER_BIN="$PROJECT_DIR/.build-llama-server/build/bin/llama-server"
+  echo "WARN: используется build-temp binary (без codesign). Скопируйте: cp .build-llama-server/build/bin/llama-server Helpers/" >&2
 else
   echo "llama-server not found. Run: bash scripts/build-llama-server.sh"
   exit 1
