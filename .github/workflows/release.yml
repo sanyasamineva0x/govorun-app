@@ -85,11 +85,24 @@ jobs:
         if: steps.cache-wheels.outputs.cache-hit != 'true'
         run: bash scripts/download-wheels.sh
 
-      # ── 9. Generate Xcode project ───────────────────────────────
+      # ── 9. Cache llama-server ──────────────────────────────────
+      - name: Cache llama-server
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Helpers/llama-server
+          key: llama-server-arm64-${{ hashFiles('scripts/build-llama-server.sh') }}
+
+      # ── 10. Build llama-server ─────────────────────────────────
+      - name: Build llama-server
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: bash scripts/build-llama-server.sh
+
+      # ── 11. Generate Xcode project ───────────────────────────────
       - name: Generate Xcode project
         run: xcodegen generate
 
-      # ── 10. Run tests ───────────────────────────────────────────
+      # ── 12. Run tests ───────────────────────────────────────────
       - name: Run tests
         run: |
           set -o pipefail
@@ -99,18 +112,18 @@ jobs:
             2>&1 | tee /tmp/test.log
           grep 'Executed' /tmp/test.log
 
-      # ── 11. Build unsigned DMG ──────────────────────────────────
+      # ── 13. Build unsigned DMG ──────────────────────────────────
       - name: Build unsigned DMG
         run: bash scripts/build-unsigned-dmg.sh
 
-      # ── 12. Upload DMG artifact ─────────────────────────────────
+      # ── 14. Upload DMG artifact ─────────────────────────────────
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: Govorun-${{ steps.version.outputs.version }}.dmg
           path: build/Govorun.dmg
 
-      # ── 13. Sign DMG with Sparkle EdDSA ─────────────────────────
+      # ── 15. Sign DMG with Sparkle EdDSA ─────────────────────────
       - name: Sign DMG with Sparkle EdDSA
         id: sign
         env:
@@ -140,7 +153,7 @@ jobs:
           echo "ed_signature=$ED_SIG" >> "$GITHUB_OUTPUT"
           echo "length=$LENGTH"       >> "$GITHUB_OUTPUT"
 
-      # ── 14. Compute SHA256 ──────────────────────────────────────
+      # ── 16. Compute SHA256 ──────────────────────────────────────
       - name: Compute SHA256
         id: sha
         run: |
@@ -148,7 +161,7 @@ jobs:
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "SHA256: $SHA256"
 
-      # ── 15. Create or update GitHub Release ─────────────────────
+      # ── 17. Create or update GitHub Release ─────────────────────
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
@@ -162,7 +175,7 @@ jobs:
             gh release create "$TAG" build/Govorun.dmg --generate-notes
           fi
 
-      # ── 16. Update appcast.xml ──────────────────────────────────
+      # ── 18. Update appcast.xml ──────────────────────────────────
       - name: Update appcast.xml
         env:
           GH_TOKEN: ${{ github.token }}
@@ -242,7 +255,7 @@ jobs:
           git commit -m "appcast: ${VERSION}"
           git push origin main
 
-      # ── 17. Generate Homebrew token ─────────────────────────────
+      # ── 19. Generate Homebrew token ─────────────────────────────
       - name: Generate Homebrew token
         id: homebrew-token
         uses: actions/create-github-app-token@v1
@@ -252,7 +265,7 @@ jobs:
           repositories: homebrew-govorun
           owner: sanyasamineva0x
 
-      # ── 18. Update Homebrew Cask ────────────────────────────────
+      # ── 20. Update Homebrew Cask ────────────────────────────────
       - name: Update Homebrew Cask
         env:
           GH_TOKEN: ${{ steps.homebrew-token.outputs.token }}
