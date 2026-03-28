@@ -91,8 +91,14 @@ private func makeTestAppState(
         audioCapture: AudioCapture(),
         modelContainer: modelContainer,
         analytics: analytics,
+        superAssetsManager: MockSuperAssetsManager(),
         settings: settings
     )
+
+    // handleActivated проверяет superAssetsState — в тестах ассеты «установлены»
+    if productMode.usesLLM {
+        appState.superAssetsState = .installed
+    }
 
     return (appState, mockAudio, eventMonitor)
 }

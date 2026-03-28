@@ -78,7 +78,7 @@ final class AppState: ObservableObject {
     /// Состояние локального LLM runtime
     @Published private(set) var llmRuntimeState: LLMRuntimeState = .notStarted
     /// Состояние Super-ассетов (runtime binary + модель)
-    @Published private(set) var superAssetsState: SuperAssetsState = .unknown
+    @Published var superAssetsState: SuperAssetsState = .unknown
 
     /// Текущее состояние сессии (для live menubar updates)
     @Published fileprivate(set) var sessionState: SessionState = .idle
