@@ -289,7 +289,12 @@ private struct ProductModeCard: View {
     @Binding var selection: ProductMode
 
     private var superAvailable: Bool {
-        appState.superAssetsState == .installed
+        switch appState.superAssetsState {
+        case .installed, .unknown, .checking:
+            true
+        case .modelMissing, .runtimeMissing, .error:
+            false
+        }
     }
 
     private var assetsStatusText: String? {
