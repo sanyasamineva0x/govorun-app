@@ -9,7 +9,6 @@ enum SuperModelCatalog {
     ///   1. huggingface-cli upload <repo> gigachat-gguf.gguf
     ///   2. URL: https://huggingface.co/<repo>/resolve/<commit-sha>/gigachat-gguf.gguf
     ///   3. SHA256: shasum -a 256 gigachat-gguf.gguf
-    // swiftlint:disable:next force_unwrapping
     static let current: SuperModelDownloadSpec = {
         guard let url = URL(string: "https://huggingface.co/sanyasamineva0x/gigachat-gguf/resolve/FILL_COMMIT_SHA/gigachat-gguf.gguf") else {
             fatalError("SuperModelCatalog: невалидный URL модели")

@@ -82,7 +82,12 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
     private func writeMeta(_ meta: PartialDownloadMeta, for spec: SuperModelDownloadSpec) {
         let url = metaURL(for: spec)
-        try? JSONEncoder().encode(meta).write(to: url)
+        do {
+            let data = try JSONEncoder().encode(meta)
+            try data.write(to: url)
+        } catch {
+            Self.logger.error("writeMeta не удался: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func deleteMeta(for spec: SuperModelDownloadSpec) {
@@ -211,7 +216,12 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
         // Create directory
         let dir = spec.destination.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            setState(.failed(.fileSystemError("Не удалось создать каталог: \(error.localizedDescription)")))
+            return
+        }
 
         // Resume check
         let partial = partialURL(for: spec)
@@ -236,7 +246,10 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
         // Prepare file
         if resumeOffset == 0 || !FileManager.default.fileExists(atPath: partial.path) {
-            FileManager.default.createFile(atPath: partial.path, contents: nil)
+            if !FileManager.default.createFile(atPath: partial.path, contents: nil) {
+                setState(.failed(.fileSystemError("Не удалось создать файл для загрузки")))
+                return
+            }
         }
         guard let fileHandle = try? FileHandle(forWritingTo: partial) else {
             setState(.failed(.fileSystemError("Не удалось открыть файл для записи")))
