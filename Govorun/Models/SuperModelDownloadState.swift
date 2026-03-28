@@ -20,13 +20,15 @@ enum SuperModelDownloadError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .insufficientDiskSpace(let required, let available):
-            "Недостаточно места: нужно \(required/1_000_000_000) ГБ, доступно \(available/1_000_000_000) ГБ"
+            let requiredGB = String(format: "%.1f", Double(required)/1_000_000_000)
+            let availableGB = String(format: "%.1f", Double(available)/1_000_000_000)
+            return "Недостаточно места: нужно \(requiredGB) ГБ, доступно \(availableGB) ГБ"
         case .integrityCheckFailed:
-            "Файл повреждён — контрольная сумма не совпадает"
+            return "Файл повреждён — контрольная сумма не совпадает"
         case .networkError(let message):
-            "Ошибка сети: \(message)"
+            return "Ошибка сети: \(message)"
         case .fileSystemError(let message):
-            "Ошибка файловой системы: \(message)"
+            return "Ошибка файловой системы: \(message)"
         }
     }
 }

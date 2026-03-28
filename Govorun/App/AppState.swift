@@ -334,7 +334,12 @@ final class AppState: ObservableObject {
 
     func deleteCorruptedModelAndRedownload() async {
         let spec = SuperModelCatalog.current
-        try? FileManager.default.removeItem(at: spec.destination)
+        do {
+            try FileManager.default.removeItem(at: spec.destination)
+        } catch {
+            superModelDownloadState = .failed(.fileSystemError("Не удалось удалить файл: \(error.localizedDescription)"))
+            return
+        }
         await refreshSuperAssetsReadiness()
         await startSuperModelDownload()
     }

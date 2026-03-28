@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import os
 
 protocol SuperModelDownloading: AnyObject, Sendable {
     var state: SuperModelDownloadState { get }
@@ -24,6 +25,7 @@ struct PartialDownloadMeta: Codable, Equatable {
 // MARK: - Implementation
 
 final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.govorun", category: "SuperModelDownload")
     private let lock = NSLock()
     private var _state: SuperModelDownloadState = .idle
 
@@ -38,11 +40,18 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
         }
     }
 
-    var onStateChanged: (@MainActor @Sendable (SuperModelDownloadState) -> Void)?
+    private var _onStateChanged: (@MainActor @Sendable (SuperModelDownloadState) -> Void)?
+
+    var onStateChanged: (@MainActor @Sendable (SuperModelDownloadState) -> Void)? {
+        get { lock.withLock { _onStateChanged } }
+        set { lock.withLock { _onStateChanged = newValue } }
+    }
 
     private func setState(_ newState: SuperModelDownloadState) {
-        lock.withLock { _state = newState }
-        let callback = onStateChanged
+        let callback: (@MainActor @Sendable (SuperModelDownloadState) -> Void)? = lock.withLock {
+            _state = newState
+            return _onStateChanged
+        }
         Task { @MainActor in
             callback?(newState)
         }
@@ -63,7 +72,12 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
     private func readMeta(for spec: SuperModelDownloadSpec) -> PartialDownloadMeta? {
         let url = metaURL(for: spec)
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(PartialDownloadMeta.self, from: data)
+        do {
+            return try JSONDecoder().decode(PartialDownloadMeta.self, from: data)
+        } catch {
+            Self.logger.warning("Не удалось декодировать .partial.meta: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     private func writeMeta(_ meta: PartialDownloadMeta, for spec: SuperModelDownloadSpec) {
@@ -87,6 +101,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
         guard meta.expectedSHA256 == spec.expectedSHA256,
               meta.url == spec.url.absoluteString
         else {
+            Self.logger.info("Удаляю устаревший partial: spec изменился")
             try? fm.removeItem(at: partial)
             deleteMeta(for: spec)
             return
@@ -99,9 +114,17 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
     func clearPartialDownload(for spec: SuperModelDownloadSpec) {
         let fm = FileManager.default
-        try? fm.removeItem(at: partialURL(for: spec))
-        deleteMeta(for: spec)
-        setState(.idle)
+        let partialPath = partialURL(for: spec)
+        do {
+            if fm.fileExists(atPath: partialPath.path) {
+                try fm.removeItem(at: partialPath)
+            }
+            deleteMeta(for: spec)
+            setState(.idle)
+        } catch {
+            Self.logger.error("Не удалось удалить partial файл: \(error.localizedDescription, privacy: .public)")
+            setState(.failed(.fileSystemError("Не удалось удалить файл: \(error.localizedDescription)")))
+        }
     }
 
     // MARK: - SHA256
@@ -116,29 +139,46 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
         defer { try? handle.close() }
         var hasher = SHA256()
         let chunkSize = 1_024 * 1_024
+        var readError = false
         if #available(macOS 10.15.4, *) {
-            // read(upToCount:) returns nil at EOF on this OS version
-            while let chunk = try? handle.read(upToCount: chunkSize) {
-                guard !chunk.isEmpty else { break }
-                hasher.update(data: chunk)
+            while true {
+                let chunk: Data?
+                do {
+                    chunk = try handle.read(upToCount: chunkSize)
+                } catch {
+                    readError = true
+                    break
+                }
+                guard let data = chunk, !data.isEmpty else { break }
+                hasher.update(data: data)
             }
         } else {
-            while true {
-                let chunk = handle.readData(ofLength: chunkSize)
-                guard !chunk.isEmpty else { break }
-                hasher.update(data: chunk)
-            }
+            while autoreleasepool(invoking: {
+                let data = handle.readData(ofLength: chunkSize)
+                guard !data.isEmpty else { return false }
+                hasher.update(data: data)
+                return true
+            }) {}
         }
+        if readError { return nil }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Disk space
 
     private func availableDiskSpace(at url: URL) -> Int64? {
-        let dir = url.deletingLastPathComponent()
-        let values = try? dir.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        guard let capacity = values?.volumeAvailableCapacityForImportantUsage else { return nil }
-        return Int64(capacity)
+        var dir = url.deletingLastPathComponent()
+        let fm = FileManager.default
+        while !fm.fileExists(atPath: dir.path), dir.path != "/" {
+            dir = dir.deletingLastPathComponent()
+        }
+        guard let values = try? dir.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+              let capacity = values.volumeAvailableCapacityForImportantUsage
+        else {
+            Self.logger.warning("Не удалось получить свободное место для \(dir.path, privacy: .public)")
+            return nil
+        }
+        return capacity
     }
 
     // MARK: - Download
@@ -204,6 +244,9 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
         }
         if resumeOffset > 0 { fileHandle.seekToEndOfFile() }
 
+        var etag: String?
+        var downloadedBytes = resumeOffset
+
         do {
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -214,6 +257,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
             if httpResponse.statusCode == 200, resumeOffset > 0 {
                 resumeOffset = 0
+                downloadedBytes = 0
                 fileHandle.truncateFile(atOffset: 0)
                 fileHandle.seek(toFileOffset: 0)
             } else if httpResponse.statusCode != 200, httpResponse.statusCode != 206 {
@@ -222,8 +266,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
                 return
             }
 
-            let etag = httpResponse.value(forHTTPHeaderField: "ETag")
-            var downloadedBytes = resumeOffset
+            etag = httpResponse.value(forHTTPHeaderField: "ETag")
             let totalBytes = spec.expectedSize
             var lastProgressUpdate = Date()
             var buffer = Data()
@@ -236,10 +279,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
                         downloadedBytes += Int64(buffer.count)
                     }
                     fileHandle.closeFile()
-                    writeMeta(PartialDownloadMeta(
-                        url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
-                        expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
-                    ), for: spec)
+                    writeMeta(.from(spec: spec, etag: etag, downloadedBytes: downloadedBytes), for: spec)
                     setState(.cancelled)
                     return
                 }
@@ -258,10 +298,7 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
                         setState(.downloading(
                             progress: progress, downloadedBytes: downloadedBytes, totalBytes: totalBytes
                         ))
-                        writeMeta(PartialDownloadMeta(
-                            url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
-                            expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
-                        ), for: spec)
+                        writeMeta(.from(spec: spec, etag: etag, downloadedBytes: downloadedBytes), for: spec)
                     }
                 }
             }
@@ -272,13 +309,11 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
             }
             fileHandle.closeFile()
 
-            writeMeta(PartialDownloadMeta(
-                url: spec.url.absoluteString, expectedSHA256: spec.expectedSHA256,
-                expectedSize: spec.expectedSize, etag: etag, downloadedBytes: downloadedBytes
-            ), for: spec)
+            writeMeta(.from(spec: spec, etag: etag, downloadedBytes: downloadedBytes), for: spec)
 
         } catch {
             fileHandle.closeFile()
+            writeMeta(.from(spec: spec, etag: etag, downloadedBytes: downloadedBytes), for: spec)
             if Task.isCancelled {
                 setState(.cancelled)
             } else {
@@ -289,7 +324,12 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
 
         // Verification
         setState(.verifying)
-        switch verifyAndFinalize(spec: spec) {
+        let verifyResult = verifyAndFinalize(spec: spec)
+        if Task.isCancelled {
+            setState(.cancelled)
+            return
+        }
+        switch verifyResult {
         case .success:
             setState(.completed)
         case .failure(let error):
@@ -326,14 +366,27 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
     // MARK: - Cancel
 
     func cancel() {
-        lock.withLock {
-            if case .downloading = _state {
-                _state = .cancelled
-                let callback = onStateChanged
-                Task { @MainActor in
-                    callback?(.cancelled)
-                }
-            }
+        let callback: (@MainActor @Sendable (SuperModelDownloadState) -> Void)? = lock.withLock {
+            guard case .downloading = _state else { return nil }
+            _state = .cancelled
+            return _onStateChanged
         }
+        Task { @MainActor in
+            callback?(.cancelled)
+        }
+    }
+}
+
+// MARK: - PartialDownloadMeta factory
+
+extension PartialDownloadMeta {
+    static func from(spec: SuperModelDownloadSpec, etag: String?, downloadedBytes: Int64) -> PartialDownloadMeta {
+        PartialDownloadMeta(
+            url: spec.url.absoluteString,
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: spec.expectedSize,
+            etag: etag,
+            downloadedBytes: downloadedBytes
+        )
     }
 }
