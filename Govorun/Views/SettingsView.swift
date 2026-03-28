@@ -290,9 +290,9 @@ private struct ProductModeCard: View {
 
     private var superAvailable: Bool {
         switch appState.superAssetsState {
-        case .installed, .unknown, .checking:
+        case .installed, .unknown, .checking, .modelMissing, .error:
             true
-        case .modelMissing, .runtimeMissing, .error:
+        case .runtimeMissing:
             false
         }
     }
@@ -301,10 +301,8 @@ private struct ProductModeCard: View {
         switch appState.superAssetsState {
         case .unknown, .checking:
             "Проверяю готовность Super..."
-        case .installed:
+        case .installed, .modelMissing:
             nil
-        case .modelMissing:
-            "Модель не найдена. Скопируйте GGUF в ~/.govorun/models/"
         case .runtimeMissing:
             "Компонент llama-server отсутствует в приложении"
         case .error(let msg):
@@ -318,6 +316,172 @@ private struct ProductModeCard: View {
         case .installed: "checkmark.circle"
         case .modelMissing: "exclamationmark.triangle"
         case .runtimeMissing, .error: "xmark.circle"
+        }
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let gb = Double(bytes)/1_000_000_000
+        return String(format: "%.1f ГБ", gb)
+    }
+
+    @ViewBuilder
+    private var downloadStatusView: some View {
+        switch appState.superAssetsState {
+        case .runtimeMissing:
+            EmptyView()
+
+        case .installed:
+            Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.green)
+
+        case .error(let msg):
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Не могу запустить Супер-режим", systemImage: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button("Проверить снова") {
+                        Task { await appState.handleSuperAssetsChanged() }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accentColor)
+                    if appState.superModelFileExists {
+                        Button("Удалить и скачать заново") {
+                            Task { await appState.deleteCorruptedModelAndRedownload() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+        case .unknown, .checking:
+            EmptyView()
+
+        case .modelMissing:
+            switch appState.superModelDownloadState {
+            case .idle:
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Мне нужна ИИ-модель", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Text("Чтобы я мог работать в Супер-режиме, скачайте ИИ-модель (5.8 ГБ). Это может занять 5–30 минут.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Скачать ИИ-модель") {
+                        Task { await appState.startSuperModelDownload() }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accentColor)
+                }
+
+            case .checkingExisting:
+                Label("Проверяю...", systemImage: "hourglass")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .downloading(let progress, let downloadedBytes, let totalBytes):
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Скачиваю ИИ-модель... \(formatBytes(downloadedBytes)) из \(formatBytes(totalBytes)) (\(Int(progress * 100))%)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                    Button("Отменить") {
+                        appState.cancelSuperModelDownload()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+
+            case .verifying:
+                Label("Проверяю целостность файла...", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .completed:
+                Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+
+            case .failed(let error):
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Не удалось скачать", systemImage: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    if let desc = error.errorDescription {
+                        Text(desc)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if case .integrityCheckFailed = error {
+                        Button("Скачать заново") {
+                            appState.clearPartialSuperModelDownload()
+                            Task { await appState.startSuperModelDownload() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                    } else {
+                        Button("Продолжить скачивание") {
+                            Task { await appState.startSuperModelDownload() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                    }
+                }
+
+            case .cancelled:
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Скачивание отменено", systemImage: "xmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button("Продолжить") {
+                            Task { await appState.startSuperModelDownload() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                        Button("Удалить") {
+                            appState.clearPartialSuperModelDownload()
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
+            case .partialReady(let downloadedBytes, let totalBytes):
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Скачано \(formatBytes(downloadedBytes)) из \(formatBytes(totalBytes))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button("Продолжить") {
+                            Task { await appState.startSuperModelDownload() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                        Button("Удалить") {
+                            appState.clearPartialSuperModelDownload()
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 
@@ -355,10 +519,15 @@ private struct ProductModeCard: View {
                         Label(assetsText, systemImage: assetsStatusIcon)
                             .font(.caption)
                             .foregroundStyle(.orange)
-                    } else {
+                    } else if appState.superAssetsState == .installed || appState.settings.productMode != .superMode {
                         Text(runtimeStatusText)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+                    }
+
+                    // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
+                    if appState.settings.productMode == .superMode {
+                        downloadStatusView
                     }
                 }
             }
