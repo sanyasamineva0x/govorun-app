@@ -737,7 +737,7 @@ final class MockSuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
 
     var checkResult: SuperAssetsState = .installed
 
-    func check() async -> SuperAssetsState {
+    func check(baseURLString: String, modelAlias: String) async -> SuperAssetsState {
         lock.lock()
         _state = checkResult
         if checkResult != .installed {

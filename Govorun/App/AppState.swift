@@ -123,7 +123,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = llmConfiguration
         let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
         self.llmRuntimeManager = llmRuntimeManager
-        superAssetsManager = SuperAssetsManager(baseURLString: settings.llmBaseURL)
+        superAssetsManager = SuperAssetsManager()
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -159,7 +159,8 @@ final class AppState: ObservableObject {
             llmClient: llm,
             snippetEngine: snippetEngine
         )
-        pipelineEngine.productMode = settings.productMode
+        // productMode ставим .standard до проверки ассетов; start() обновит после check()
+        pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
         textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
@@ -278,7 +279,10 @@ final class AppState: ObservableObject {
     @MainActor
     func refreshSuperAssetsReadiness() async {
         superAssetsState = .checking
-        superAssetsState = await superAssetsManager.check()
+        superAssetsState = await superAssetsManager.check(
+            baseURLString: settings.llmBaseURL,
+            modelAlias: settings.llmModel
+        )
     }
 
     // MARK: - Start / Stop
@@ -318,6 +322,11 @@ final class AppState: ObservableObject {
             if currentProductMode.usesLLM {
                 Task {
                     await startLLMRuntimeIfAssetsReady()
+                    if superAssetsState == .installed {
+                        pipelineEngine.productMode = currentProductMode
+                    } else {
+                        pipelineEngine.productMode = .standard
+                    }
                 }
             } else {
                 updateLLMRuntimeState(.disabled)
@@ -519,21 +528,30 @@ final class AppState: ObservableObject {
     }
 
     private func applyProductMode(_ productMode: ProductMode) {
-        pipelineEngine.productMode = productMode
         currentProductMode = productMode
         pendingProductMode = nil
 
-        guard let llmRuntimeManager else { return }
+        guard let llmRuntimeManager else {
+            pipelineEngine.productMode = productMode
+            return
+        }
 
         if productMode.usesLLM {
             if isReady {
                 Task {
                     await startLLMRuntimeIfAssetsReady()
+                    if superAssetsState == .installed {
+                        pipelineEngine.productMode = productMode
+                    } else {
+                        // Assets не готовы — оставляем deterministic path
+                        pipelineEngine.productMode = .standard
+                    }
                 }
             } else {
                 updateLLMRuntimeState(.notStarted)
             }
         } else {
+            pipelineEngine.productMode = productMode
             llmRuntimeManager.stop()
             updateLLMRuntimeState(.disabled)
         }
@@ -553,7 +571,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func startLLMRuntimeIfAssetsReady(updateConfig: Bool = true) async {
+    private func startLLMRuntimeIfAssetsReady() async {
         guard let llmRuntimeManager else { return }
 
         await refreshSuperAssetsReadiness()
@@ -563,21 +581,25 @@ final class AppState: ObservableObject {
         }
 
         do {
-            if updateConfig {
-                guard let binaryURL = superAssetsManager.runtimeBinaryURL,
-                      let modelURL = superAssetsManager.modelURL
-                else {
-                    updateLLMRuntimeState(.disabled)
-                    return
-                }
-                let runtimeConfig = LocalLLMRuntimeConfiguration(
-                    baseURLString: settings.llmBaseURL,
-                    modelAlias: settings.llmModel,
+            // Для managed local runtime — нужны resolved paths
+            // Для external endpoint — paths не нужны, SuperAssetsManager вернёт .installed с nil URLs
+            if let binaryURL = superAssetsManager.runtimeBinaryURL,
+               let modelURL = superAssetsManager.modelURL
+            {
+                var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
+                runtimeConfig = LocalLLMRuntimeConfiguration(
+                    baseURLString: runtimeConfig.baseURLString,
+                    modelAlias: runtimeConfig.normalizedModelAlias,
                     modelPath: modelURL.path,
-                    runtimeBinaryPath: binaryURL.path
+                    runtimeBinaryPath: binaryURL.path,
+                    startupTimeout: runtimeConfig.startupTimeout,
+                    healthcheckInterval: runtimeConfig.healthcheckInterval,
+                    contextSize: runtimeConfig.contextSize,
+                    gpuLayers: runtimeConfig.gpuLayers
                 )
                 try await llmRuntimeManager.updateConfiguration(runtimeConfig)
             }
+            // start() вызывается всегда — LLMRuntimeManager сам определит managed vs external
             try await llmRuntimeManager.start()
         } catch {
             Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")

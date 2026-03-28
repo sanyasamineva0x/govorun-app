@@ -39,7 +39,7 @@ protocol SuperAssetsManaging: AnyObject, Sendable {
     var state: SuperAssetsState { get }
     var runtimeBinaryURL: URL? { get }
     var modelURL: URL? { get }
-    func check() async -> SuperAssetsState
+    func check(baseURLString: String, modelAlias: String) async -> SuperAssetsState
 }
 
 // MARK: - Implementation
@@ -48,8 +48,6 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     private let fileChecker: FileChecking
     private let bundleResourcePath: String?
     private let modelsDirectory: String
-    private let modelAlias: String
-    private let baseURLString: String
     private let lock = NSLock()
 
     private var _state: SuperAssetsState = .unknown
@@ -71,25 +69,21 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     init(
         fileChecker: FileChecking = DefaultFileChecker(),
         bundleResourcePath: String? = Bundle.main.resourcePath,
-        modelsDirectory: String = NSHomeDirectory() + "/.govorun/models",
-        modelAlias: String = "gigachat-gguf",
-        baseURLString: String = LocalLLMConfiguration.defaultBaseURLString
+        modelsDirectory: String = NSHomeDirectory() + "/.govorun/models"
     ) {
         self.fileChecker = fileChecker
         self.bundleResourcePath = bundleResourcePath
         self.modelsDirectory = modelsDirectory
-        self.modelAlias = modelAlias
-        self.baseURLString = baseURLString
     }
 
-    func check() async -> SuperAssetsState {
+    func check(baseURLString: String, modelAlias: String) async -> SuperAssetsState {
         lock.lock()
         _state = .checking
         _runtimeBinaryURL = nil
         _modelURL = nil
         lock.unlock()
 
-        if isExternalEndpoint {
+        if Self.isExternalEndpoint(baseURLString) {
             lock.lock()
             _state = .installed
             lock.unlock()
@@ -103,7 +97,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
             return .runtimeMissing
         }
 
-        guard let model = resolveModel() else {
+        guard let model = resolveModel(modelAlias: modelAlias) else {
             lock.lock()
             _runtimeBinaryURL = binaryURL
             let current = _state
@@ -124,7 +118,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         return .installed
     }
 
-    private var isExternalEndpoint: Bool {
+    private static func isExternalEndpoint(_ baseURLString: String) -> Bool {
         guard let url = URL(string: baseURLString),
               let host = url.host else { return false }
         let localHosts = ["127.0.0.1", "localhost", "0.0.0.0", "::1"]
@@ -148,7 +142,7 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
         return nil
     }
 
-    private func resolveModel() -> URL? {
+    private func resolveModel(modelAlias: String) -> URL? {
         if let envPath = ProcessInfo.processInfo.environment["GOVORUN_LLM_MODEL_PATH"],
            !envPath.isEmpty
         {

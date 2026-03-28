@@ -6,8 +6,7 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: MockFileChecker(),
             bundleResourcePath: "/fake/bundle",
-            modelsDirectory: "/fake/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/fake/models"
         )
         XCTAssertEqual(manager.state, .unknown)
         XCTAssertNil(manager.runtimeBinaryURL)
@@ -22,11 +21,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .installed)
         XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
@@ -40,11 +38,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .modelMissing)
         XCTAssertEqual(manager.runtimeBinaryURL, URL(fileURLWithPath: "/bundle/llama-server"))
@@ -58,11 +55,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .runtimeMissing)
         XCTAssertNil(manager.runtimeBinaryURL)
@@ -77,11 +73,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         if case .error(let msg) = result {
             XCTAssertTrue(msg.contains("слишком маленький"))
@@ -101,11 +96,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "custom-alias"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "custom-alias")
 
         XCTAssertEqual(result, .installed)
         XCTAssertEqual(manager.modelURL, URL(fileURLWithPath: "/models/custom-alias.gguf"))
@@ -117,12 +111,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf",
-            baseURLString: "http://192.168.1.100:8080/v1"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://192.168.1.100:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .installed)
         XCTAssertNil(manager.runtimeBinaryURL)
@@ -135,12 +127,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf",
-            baseURLString: "http://127.0.0.1:8080/v1"
+            modelsDirectory: "/models"
         )
 
-        let result = await manager.check()
+        let result = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertEqual(result, .runtimeMissing)
     }
@@ -151,11 +141,10 @@ final class SuperAssetsManagerTests: XCTestCase {
         let manager = SuperAssetsManager(
             fileChecker: checker,
             bundleResourcePath: "/bundle",
-            modelsDirectory: "/models",
-            modelAlias: "gigachat-gguf"
+            modelsDirectory: "/models"
         )
 
-        _ = await manager.check()
+        _ = await manager.check(baseURLString: "http://127.0.0.1:8080/v1", modelAlias: "gigachat-gguf")
 
         XCTAssertNil(manager.runtimeBinaryURL)
         XCTAssertNil(manager.modelURL)
