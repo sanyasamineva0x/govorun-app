@@ -49,6 +49,12 @@ __pycache__/
 # Embedded Python.framework (63MB, downloaded separately)
 Frameworks/Python.framework/
 
+# Static llama-server binary (built via scripts/build-llama-server.sh)
+Helpers/
+
+# llama.cpp build temp
+.build-llama-server/
+
 # Vendored wheels (downloaded via scripts/download-wheels.sh)
 worker/wheels/
 
