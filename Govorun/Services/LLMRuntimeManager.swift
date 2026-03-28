@@ -468,58 +468,16 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     }
 
     private func resolveModelPath(_ configuration: LocalLLMRuntimeConfiguration) throws -> String? {
-        if let explicitPath = configuration.normalizedModelPath {
-            guard FileManager.default.isReadableFile(atPath: explicitPath) else {
-                throw LLMRuntimeError.modelNotFound(explicitPath)
-            }
-            return explicitPath
+        guard let path = configuration.normalizedModelPath else { return nil }
+        guard FileManager.default.isReadableFile(atPath: path) else {
+            throw LLMRuntimeError.modelNotFound(path)
         }
-
-        for candidate in bundledModelCandidates() {
-            if FileManager.default.isReadableFile(atPath: candidate) {
-                return candidate
-            }
-        }
-
-        return nil
+        return path
     }
 
     private func resolveRuntimeBinary(_ configuration: LocalLLMRuntimeConfiguration) -> String? {
-        if let explicitPath = configuration.normalizedRuntimeBinaryPath {
-            return Self.resolveExecutable(explicitPath)
-        }
-
-        for candidate in runtimeBinaryCandidates() {
-            if let executable = Self.resolveExecutable(candidate) {
-                return executable
-            }
-        }
-
-        return nil
-    }
-
-    private func bundledModelCandidates() -> [String] {
-        var candidates: [String] = []
-
-        if let resourcePath = Bundle.main.resourcePath {
-            candidates.append((resourcePath as NSString).appendingPathComponent("llm/gigachat.gguf"))
-            candidates.append((resourcePath as NSString).appendingPathComponent("Models/gigachat.gguf"))
-        }
-
-        return candidates
-    }
-
-    private func runtimeBinaryCandidates() -> [String] {
-        var candidates: [String] = []
-
-        if let resourcePath = Bundle.main.resourcePath {
-            candidates.append((resourcePath as NSString).appendingPathComponent("llama-server"))
-            candidates.append((resourcePath as NSString).appendingPathComponent("llama.cpp/build/bin/llama-server"))
-        }
-
-        candidates.append((FileManager.default.currentDirectoryPath as NSString).appendingPathComponent("llama.cpp/build/bin/llama-server"))
-        candidates.append(LocalLLMRuntimeConfiguration.defaultRuntimeBinaryName)
-        return candidates
+        guard let path = configuration.normalizedRuntimeBinaryPath else { return nil }
+        return Self.resolveExecutable(path)
     }
 
     private func waitUntilReady(
@@ -602,7 +560,12 @@ final class LLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
 
         if needsRestart {
             Task { [weak self] in
-                try? await self?.start()
+                do {
+                    try await self?.start()
+                } catch {
+                    Self.logger.error("Deferred restart failed: \(String(describing: error), privacy: .public)")
+                    self?.setState(.error(error.localizedDescription))
+                }
             }
         }
     }

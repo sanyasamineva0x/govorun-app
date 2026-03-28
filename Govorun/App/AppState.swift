@@ -27,6 +27,8 @@ final class AppState: ObservableObject {
     private let workerManager: ASRWorkerManaging?
     /// Локальный LLM runtime — поднимает llama-server при локальном endpoint
     private let llmRuntimeManager: LLMRuntimeManaging?
+    /// Менеджер готовности Super-ассетов (runtime binary + модель)
+    private let superAssetsManager: SuperAssetsManaging
 
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
@@ -75,6 +77,8 @@ final class AppState: ObservableObject {
     @Published private(set) var workerState: WorkerState = .notStarted
     /// Состояние локального LLM runtime
     @Published private(set) var llmRuntimeState: LLMRuntimeState = .notStarted
+    /// Состояние Super-ассетов (runtime binary + модель)
+    @Published private(set) var superAssetsState: SuperAssetsState = .unknown
 
     /// Текущее состояние сессии (для live menubar updates)
     @Published fileprivate(set) var sessionState: SessionState = .idle
@@ -119,6 +123,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = llmConfiguration
         let llmRuntimeManager = LLMRuntimeManager(configuration: llmRuntimeConfiguration)
         self.llmRuntimeManager = llmRuntimeManager
+        superAssetsManager = SuperAssetsManager()
         let llm: LLMClient = LocalLLMClient(configuration: llmConfiguration)
         let audio = AudioCapture()
 
@@ -154,7 +159,8 @@ final class AppState: ObservableObject {
             llmClient: llm,
             snippetEngine: snippetEngine
         )
-        pipelineEngine.productMode = settings.productMode
+        // productMode ставим .standard до проверки ассетов; start() обновит после check()
+        pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
         textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
@@ -210,6 +216,7 @@ final class AppState: ObservableObject {
         postInsertionMonitor: PostInsertionMonitoring? = nil,
         workerManager: ASRWorkerManaging? = nil,
         llmRuntimeManager: LLMRuntimeManaging? = nil,
+        superAssetsManager: SuperAssetsManaging = SuperAssetsManager(),
         initialWorkerState: WorkerState = .ready,
         initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
@@ -218,6 +225,7 @@ final class AppState: ObservableObject {
     ) {
         self.workerManager = workerManager
         self.llmRuntimeManager = llmRuntimeManager
+        self.superAssetsManager = superAssetsManager
         self.activationKeyMonitor = activationKeyMonitor
         self.sessionManager = sessionManager
         self.pipelineEngine = pipelineEngine
@@ -248,7 +256,7 @@ final class AppState: ObservableObject {
 
         workerState = initialWorkerState
         llmRuntimeState = settings.productMode.usesLLM ? initialLLMRuntimeState : .disabled
-        self.pipelineEngine.productMode = settings.productMode
+        self.pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -266,6 +274,15 @@ final class AppState: ObservableObject {
 
     func updateLLMRuntimeState(_ state: LLMRuntimeState) {
         llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
+    }
+
+    @MainActor
+    func refreshSuperAssetsReadiness() async {
+        superAssetsState = .checking
+        superAssetsState = await superAssetsManager.check(
+            baseURLString: settings.llmBaseURL,
+            modelAlias: settings.llmModel
+        )
     }
 
     // MARK: - Start / Stop
@@ -301,14 +318,14 @@ final class AppState: ObservableObject {
             }
         }
 
-        if let llmRuntimeManager {
+        if llmRuntimeManager != nil {
             if currentProductMode.usesLLM {
                 Task {
-                    do {
-                        try await llmRuntimeManager.start()
-                    } catch {
-                        Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
-                        self.updateLLMRuntimeState(.error(error.localizedDescription))
+                    await startLLMRuntimeIfAssetsReady()
+                    if superAssetsState == .installed {
+                        pipelineEngine.productMode = currentProductMode
+                    } else {
+                        pipelineEngine.productMode = .standard
                     }
                 }
             } else {
@@ -511,28 +528,30 @@ final class AppState: ObservableObject {
     }
 
     private func applyProductMode(_ productMode: ProductMode) {
-        pipelineEngine.productMode = productMode
         currentProductMode = productMode
         pendingProductMode = nil
 
-        guard let llmRuntimeManager else { return }
+        guard let llmRuntimeManager else {
+            pipelineEngine.productMode = productMode
+            return
+        }
 
         if productMode.usesLLM {
-            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
             if isReady {
                 Task {
-                    do {
-                        try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
-                        try await llmRuntimeManager.start()
-                    } catch {
-                        Self.logger.error("LLM runtime не переключился в Super: \(String(describing: error), privacy: .public)")
-                        self.updateLLMRuntimeState(.error(error.localizedDescription))
+                    await startLLMRuntimeIfAssetsReady()
+                    if superAssetsState == .installed {
+                        pipelineEngine.productMode = productMode
+                    } else {
+                        // Assets не готовы — оставляем deterministic path
+                        pipelineEngine.productMode = .standard
                     }
                 }
             } else {
                 updateLLMRuntimeState(.notStarted)
             }
         } else {
+            pipelineEngine.productMode = productMode
             llmRuntimeManager.stop()
             updateLLMRuntimeState(.disabled)
         }
@@ -543,18 +562,49 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
 
-        if currentProductMode.usesLLM, let llmRuntimeManager {
-            let runtimeConfiguration = Self.resolveLLMRuntimeConfiguration(settings: settings)
+        if currentProductMode.usesLLM, llmRuntimeManager != nil {
             Task {
-                do {
-                    try await llmRuntimeManager.updateConfiguration(runtimeConfiguration)
-                } catch {
-                    Self.logger.error("LLM runtime не обновился: \(String(describing: error), privacy: .public)")
-                    self.updateLLMRuntimeState(.error(error.localizedDescription))
-                }
+                await startLLMRuntimeIfAssetsReady()
             }
         } else {
             updateLLMRuntimeState(.disabled)
+        }
+    }
+
+    private func startLLMRuntimeIfAssetsReady() async {
+        guard let llmRuntimeManager else { return }
+
+        await refreshSuperAssetsReadiness()
+        guard superAssetsState == .installed else {
+            let currentAssetsState = superAssetsState
+            Self.logger.info("LLM runtime не стартует: \(String(describing: currentAssetsState), privacy: .public)")
+            llmRuntimeManager.stop()
+            updateLLMRuntimeState(.disabled)
+            return
+        }
+
+        do {
+            // Всегда обновляем конфигурацию — для external endpoint без paths, для local с paths
+            var runtimeConfig = Self.resolveLLMRuntimeConfiguration(settings: settings)
+            if let binaryURL = superAssetsManager.runtimeBinaryURL,
+               let modelURL = superAssetsManager.modelURL
+            {
+                runtimeConfig = LocalLLMRuntimeConfiguration(
+                    baseURLString: runtimeConfig.baseURLString,
+                    modelAlias: runtimeConfig.normalizedModelAlias,
+                    modelPath: modelURL.path,
+                    runtimeBinaryPath: binaryURL.path,
+                    startupTimeout: runtimeConfig.startupTimeout,
+                    healthcheckInterval: runtimeConfig.healthcheckInterval,
+                    contextSize: runtimeConfig.contextSize,
+                    gpuLayers: runtimeConfig.gpuLayers
+                )
+            }
+            try await llmRuntimeManager.updateConfiguration(runtimeConfig)
+            try await llmRuntimeManager.start()
+        } catch {
+            Self.logger.error("LLM runtime не запустился: \(String(describing: error), privacy: .public)")
+            updateLLMRuntimeState(.error(error.localizedDescription))
         }
     }
 
@@ -722,7 +772,9 @@ final class AppState: ObservableObject {
         let dictionary = loadDictionaryHints()
 
         pipelineEngine.textMode = context.textMode
-        pipelineEngine.productMode = currentProductMode
+        pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+            ? .standard
+            : currentProductMode
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
@@ -734,7 +786,7 @@ final class AppState: ObservableObject {
         Task {
             await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.textMode: context.textMode.rawValue,
             ])
         }
@@ -901,7 +953,7 @@ final class AppState: ObservableObject {
         if completedPaths.contains(result.normalizationPath), !normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
             ]
@@ -914,7 +966,7 @@ final class AppState: ObservableObject {
         if normalizationDidFail {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
             ]
@@ -927,7 +979,7 @@ final class AppState: ObservableObject {
         if result.snippetFallbackUsed {
             var metadata = [
                 AnalyticsMetadataKey.normalizationPath: normPath,
-                AnalyticsMetadataKey.productMode: currentProductMode.rawValue,
+                AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
             ]
             if let snippetFallbackReason = result.snippetFallbackReason {
                 metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue

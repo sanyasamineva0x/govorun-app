@@ -54,6 +54,10 @@ for f in server.py setup.sh requirements.txt VERSION; do
 done
 chmod +x "$APP/Contents/Resources/worker/setup.sh"
 
+# llama-server для Говорун Super (dev: PATH lookup, release: требуется статический бинарник)
+# Текущий brew-бинарник динамически слинкован и не работает без зависимостей.
+# TODO: собрать статический llama-server или бандлить dylib с @rpath
+
 # Wheels для офлайн установки
 if [ -d "worker/wheels" ] && ls worker/wheels/*.whl 1>/dev/null 2>&1; then
     echo "==> Копирую wheels в bundle..."

@@ -422,6 +422,66 @@ final class AppStateWorkerLifecycleTests: XCTestCase {
         XCTAssertTrue(mockWorker.startCalled)
     }
 
+    func test_superMode_coldStart_withMissingModel_disablesRuntime() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        mockAssets.checkResult = .modelMissing
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            superAssetsManager: mockAssets,
+            productMode: .superMode
+        )
+
+        appState.start()
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        XCTAssertFalse(mockLLMRuntime.startCalled)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+        XCTAssertEqual(appState.superAssetsState, .modelMissing)
+        XCTAssertEqual(appState.pipelineEngine.productMode, .standard)
+    }
+
+    func test_superMode_coldStart_withInstalledAssets_startsRuntime() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        // checkResult по умолчанию .installed
+        let mockLLMRuntime = MockLLMRuntimeManager()
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            llmRuntimeManager: mockLLMRuntime,
+            superAssetsManager: mockAssets,
+            productMode: .superMode
+        )
+
+        appState.start()
+        for _ in 0..<20 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            if mockLLMRuntime.startCalled { break }
+        }
+
+        XCTAssertTrue(mockLLMRuntime.startCalled)
+        XCTAssertEqual(appState.superAssetsState, .installed)
+
+        let config = try XCTUnwrap(mockLLMRuntime.updatedConfigurations.last)
+        XCTAssertFalse(config.modelPath.isEmpty, "Model path should be set from assets manager")
+        XCTAssertFalse(config.runtimeBinaryPath.isEmpty, "Binary path should be set from assets manager")
+    }
+
+    func test_standardMode_ignoresAssetsState() async throws {
+        let mockAssets = MockSuperAssetsManager()
+        mockAssets.checkResult = .runtimeMissing
+
+        let (appState, _, _) = makeColdStartTestAppState(
+            superAssetsManager: mockAssets,
+            productMode: .standard
+        )
+
+        appState.start()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
     func test_stop_then_start_relaunches_worker() async throws {
         let mockWorker = MockASRWorkerManager()
         let (appState, _, _) = makeColdStartTestAppState(workerManager: mockWorker)
@@ -572,6 +632,7 @@ private func makeColdStartTestAppState(
     mockAudio: MockAudioRecording = MockAudioRecording(),
     workerManager: ASRWorkerManaging? = nil,
     llmRuntimeManager: LLMRuntimeManaging? = nil,
+    superAssetsManager: SuperAssetsManaging = MockSuperAssetsManager(),
     settings: SettingsStore = SettingsStore(),
     productMode: ProductMode = .superMode
 ) -> (AppState, MockAudioRecording, MockEventMonitoring) {
@@ -587,7 +648,7 @@ private func makeColdStartTestAppState(
         sttClient: stt,
         llmClient: llm
     )
-    pipeline.productMode = productMode
+    pipeline.productMode = productMode.usesLLM ? .standard : productMode
     let inserter = TextInserterEngine(
         accessibility: MockAccessibility(),
         clipboard: MockClipboard()
@@ -602,6 +663,7 @@ private func makeColdStartTestAppState(
         audioCapture: AudioCapture(),
         workerManager: workerManager,
         llmRuntimeManager: llmRuntimeManager,
+        superAssetsManager: superAssetsManager,
         initialWorkerState: .notStarted,
         initialLLMRuntimeState: .notStarted,
         settings: settings
@@ -657,5 +719,37 @@ final class MockLLMRuntimeManager: LLMRuntimeManaging, @unchecked Sendable {
     func updateConfiguration(_ configuration: LocalLLMRuntimeConfiguration) async throws {
         lock.lock(); _updatedConfigurations.append(configuration); lock.unlock()
         if let updateError { throw updateError }
+    }
+}
+
+final class MockSuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _state: SuperAssetsState = .installed
+    private var _runtimeBinaryURL: URL? = URL(fileURLWithPath: "/usr/local/bin/llama-server")
+    private var _modelURL: URL? = URL(fileURLWithPath: "/tmp/test-model.gguf")
+
+    var state: SuperAssetsState {
+        lock.lock(); defer { lock.unlock() }; return _state
+    }
+
+    var runtimeBinaryURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _runtimeBinaryURL
+    }
+
+    var modelURL: URL? {
+        lock.lock(); defer { lock.unlock() }; return _modelURL
+    }
+
+    var checkResult: SuperAssetsState = .installed
+
+    func check(baseURLString: String, modelAlias: String) async -> SuperAssetsState {
+        lock.lock()
+        _state = checkResult
+        if checkResult != .installed {
+            _runtimeBinaryURL = nil
+            _modelURL = nil
+        }
+        lock.unlock()
+        return checkResult
     }
 }
