@@ -64,6 +64,7 @@ Govorun/
 │   ├── LocalLLMClient.swift       # HTTP → llama-server (OpenAI API)
 │   ├── LLMRuntimeManager.swift    # llama-server process lifecycle
 │   ├── SuperAssetsManager.swift   # Discovery llama-server + GGUF, readiness state
+│   ├── SuperModelDownloadManager.swift # Скачивание GGUF с HF, resume, SHA256
 │   ├── UpdaterService.swift       # Sparkle 2
 │   └── AnalyticsService.swift
 ├── Models/
@@ -71,6 +72,9 @@ Govorun/
 │   ├── RecordingMode.swift        # pushToTalk / toggle
 │   ├── TextMode.swift             # universal/chat/email/document/note/code + prompt generation
 │   ├── ProductMode.swift          # standard / superMode
+│   ├── SuperModelDownloadSpec.swift  # Spec для скачивания (url, SHA256, size)
+│   ├── SuperModelDownloadState.swift # State machine скачивания + ошибки
+│   ├── SuperModelCatalog.swift    # Каталог моделей (pinned HF commit)
 │   ├── DictionaryEntry.swift
 │   ├── Snippet.swift
 │   ├── HistoryItem.swift
@@ -94,7 +98,7 @@ Govorun/
 └── Resources/
     ├── Assets.xcassets
     └── Sounds/
-GovorunTests/                      # 955 тестов
+GovorunTests/                      # 986 тестов
 worker/                            # Python ASR worker
 ├── server.py
 ├── requirements.txt
