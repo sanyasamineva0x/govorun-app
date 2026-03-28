@@ -47,7 +47,7 @@ private func makeTestAppState(
     recordingMode: RecordingMode = .pushToTalk,
     analytics: AnalyticsEmitting = NoOpAnalyticsService(),
     productMode: ProductMode = .superMode
-) -> (AppState, MockAudioRecording, MockEventMonitoring) {
+) async -> (AppState, MockAudioRecording, MockEventMonitoring) {
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
         let m = MockSTTClient()
@@ -91,8 +91,14 @@ private func makeTestAppState(
         audioCapture: AudioCapture(),
         modelContainer: modelContainer,
         analytics: analytics,
+        superAssetsManager: MockSuperAssetsManager(),
         settings: settings
     )
+
+    // MockSuperAssetsManager.check() → .installed → superAssetsState обновляется через реальный wiring
+    if productMode.usesLLM {
+        await appState.refreshSuperAssetsReadiness()
+    }
 
     return (appState, mockAudio, eventMonitor)
 }
@@ -118,7 +124,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -163,7 +169,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -206,7 +212,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -242,7 +248,7 @@ final class IntegrationTests: XCTestCase {
     func test_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
-        let (appState, _, _) = makeTestAppState(mockAudio: mockAudio)
+        let (appState, _, _) = await makeTestAppState(mockAudio: mockAudio)
 
         // Активация
         appState.activationKeyMonitor.onActivated?()
@@ -267,7 +273,7 @@ final class IntegrationTests: XCTestCase {
 
         let controlledSTT = ControlledSTTClient()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: controlledSTT
         )
@@ -299,7 +305,7 @@ final class IntegrationTests: XCTestCase {
 
         let controlledSTT = ControlledSTTClient()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: controlledSTT
         )
@@ -341,7 +347,7 @@ final class IntegrationTests: XCTestCase {
 
         let mockClipboard = MockClipboard()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             clipboard: mockClipboard
@@ -378,7 +384,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -415,7 +421,7 @@ final class IntegrationTests: XCTestCase {
 
         let analytics = MockAnalyticsCollector()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -447,7 +453,7 @@ final class IntegrationTests: XCTestCase {
         let mockSTT = MockSTTClient()
         mockSTT.recognizeError = STTError.connectionFailed("connection refused")
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT
         )
@@ -470,8 +476,8 @@ final class IntegrationTests: XCTestCase {
 
     // MARK: - 7. Start/stop lifecycle
 
-    func test_start_stop_lifecycle() {
-        let (appState, _, _) = makeTestAppState()
+    func test_start_stop_lifecycle() async {
+        let (appState, _, _) = await makeTestAppState()
 
         XCTAssertFalse(appState.isReady)
 
@@ -501,7 +507,7 @@ final class IntegrationTests: XCTestCase {
         let mockClipboard = MockClipboard()
         mockClipboard.savedItems = []
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -539,7 +545,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -574,7 +580,7 @@ final class IntegrationTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             accessibility: mockAccessibility,
@@ -604,7 +610,7 @@ final class IntegrationTests: XCTestCase {
     func test_toggle_cancel_during_recording() async {
         let mockAudio = MockAudioRecording()
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             recordingMode: .toggle
         )
@@ -651,7 +657,7 @@ final class DictionaryWiringTests: XCTestCase {
         mockElement.settableAttributes = ["AXSelectedText"]
         mockAccessibility.focusedElement = mockElement
 
-        let (appState, _, _) = makeTestAppState(
+        let (appState, _, _) = await makeTestAppState(
             mockAudio: mockAudio,
             sttClient: mockSTT,
             llmClient: mockLLM,
@@ -680,8 +686,8 @@ final class DictionaryWiringTests: XCTestCase {
 
 @MainActor
 final class StatusBarControllerTests: XCTestCase {
-    func test_status_bar_creates_with_app_state() throws {
-        let (appState, _, _) = makeTestAppState()
+    func test_status_bar_creates_with_app_state() async throws {
+        let (appState, _, _) = await makeTestAppState()
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: DictionaryEntry.self, Snippet.self, HistoryItem.self,

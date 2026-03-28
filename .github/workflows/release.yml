@@ -85,11 +85,46 @@ jobs:
         if: steps.cache-wheels.outputs.cache-hit != 'true'
         run: bash scripts/download-wheels.sh
 
-      # ── 9. Generate Xcode project ───────────────────────────────
+      # ── 9. Cache llama-server ──────────────────────────────────
+      - name: Cache llama-server
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Helpers/llama-server
+          key: llama-server-arm64-${{ hashFiles('scripts/build-llama-server.sh') }}
+
+      # ── 10. Build llama-server ─────────────────────────────────
+      - name: Build llama-server
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: bash scripts/build-llama-server.sh
+
+      # ── 11. Validate llama-server binary ────────────────────────
+      - name: Validate llama-server binary
+        run: |
+          if [ ! -f Helpers/llama-server ] || [ ! -x Helpers/llama-server ]; then
+            echo "::error::Helpers/llama-server missing or not executable"
+            exit 1
+          fi
+          # Архитектура
+          ARCH=$(file Helpers/llama-server)
+          echo "Architecture: $ARCH"
+          if ! echo "$ARCH" | grep -q "arm64"; then
+            echo "::error::llama-server is not arm64"
+            exit 1
+          fi
+          # Зависимости — только системные
+          BAD=$(otool -L Helpers/llama-server | tail -n +2 | awk '{print $1}' | grep -vE '^(/System/Library/Frameworks/|/usr/lib/)' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::llama-server has non-system deps: $BAD"
+            exit 1
+          fi
+          echo "llama-server OK: $(du -h Helpers/llama-server | cut -f1)"
+
+      # ── 12. Generate Xcode project ───────────────────────────────
       - name: Generate Xcode project
         run: xcodegen generate
 
-      # ── 10. Run tests ───────────────────────────────────────────
+      # ── 13. Run tests ───────────────────────────────────────────
       - name: Run tests
         run: |
           set -o pipefail
@@ -99,18 +134,18 @@ jobs:
             2>&1 | tee /tmp/test.log
           grep 'Executed' /tmp/test.log
 
-      # ── 11. Build unsigned DMG ──────────────────────────────────
+      # ── 14. Build unsigned DMG ──────────────────────────────────
       - name: Build unsigned DMG
         run: bash scripts/build-unsigned-dmg.sh
 
-      # ── 12. Upload DMG artifact ─────────────────────────────────
+      # ── 15. Upload DMG artifact ─────────────────────────────────
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: Govorun-${{ steps.version.outputs.version }}.dmg
           path: build/Govorun.dmg
 
-      # ── 13. Sign DMG with Sparkle EdDSA ─────────────────────────
+      # ── 16. Sign DMG with Sparkle EdDSA ─────────────────────────
       - name: Sign DMG with Sparkle EdDSA
         id: sign
         env:
@@ -140,7 +175,7 @@ jobs:
           echo "ed_signature=$ED_SIG" >> "$GITHUB_OUTPUT"
           echo "length=$LENGTH"       >> "$GITHUB_OUTPUT"
 
-      # ── 14. Compute SHA256 ──────────────────────────────────────
+      # ── 17. Compute SHA256 ──────────────────────────────────────
       - name: Compute SHA256
         id: sha
         run: |
@@ -148,7 +183,7 @@ jobs:
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "SHA256: $SHA256"
 
-      # ── 15. Create or update GitHub Release ─────────────────────
+      # ── 18. Create or update GitHub Release ─────────────────────
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
@@ -162,7 +197,7 @@ jobs:
             gh release create "$TAG" build/Govorun.dmg --generate-notes
           fi
 
-      # ── 16. Update appcast.xml ──────────────────────────────────
+      # ── 19. Update appcast.xml ──────────────────────────────────
       - name: Update appcast.xml
         env:
           GH_TOKEN: ${{ github.token }}
@@ -242,7 +277,7 @@ jobs:
           git commit -m "appcast: ${VERSION}"
           git push origin main
 
-      # ── 17. Generate Homebrew token ─────────────────────────────
+      # ── 20. Generate Homebrew token ─────────────────────────────
       - name: Generate Homebrew token
         id: homebrew-token
         uses: actions/create-github-app-token@v1
@@ -252,7 +287,7 @@ jobs:
           repositories: homebrew-govorun
           owner: sanyasamineva0x
 
-      # ── 18. Update Homebrew Cask ────────────────────────────────
+      # ── 21. Update Homebrew Cask ────────────────────────────────
       - name: Update Homebrew Cask
         env:
           GH_TOKEN: ${{ steps.homebrew-token.outputs.token }}
