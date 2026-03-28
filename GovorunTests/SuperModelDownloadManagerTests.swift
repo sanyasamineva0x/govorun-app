@@ -1,3 +1,4 @@
+import CryptoKit
 @testable import Govorun
 import XCTest
 
@@ -99,6 +100,16 @@ final class SuperModelDownloadManagerTests: XCTestCase {
             XCTAssertNotNil(error.errorDescription)
             XCTAssertFalse(try XCTUnwrap(error.errorDescription?.isEmpty))
         }
+    }
+}
+
+// MARK: - Helpers
+
+@MainActor
+private final class StatesBox {
+    var states: [SuperModelDownloadState] = []
+    func append(_ state: SuperModelDownloadState) {
+        states.append(state)
     }
 }
 
@@ -204,5 +215,82 @@ final class SuperModelDownloadManagerImplTests: XCTestCase {
     func test_clear_on_nonexistent_files_does_not_crash() {
         let manager = SuperModelDownloadManager()
         manager.clearPartialDownload(for: spec)
+    }
+
+    // MARK: - Fast path
+
+    func test_download_existing_file_with_correct_sha_completes_immediately() async throws {
+        let content = Data("test model content for sha256 verification".utf8)
+        try content.write(to: spec.destination)
+
+        let sha256 = SHA256.hash(data: content)
+            .map { String(format: "%02x", $0) }
+            .joined()
+
+        let specWithSHA = SuperModelDownloadSpec(
+            url: spec.url,
+            destination: spec.destination,
+            expectedSHA256: sha256,
+            expectedSize: Int64(content.count)
+        )
+
+        let manager = SuperModelDownloadManager()
+        let statesBox = StatesBox()
+        manager.onStateChanged = { state in
+            statesBox.append(state)
+        }
+
+        await manager.download(from: specWithSHA)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let captured = await statesBox.states
+        XCTAssertTrue(captured.contains(.checkingExisting))
+        // state is set synchronously via lock, safe to read directly
+        XCTAssertEqual(manager.state, .completed)
+    }
+
+    func test_download_existing_file_with_wrong_sha_does_not_complete() async throws {
+        let content = Data("some data".utf8)
+        try content.write(to: spec.destination)
+
+        let specWithWrongSHA = SuperModelDownloadSpec(
+            url: spec.url,
+            destination: spec.destination,
+            expectedSHA256: "definitely-wrong-sha256",
+            expectedSize: Int64(content.count)
+        )
+
+        let manager = SuperModelDownloadManager()
+        await manager.download(from: specWithWrongSHA)
+        XCTAssertNotEqual(manager.state, .completed)
+    }
+
+    // MARK: - Disk space
+
+    func test_download_insufficient_disk_space_fails() async {
+        let hugeSpec = SuperModelDownloadSpec(
+            url: spec.url,
+            destination: spec.destination,
+            expectedSHA256: spec.expectedSHA256,
+            expectedSize: Int64.max
+        )
+
+        let manager = SuperModelDownloadManager()
+        await manager.download(from: hugeSpec)
+
+        if case .failed(.insufficientDiskSpace) = manager.state {
+            // OK
+        } else {
+            XCTFail("Ожидался .failed(.insufficientDiskSpace), получен \(manager.state)")
+        }
+    }
+
+    // MARK: - SHA256
+
+    func test_sha256_computation_is_correct() {
+        let data = Data("hello world".utf8)
+        let expected = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        let hash = SuperModelDownloadManager.sha256(of: data)
+        XCTAssertEqual(hash, expected)
     }
 }

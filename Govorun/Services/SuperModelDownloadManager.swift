@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 protocol SuperModelDownloading: AnyObject, Sendable {
@@ -103,10 +104,71 @@ final class SuperModelDownloadManager: SuperModelDownloading, @unchecked Sendabl
         setState(.idle)
     }
 
-    // MARK: - Download (stub — Task 4)
+    // MARK: - SHA256
+
+    static func sha256(of data: Data) -> String {
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func sha256(ofFileAt url: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        let chunkSize = 1_024 * 1_024
+        if #available(macOS 10.15.4, *) {
+            // read(upToCount:) returns nil at EOF on this OS version
+            while let chunk = try? handle.read(upToCount: chunkSize) {
+                guard !chunk.isEmpty else { break }
+                hasher.update(data: chunk)
+            }
+        } else {
+            while true {
+                let chunk = handle.readData(ofLength: chunkSize)
+                guard !chunk.isEmpty else { break }
+                hasher.update(data: chunk)
+            }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Disk space
+
+    private func availableDiskSpace(at url: URL) -> Int64? {
+        let dir = url.deletingLastPathComponent()
+        let values = try? dir.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        guard let capacity = values?.volumeAvailableCapacityForImportantUsage else { return nil }
+        return Int64(capacity)
+    }
+
+    // MARK: - Download
 
     func download(from spec: SuperModelDownloadSpec) async {
-        // будет реализовано в Task 4
+        guard !isActive else { return }
+
+        setState(.checkingExisting)
+        if FileManager.default.fileExists(atPath: spec.destination.path) {
+            if let hash = Self.sha256(ofFileAt: spec.destination),
+               hash == spec.expectedSHA256
+            {
+                setState(.completed)
+                return
+            }
+        }
+
+        let partialSize = (try? FileManager.default.attributesOfItem(atPath: partialURL(for: spec).path))?[.size] as? Int64 ?? 0
+        let remaining = spec.expectedSize.subtractingReportingOverflow(partialSize).partialValue
+        let (neededBytes, overflow) = remaining.addingReportingOverflow(SuperModelCatalog.minimumDiskSpaceBuffer)
+        let neededBytesSafe = overflow ? Int64.max : neededBytes
+        if let available = availableDiskSpace(at: spec.destination), available < neededBytesSafe {
+            setState(.failed(.insufficientDiskSpace(required: neededBytesSafe, available: available)))
+            return
+        }
+
+        let dir = spec.destination.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        setState(.failed(.networkError("download not implemented yet")))
     }
 
     // MARK: - Cancel (stub — Task 4)
