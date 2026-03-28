@@ -184,8 +184,10 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
     }
 
     private func validateModel(atPath path: String) -> URL? {
-        guard fileChecker.isReadableFile(atPath: path) else { return nil }
-        let size = fileChecker.fileSize(atPath: path)
+        // Резолвим симлинки — attributesOfItem может вернуть размер симлинка, а не целевого файла
+        let resolvedPath = (path as NSString).resolvingSymlinksInPath
+        guard fileChecker.isReadableFile(atPath: resolvedPath) else { return nil }
+        let size = fileChecker.fileSize(atPath: resolvedPath)
         guard let size else {
             Self.logger.error("validateModel: не удалось получить размер файла — \(path, privacy: .public)")
             lock.lock()
