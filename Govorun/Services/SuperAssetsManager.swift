@@ -155,11 +155,12 @@ final class SuperAssetsManager: SuperAssetsManaging, @unchecked Sendable {
             if fileChecker.isExecutableFile(atPath: bundled) {
                 return URL(fileURLWithPath: bundled)
             }
+            Self.logger.warning("resolveRuntimeBinary: бинарник не найден в bundle — \(bundled, privacy: .public), fallback на PATH")
         }
 
         Self.logger.debug("resolveRuntimeBinary: ищу llama-server в PATH")
         if let pathBinary = findInPath("llama-server") {
-            Self.logger.debug("resolveRuntimeBinary: найден в PATH — \(pathBinary, privacy: .public)")
+            Self.logger.info("resolveRuntimeBinary: используется PATH binary — \(pathBinary, privacy: .public)")
             return URL(fileURLWithPath: pathBinary)
         }
 

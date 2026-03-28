@@ -19,7 +19,8 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 if [[ -x "$PROJECT_DIR/Helpers/llama-server" ]]; then
   LLAMA_SERVER_BIN="$PROJECT_DIR/Helpers/llama-server"
 elif command -v llama-server >/dev/null 2>&1; then
-  LLAMA_SERVER_BIN="llama-server"
+  LLAMA_SERVER_BIN="$(command -v llama-server)"
+  echo "WARN: используется PATH llama-server (может быть динамически слинкован). Для prod: bash scripts/build-llama-server.sh" >&2
 elif [[ -x "$PROJECT_DIR/.build-llama-server/build/bin/llama-server" ]]; then
   LLAMA_SERVER_BIN="$PROJECT_DIR/.build-llama-server/build/bin/llama-server"
 else
@@ -28,6 +29,7 @@ else
 fi
 
 echo "[Govorun] Starting local GigaChat endpoint on http://${HOST}:${PORT}/v1"
+echo "[Govorun] Binary: ${LLAMA_SERVER_BIN}"
 echo "[Govorun] Model: ${MODEL_PATH}"
 echo "[Govorun] Alias: ${MODEL_ALIAS}"
 

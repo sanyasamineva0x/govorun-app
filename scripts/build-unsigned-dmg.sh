@@ -60,8 +60,11 @@ if [ -f "Helpers/llama-server" ]; then
     mkdir -p "$APP/Contents/Helpers"
     cp "Helpers/llama-server" "$APP/Contents/Helpers/"
     chmod +x "$APP/Contents/Helpers/llama-server"
+elif [ "${CI:-}" = "true" ]; then
+    echo "ERROR: Helpers/llama-server не найден. Нельзя собрать релизный DMG без него." >&2
+    exit 1
 else
-    echo "WARN: Helpers/llama-server не найден. Говорун Super будет использовать PATH fallback." >&2
+    echo "WARN: Helpers/llama-server не найден. Super mode будет искать в PATH (может не работать без brew)." >&2
     echo "      Соберите: bash scripts/build-llama-server.sh" >&2
 fi
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Сборка статического llama-server (arm64) для бандлинга в Govorun.app.
-# Результат: Helpers/llama-server — один бинарник, zero внешних deps.
+# Результат: Helpers/llama-server — один бинарник, без сторонних зависимостей (только системные фреймворки).
 
 LLAMA_CPP_TAG="b8500"  # проверено с GigaChat 3.1 Q4_K_M
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -10,12 +10,14 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_DIR/Helpers"
 OUTPUT_BIN="$OUTPUT_DIR/llama-server"
 BUILD_TMP="$PROJECT_DIR/.build-llama-server"
-trap 'rm -rf "$BUILD_TMP"' EXIT
+trap 'rc=$?; rm -rf "$BUILD_TMP"; [ $rc -ne 0 ] && rm -f "$OUTPUT_BIN"; exit $rc' EXIT
 
 if [ -f "$OUTPUT_BIN" ]; then
     echo "llama-server уже собран в $OUTPUT_BIN"
-    "$OUTPUT_BIN" --version 2>&1 | head -1 || true
-    if otool -L "$OUTPUT_BIN" | tail -n +2 | grep -q "homebrew\|/usr/local/\|/opt/homebrew/"; then
+    if ! "$OUTPUT_BIN" --version 2>&1 | head -1; then
+        echo "WARN: кешированный бинарник не запускается, пересобираю..." >&2
+        rm -f "$OUTPUT_BIN"
+    elif otool -L "$OUTPUT_BIN" | tail -n +2 | grep -q "homebrew\|/usr/local/\|/opt/homebrew/"; then
         echo "WARN: кешированный бинарник динамически слинкован, пересобираю..." >&2
         rm -f "$OUTPUT_BIN"
     else
@@ -67,9 +69,6 @@ if echo "$DEPS" | grep -q "homebrew\|/usr/local/\|/opt/homebrew/"; then
     echo "ERROR: бинарник зависит от brew библиотек!" >&2
     exit 1
 fi
-
-echo "==> Очистка..."
-rm -rf "$BUILD_TMP"
 
 SIZE=$(du -h "$OUTPUT_BIN" | cut -f1)
 echo ""

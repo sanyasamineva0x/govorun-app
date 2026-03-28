@@ -97,7 +97,7 @@ private func makeTestAppState(
 
     // handleActivated проверяет superAssetsState — в тестах ассеты «установлены»
     if productMode.usesLLM {
-        appState.superAssetsState = .installed
+        appState.updateSuperAssetsState(.installed)
     }
 
     return (appState, mockAudio, eventMonitor)
