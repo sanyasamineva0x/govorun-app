@@ -179,5 +179,28 @@
                    sparkle:edSignature="sywkF4X/LzLlFx3Ssr6J0Sd6hIWPkmB+X5vTjvJzmgE8aiHLd/C44o5zgCoM6+SThWbOgHqzvIGH2VoscF8oAg=="
                    length="159269847" />
       </item>
+<item>
+        <title>Version 0.2.0</title>
+        <pubDate>Sun, 29 Mar 2026 12:42:55 +0000</pubDate>
+        <sparkle:version>0</sparkle:version>
+        <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[## What's Changed
+* feat: добавить foundation для llm-нормализации by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/10
+* feat: добавить локальный gigachat runtime by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/11
+* feat: добавить llm runtime manager by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/12
+* feat: промпт v2 и benchmark report level 0 by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/13
+* feat: prompt v3 и full-pipeline benchmark для LLM-нормализации by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/14
+* feat: Super Assets Readiness — discovery, state machine, UI, bundling by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/15
+* feat: статический bundling llama-server (arm64) by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/16
+* feat: скачивание ИИ-модели для Супер-режима by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/17
+
+
+**Full Changelog**: https://github.com/sanyasamineva0x/govorun-app/compare/v0.1.14...v0.2.0]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.0/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="mKgMCi1zn+2PEXYpMKS80fUb5Ew3IyFupp9wo7qsZJ4cYgWM9bNaiobBceKoCQldHiNha5seOEenPjHNayPABg=="
+                   length="165072893" />
+      </item>
   </channel>
 </rss>
