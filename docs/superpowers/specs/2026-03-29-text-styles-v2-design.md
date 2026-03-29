@@ -163,27 +163,62 @@ Trivial path (короткие фразы, `shouldInvokeLLM == false`) не вы
 
 ## Удаление TextMode
 
-Breaking change. `TextMode` удаляется вместе со всей инфраструктурой:
+Breaking change. `TextMode` удаляется вместе со всей инфраструктурой.
 
-**Удаляются файлы:**
-- `Govorun/Models/TextMode.swift`
+### Переезд типов из TextMode.swift
+
+`TextMode.swift` содержит не только enum — ещё три типа, которые используются по всему pipeline:
+
+| Тип | Куда переезжает |
+|---|---|
+| `SnippetPlaceholder` | `Govorun/Models/SnippetPlaceholder.swift` (новый файл) |
+| `SnippetContext` | `Govorun/Models/SnippetContext.swift` (новый файл) |
+| `NormalizationHints` | `Govorun/Models/NormalizationHints.swift` (новый файл, поле `textMode` удаляется) |
+| `TextMode.basePrompt()` | Переезжает в `SuperTextStyle.swift` — базовый промпт не зависит от стиля |
+| `TextMode.systemPrompt()` | Заменяется на `SuperTextStyle.systemPrompt()` |
+| `TextMode.styleBlock` | Заменяется на `SuperTextStyle.styleBlock` |
+
+### Удаляются файлы
+
+- `Govorun/Models/TextMode.swift` (после переноса типов выше)
 - `Govorun/Views/AppModeSettingsView.swift`
 
-**Удаляются протоколы и классы:**
+### Удаляются протоколы и классы
+
 - `AppModeOverriding` протокол
 - `UserDefaultsAppModeOverrides` класс
 - Вкладка App Modes в настройках
 
-**Изменяются:**
-- `AppContextEngine` — возвращает только `bundleId`/`appName`, без `textMode`
-- `LLMClient.normalize()` — одна сигнатура с `SuperTextStyle` вместо `TextMode`
+### Изменяются — API и протоколы
+
+- `AppContextEngine` — `AppContext` теряет поле `textMode`, возвращает только `bundleId`/`appName`. `defaultAppModes` dict и `resolveTextMode()` удаляются
+- `LLMClient.normalize()` — сигнатура: `normalize(_:superStyle:hints:)` вместо `normalize(_:mode:hints:)`. Одна сигнатура, не перегрузка
 - `LocalLLMClient` — `sendChatCompletion` использует `SuperTextStyle.systemPrompt()`
-- `NormalizationHints` — теряет поле `textMode`
-- `NormalizationGate.evaluate()` — принимает `contract: LLMOutputContract` + `superStyle: SuperTextStyle?` (две разных оси: contract = какие проверки, style = какие трансформации валидны). `SuperTextStyle` имеет свойство `contract` → сейчас все три → `.normalization`, в 2.5 formal → `.rewriting`
+- `NormalizationHints` — поле `textMode` удаляется. Hints хранят только personalDictionary, appName, currentDate, snippetContext
+- `NormalizationGate.evaluate()` — принимает `contract: LLMOutputContract` + `superStyle: SuperTextStyle?` (две оси). `SuperTextStyle.contract` → сейчас все три → `.normalization`, в 2.5 formal → `.rewriting`
 - `NormalizationPipeline.postflight()` — `superStyle: SuperTextStyle?` вместо `textMode: TextMode`
-- `PipelineEngine` — только `superStyle: SuperTextStyle?` (nil в classic)
+
+### Изменяются — данные и аналитика
+
+- `PipelineResult.textMode: TextMode` → заменяется на `PipelineResult.superStyle: SuperTextStyle?` (nil в classic). Это поле используется в analytics metadata и HistoryView
+- `PipelineEngine._textMode` → удаляется, заменяется на `_superStyle: SuperTextStyle?`
+- `AnalyticsMetadataKey.textMode` / `"text_mode"` → заменяется на `effective_style` (relaxed/normal/formal/none). Старые event values в аналитике не мигрируем
 - `SettingsStore` — удалить `defaultTextMode`, добавить `superStyleMode` + `manualSuperStyle`
 - `AppState` — убрать TextMode из handleActivated, superStyle привязан к effective pipeline state
+
+### Миграция UserDefaults
+
+- `defaultTextMode` — удалить ключ при первом запуске
+- `superStyleMode` — новый ключ, default `.auto`
+- `manualSuperStyle` — новый ключ, default `.normal`
+
+### Миграция тестов
+
+- `AppContextEngineTests` — убрать проверки `.textMode`, оставить bundleId/appName
+- `SettingsStoreTests` — удалить тесты `defaultTextMode`, добавить superStyle тесты
+- `TestHelpers.MockLLMClient` — обновить сигнатуру на `superStyle: SuperTextStyle?`
+- `SnippetEngineTests.TextModeSnippetPromptTests` — переименовать, использовать `SuperTextStyle`
+- `HistoryStoreTests` — убрать `textMode:` из PipelineResult конструктора
 
 **Миграция UserDefaults:**
 - `defaultTextMode` — удалить при первом запуске
