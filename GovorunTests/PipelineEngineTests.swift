@@ -765,8 +765,7 @@ final class PipelineEngineTests: XCTestCase {
         let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
         engine.hints = NormalizationHints(
             personalDictionary: ["жира": "Jira"],
-            appName: "Telegram",
-            textMode: .chat
+            appName: "Telegram"
         )
 
         try engine.startRecording(sessionId: UUID())
@@ -787,8 +786,7 @@ final class PipelineEngineTests: XCTestCase {
         let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
         engine.hints = NormalizationHints(
             personalDictionary: ["жира": "Jira", "слак": "Slack"],
-            appName: nil,
-            textMode: .chat
+            appName: nil
         )
 
         try engine.startRecording(sessionId: UUID())
@@ -914,8 +912,7 @@ final class PipelineEngineTests: XCTestCase {
         let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
         engine.hints = NormalizationHints(
             personalDictionary: ["жира": "Jira"],
-            appName: nil,
-            textMode: .chat
+            appName: nil
         )
 
         try engine.startRecording(sessionId: UUID())
@@ -936,8 +933,7 @@ final class PipelineEngineTests: XCTestCase {
         let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
         engine.hints = NormalizationHints(
             personalDictionary: [:],
-            appName: nil,
-            textMode: .chat
+            appName: nil
         )
 
         try engine.startRecording(sessionId: UUID())
