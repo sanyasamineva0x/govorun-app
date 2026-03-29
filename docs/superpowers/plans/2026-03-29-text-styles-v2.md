@@ -563,9 +563,10 @@ func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationH
 
 ```swift
 extension LLMClient {
-    // Дефолт для classic clients, не знающих про Super
+    // Дефолт для conformers, не знающих про Super.
+    // Используем hints.textMode (а не .universal), чтобы не потерять текущий контекст.
     func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
-        try await normalize(text, mode: .universal, hints: hints)
+        try await normalize(text, mode: hints.textMode, hints: hints)
     }
 }
 ```
@@ -955,6 +956,39 @@ final class NormalizationGateStyleTests: XCTestCase {
         )
         XCTAssertTrue(result.accepted, "relaxed: lowercase + кириллица не должны считаться excessive edits")
     }
+
+    // MARK: - Formal: slang expansion
+
+    func test_formal_accepts_slang_expansion() {
+        let result = NormalizationGate.evaluate(
+            input: "спс за отчёт",
+            output: "Спасибо за отчёт.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+        XCTAssertTrue(result.accepted, "formal должен принимать раскрытие сленга спс→спасибо")
+    }
+
+    func test_formal_accepts_norm_expansion() {
+        let result = NormalizationGate.evaluate(
+            input: "всё норм",
+            output: "Всё нормально.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+        XCTAssertTrue(result.accepted, "formal должен принимать раскрытие норм→нормально")
+    }
+
+    func test_normal_rejects_slang_expansion() {
+        // normal не раскрывает сленг — gate должен отклонить
+        let result = NormalizationGate.evaluate(
+            input: "спс за отчёт",
+            output: "Спасибо за отчёт",
+            contract: .normalization,
+            superStyle: .normal
+        )
+        XCTAssertFalse(result.accepted, "normal не должен принимать раскрытие сленга")
+    }
 }
 ```
 
@@ -982,6 +1016,12 @@ extension NormalizationGate {
         ("Python", "питон"),
         ("PDF", "пдф"), ("API", "апи"), ("URL", "урл"), ("PR", "пр"),
     ]
+
+    /// Сленг, который formal стиль раскрывает. Gate должен принимать обе формы.
+    static let formalSlangExpansions: [(slang: String, expanded: String)] = [
+        ("спс", "спасибо"), ("норм", "нормально"), ("плиз", "пожалуйста"),
+        ("ок", "хорошо"), ("имхо", "по моему мнению"),
+    ]
 }
 ```
 
@@ -1001,7 +1041,10 @@ static func evaluate(
 
 При проверке protected tokens, если `superStyle == .relaxed`, добавить relaxed-алиасы в `actualCanonical` set. Конкретно: в `missingProtectedTokens()` — если token из expected не найден в output, проверить, есть ли его relaxed-алиас в output.
 
-4. Перед подсчётом edit distance — нормализовать оба текста если `superStyle == .relaxed`: привести к lowercase, заменить кириллицу брендов на canonical.
+4. Перед подсчётом edit distance — нормализовать оба текста к style-neutral form:
+   - Если `superStyle == .relaxed`: привести к lowercase, заменить кириллицу брендов на canonical.
+   - Если `superStyle == .formal`: в input заменить сленг на expanded-форму (спс→спасибо) перед подсчётом distance. Таким образом замена сленга не считается "правкой".
+   - Общее: стилистические трансформации (caps, бренды, сленг) приводятся к canonical перед distance calc.
 
 - [ ] **Step 4: Запустить тесты — убедиться что проходят**
 
@@ -1202,16 +1245,44 @@ let postflight = NormalizationPipeline.postflight(
 
 Сейчас trivial path возвращает `deterministicText` напрямую. В Super mode с relaxed стилем deterministic text будет с заглавной буквой — стиль не применится.
 
-Решение: если `currentSuperStyle != nil`, применить стилевую обработку точки к deterministicText:
+Решение: если `currentSuperStyle != nil`, применить **детерминированные** стилевые трансформации к deterministicText. Это не только точка — relaxed lowercase критически важен для коротких фраз в мессенджерах ("привет", "ок", "да"), которые массово попадают в trivial path через `isTrivial()` (одно слово без чисел).
+
+Добавить статический метод `SuperTextStyle.applyDeterministic(_:)`:
+
+```swift
+// В Govorun/Models/SuperTextStyle.swift
+extension SuperTextStyle {
+    /// Детерминированные стилевые трансформации для trivial/fallback path (без LLM).
+    /// Покрывает: caps, точка. НЕ покрывает: бренды, техтермины, сленг (это задача LLM).
+    func applyDeterministic(_ text: String) -> String {
+        var result = text
+        switch self {
+        case .relaxed:
+            // Строчная первая буква
+            if let first = result.first, first.isUppercase {
+                result = first.lowercased() + result.dropFirst()
+            }
+            // Без точки
+            result = DeterministicNormalizer.stripTrailingPeriods(result)
+        case .normal:
+            // Без точки (заглавная уже стоит от deterministic layer)
+            result = DeterministicNormalizer.stripTrailingPeriods(result)
+        case .formal:
+            // С точкой (заглавная уже стоит от deterministic layer)
+            result = DeterministicNormalizer.ensureTrailingPeriod(result)
+        }
+        return result
+    }
+}
+```
+
+Применение в trivial path:
 
 ```swift
 if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
     var outputText = deterministicText
     if let superStyle = currentSuperStyle {
-        // Стиль владеет точкой даже без LLM
-        outputText = superStyle.terminalPeriod
-            ? DeterministicNormalizer.ensureTrailingPeriod(outputText)
-            : DeterministicNormalizer.stripTrailingPeriods(outputText)
+        outputText = superStyle.applyDeterministic(outputText)
     }
     let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
     return PipelineResult(
@@ -1222,7 +1293,33 @@ if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
 }
 ```
 
-Примечание: relaxed lowercase и кириллица брендов в trivial path НЕ применяются — это задача LLM. Trivial path по определению не проходит через LLM, поэтому стиль ограничен тем что deterministic layer может сделать (только точка). Это ожидаемое поведение — не баг.
+Ограничение: бренды ("Slack"→"слак") и сленг ("спс"→"спасибо") в trivial path НЕ применяются — для этого нужен LLM. Но trivial = одно слово, поэтому бренды/сленг там редко встречаются. Основная ценность — lowercase + точка, что покрывает 90%+ trivial кейсов в мессенджерах.
+
+Тесты для `applyDeterministic` добавить в `SuperTextStyleTests.swift`:
+
+```swift
+// MARK: - Deterministic transforms
+
+func test_relaxed_deterministic_lowercases_first_char() {
+    XCTAssertEqual(SuperTextStyle.relaxed.applyDeterministic("Привет"), "привет")
+}
+
+func test_relaxed_deterministic_strips_period() {
+    XCTAssertEqual(SuperTextStyle.relaxed.applyDeterministic("Привет."), "привет")
+}
+
+func test_normal_deterministic_strips_period() {
+    XCTAssertEqual(SuperTextStyle.normal.applyDeterministic("Привет."), "Привет")
+}
+
+func test_formal_deterministic_adds_period() {
+    XCTAssertEqual(SuperTextStyle.formal.applyDeterministic("Привет"), "Привет.")
+}
+
+func test_formal_deterministic_keeps_existing_period() {
+    XCTAssertEqual(SuperTextStyle.formal.applyDeterministic("Привет."), "Привет.")
+}
+```
 
 - [ ] **Step 3.2: Embedded snippet path (строки ~419-551) — стиль в LLM вызове и gate**
 
@@ -1302,12 +1399,23 @@ let styleEngine = SuperStyleEngine(mode: styleMode)
 
 2. Получить bundleId из `appContextEngine.detectCurrentApp()`.
 
-3. Если `productMode.usesLLM`:
+3. Привязать superStyle к **effective** pipeline state, а не к настройкам:
+
 ```swift
-pipelineEngine.superStyle = styleEngine.style(for: appContext.bundleId)
+// ВАЖНО: проверяем pipelineEngine.productMode, а НЕ settings.productMode.
+// AppState.handleSuperAssetsChanged() может принудительно откатить
+// pipelineEngine.productMode в .standard даже если settings.productMode == .superMode
+// (когда модель не скачана / runtime отсутствует).
+// Если проверять settings — superStyle будет ненулевым при classic execution.
+let effectivelySuper = pipelineEngine.productMode.usesLLM
+pipelineEngine.superStyle = effectivelySuper
+    ? styleEngine.style(for: appContext.bundleId)
+    : nil
 ```
-Иначе:
+
+Также добавить сброс в `handleSuperAssetsChanged()`:
 ```swift
+// Когда assets пропадают и productMode откатывается в .standard:
 pipelineEngine.superStyle = nil
 ```
 
