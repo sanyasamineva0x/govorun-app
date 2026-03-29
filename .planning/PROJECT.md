@@ -23,8 +23,8 @@
 
 ### Active
 
-- [ ] SuperTextStyle enum (relaxed/normal/formal) с styleBlock, systemPrompt, applyDeterministic
-- [ ] SuperStyleEngine: авто (bundleId mapping) и ручной режим
+- [x] SuperTextStyle enum (relaxed/normal/formal) с styleBlock, systemPrompt, applyDeterministic — Validated in Phase 01: foundation-types
+- [x] SuperStyleEngine: авто (bundleId mapping) и ручной режим — Validated in Phase 01: foundation-types
 - [ ] LLMOutputContract enum (.normalization, .rewriting заглушка)
 - [ ] NormalizationGate с двумя осями (contract + superStyle)
 - [ ] Style-aware protected tokens и edit distance
