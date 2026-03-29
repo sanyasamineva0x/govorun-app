@@ -9,6 +9,9 @@ macOS menu bar приложение для голосового ввода на 
 - Полностью офлайн — данные не покидают ваш Mac
 - GigaAM-v3 (ONNX) — распознавание речи с пунктуацией
 - Silero VAD — нарезка длинных записей на сегменты
+- **Говорун Super** — локальная нейросеть (GigaChat 3.1) для глубокой обработки текста
+- Скачивание ИИ-модели прямо из приложения (5.8 ГБ, с паузой и докачкой)
+- Умный контекст — стиль текста подстраивается под приложение
 - Настраиваемая клавиша активации — ⌥, любая клавиша, или комбинация (⌘K, ⇧F5, ...)
 - Два режима: Push to Talk (удерживай) и Toggle (нажми — нажми)
 - Сниппеты — "мой имейл" → подставляет email
@@ -17,6 +20,18 @@ macOS menu bar приложение для голосового ввода на 
 - Вставка через Accessibility API с clipboard fallback
 - Автообновление через Sparkle
 - Apple Silicon (M1+), macOS 14 Sonoma+
+
+## Два режима работы
+
+| | Говорун | Говорун Super |
+|---|---|---|
+| Распознавание речи | GigaAM-v3 | GigaAM-v3 |
+| Очистка текста | Детерминированная | Детерминированная + LLM |
+| Пунктуация | Базовая | Улучшенная |
+| Слова-паразиты | Удаляет частично | Удаляет полностью |
+| Стиль | Единый | Адаптивный (чат / почта / документ) |
+| Требования | — | +6 ГБ на диске, +8 ГБ RAM |
+| Включение | По умолчанию | Настройки → Режим → Super |
 
 ## Установка
 
@@ -42,15 +57,18 @@ bash scripts/fetch-python-framework.sh
 # 3. Скачать wheels для офлайн установки (один раз)
 bash scripts/download-wheels.sh
 
-# 4. Сгенерировать Xcode проект
+# 4. Собрать статический llama-server (один раз, ~5 мин)
+bash scripts/build-llama-server.sh
+
+# 5. Сгенерировать Xcode проект
 brew install xcodegen
 xcodegen generate
 
-# 5. Собрать DMG и запустить
+# 6. Собрать DMG и запустить
 bash scripts/build-unsigned-dmg.sh
 ```
 
-При первом запуске скачивается модель GigaAM-v3 (~900 МБ).
+При первом запуске скачивается модель распознавания GigaAM-v3 (~900 МБ). Для Super режима — ИИ-модель (~5.8 ГБ) скачивается из настроек.
 
 ## Как пользоваться
 
@@ -101,9 +119,11 @@ brew upgrade --cask govorun
 | **Cold start** | 1.6 сек |
 | **WER** | 6.9% (русский) |
 | **RAM (worker)** | ~1.2 GB |
+| **RAM (Super)** | ~8 GB (worker + LLM) |
 | **CPU (idle)** | 0% |
-| **DMG** | ~150 MB |
-| **Модель** | 892 MB (скачивается один раз) |
+| **DMG** | ~156 MB |
+| **Модель распознавания** | 892 MB (скачивается один раз) |
+| **ИИ-модель (Super)** | 6 GB (опционально) |
 
 ## Архитектура
 
@@ -113,16 +133,19 @@ Swift App (menu bar)                    Python Worker
 │ Activation Key Monitor│               │ onnx-asr             │
 │ AudioCapture (16kHz) │──── unix ────▶│ GigaAM-v3 e2e_rnnt   │
 │ PipelineEngine       │    socket     │ Silero VAD           │
-│ DeterministicNorm    │◀─────────────│                      │
+│ NormalizationPipeline│◀─────────────│                      │
 │ DictionaryStore      │               └──────────────────────┘
 │ SnippetEngine        │
-│ NumberNormalizer     │
-│ TextInserter (AX)    │
-└──────────────────────┘
+│ NumberNormalizer     │               Local LLM (Super)
+│ TextInserter (AX)    │               ┌──────────────────────┐
+│ SuperModelDownload   │── HTTP ──────▶│ llama-server          │
+│ Manager              │  localhost    │ GigaChat 3.1 Q4_K_M   │
+└──────────────────────┘               └──────────────────────┘
 ```
 
-- **Swift App** — UI, аудио, вставка текста
+- **Swift App** — UI, аудио, вставка текста, скачивание модели
 - **Python Worker** — ASR через unix socket (JSON протокол)
+- **llama-server** — LLM нормализация для Super режима (встроен в приложение)
 - **IPC**: `{"wav_path": "/tmp/govorun_xxx.wav"}` → `{"text": "распознанный текст"}`
 
 ## Технологии
@@ -131,9 +154,11 @@ Swift App (menu bar)                    Python Worker
 - AVAudioEngine (микрофон)
 - Python 3.13 (embedded framework)
 - onnx-asr, ONNX Runtime, Silero VAD
+- GigaChat 3.1 10B-A1.8B Q4_K_M (llama-server, GGUF)
+- CryptoKit (SHA256 верификация модели)
 - Sparkle 2 (автообновление)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (799 тестов)
+- XCTest (986 тестов)
 
 ## Разработка
 
