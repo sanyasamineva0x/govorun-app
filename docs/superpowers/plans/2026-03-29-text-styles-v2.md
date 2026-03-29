@@ -21,15 +21,19 @@
 | Create | `Govorun/Views/SuperStyleMenuSection.swift` | Menubar UI: сегмент + карточки стилей |
 | Create | `Govorun/Views/SuperModelRequiredAlert.swift` | Окно "нужна модель" + кнопка "Понял" |
 | Modify | `Govorun/Storage/SettingsStore.swift` | Новые ключи: superStyleMode, manualSuperStyle |
+| Modify | `Govorun/Services/LLMClient.swift` | Новая перегрузка normalize с SuperTextStyle |
+| Modify | `Govorun/Services/LocalLLMClient.swift` | sendChatCompletion с SuperTextStyle prompt |
+| Modify | `GovorunTests/TestHelpers.swift` | MockLLMClient — новая перегрузка |
 | Modify | `Govorun/Core/NormalizationGate.swift` | Style-aware protected tokens + edit distance |
 | Modify | `Govorun/Core/NormalizationPipeline.swift` | postflight: стиль владеет точкой в Super |
-| Modify | `Govorun/Core/PipelineEngine.swift` | Интеграция SuperTextStyle в Super path |
+| Modify | `Govorun/Core/PipelineEngine.swift` | Интеграция SuperTextStyle во все ветки Super path |
 | Modify | `Govorun/App/AppState.swift` | SuperStyleEngine init + передача стиля |
-| Modify | `Govorun/App/StatusBarController.swift` | Вставка SuperStyleMenuSection в меню |
+| Modify | `Govorun/App/StatusBarController.swift` | NSHostingView bridge для SuperStyleMenuSection |
 | Create | `GovorunTests/SuperTextStyleTests.swift` | Тесты enum, styleBlock, промпт |
 | Create | `GovorunTests/SuperStyleEngineTests.swift` | Тесты маппинга, авто/ручной |
 | Create | `GovorunTests/NormalizationGateStyleTests.swift` | Тесты style-aware gate |
 | Modify | `GovorunTests/NormalizationPipelineTests.swift` | Тесты postflight с SuperTextStyle |
+| Create | `GovorunTests/LLMClientSuperStyleTests.swift` | Тесты LLMClient с SuperTextStyle |
 
 ---
 
@@ -249,7 +253,7 @@ extension SuperTextStyle {
             GitHub, YouTube, Google, WhatsApp, Discord, Figma, Docker, Chrome, Safari, \
             Teams, Trello, Confluence, Excel, Word, Photoshop, iPhone, MacBook, Windows, Linux, Python).
             Техтермины → оригинал: PDF, API, URL, PR.
-            Пример: «скинь в слак что митинг в четверг» → «Отправьте в Slack, что совещание в четверг.»
+            Пример: «скинь в слак что митинг в четверг спс» → «Скинь в Slack, что митинг в четверг, спасибо.»
             """
         }
     }
@@ -384,6 +388,200 @@ Expected: PASS
 ```bash
 git add Govorun/Models/SuperTextStyle.swift GovorunTests/SuperTextStyleTests.swift
 git commit -m "feat: добавить systemPrompt генерацию для SuperTextStyle"
+```
+
+---
+
+### Task 3.5: LLMClient — перегрузка normalize для SuperTextStyle
+
+**Files:**
+- Modify: `Govorun/Services/LLMClient.swift`
+- Modify: `Govorun/Services/LocalLLMClient.swift`
+- Modify: `GovorunTests/TestHelpers.swift`
+- Create: `GovorunTests/LLMClientSuperStyleTests.swift`
+
+Текущий `LLMClient.normalize(_:mode:hints:)` собирает system prompt внутри `LocalLLMClient` через `mode.systemPrompt(...)`. Для Super стилей нужна параллельная перегрузка, которая принимает `SuperTextStyle` и использует его prompt вместо `TextMode`.
+
+- [ ] **Step 1: Написать тесты**
+
+```swift
+// GovorunTests/LLMClientSuperStyleTests.swift
+import XCTest
+@testable import Govorun
+
+final class LLMClientSuperStyleTests: XCTestCase {
+
+    func test_mock_normalize_with_super_style_records_call() async throws {
+        let mock = MockLLMClient()
+        mock.normalizeResult = "привет"
+        let hints = NormalizationHints()
+
+        let result = try await mock.normalize(
+            "ну привет",
+            superStyle: .relaxed,
+            hints: hints
+        )
+
+        XCTAssertEqual(result, "привет")
+        XCTAssertEqual(mock.normalizeSuperStyleCalls.count, 1)
+        XCTAssertEqual(mock.normalizeSuperStyleCalls[0].superStyle, .relaxed)
+    }
+
+    func test_mock_normalize_with_super_style_uses_separate_result() async throws {
+        let mock = MockLLMClient()
+        mock.normalizeResult = "classic result"
+        mock.normalizeSuperStyleResult = "super result"
+        let hints = NormalizationHints()
+
+        let classicResult = try await mock.normalize("тест", mode: .universal, hints: hints)
+        let superResult = try await mock.normalize("тест", superStyle: .relaxed, hints: hints)
+
+        XCTAssertEqual(classicResult, "classic result")
+        XCTAssertEqual(superResult, "super result")
+    }
+}
+```
+
+- [ ] **Step 2: Запустить — убедиться что падают**
+
+Expected: FAIL — `normalize(_:superStyle:hints:)` not found
+
+- [ ] **Step 3: Добавить перегрузку в протокол LLMClient**
+
+В `Govorun/Services/LLMClient.swift`, добавить в протокол:
+
+```swift
+protocol LLMClient: Sendable {
+    func normalize(_ text: String, mode: TextMode, hints: NormalizationHints) async throws -> String
+    func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String
+}
+```
+
+- [ ] **Step 4: Реализовать в LocalLLMClient**
+
+В `Govorun/Services/LocalLLMClient.swift`, добавить метод:
+
+```swift
+func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
+    let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedText.isEmpty else { return trimmedText }
+
+    let baseURL = try validatedBaseURL()
+    let model = try validatedModel()
+
+    try await ensureBackendReady(baseURL: baseURL, model: model)
+
+    do {
+        let output = try await sendChatCompletion(
+            input: trimmedText,
+            superStyle: superStyle,
+            hints: hints,
+            baseURL: baseURL,
+            model: model
+        )
+        await healthState.recordSuccess(now: Date())
+        return output
+    } catch is CancellationError {
+        throw CancellationError()
+    } catch {
+        await healthState.recordFailure(
+            now: Date(),
+            cooldown: configuration.failureCooldown
+        )
+        Self.logger.error("Local LLM request failed: \(String(describing: error), privacy: .public)")
+        throw error
+    }
+}
+```
+
+Добавить приватный `sendChatCompletion` с `superStyle`:
+
+```swift
+private func sendChatCompletion(
+    input: String,
+    superStyle: SuperTextStyle,
+    hints: NormalizationHints,
+    baseURL: URL,
+    model: String
+) async throws -> String {
+    let systemPrompt = superStyle.systemPrompt(
+        currentDate: hints.currentDate,
+        personalDictionary: hints.personalDictionary,
+        snippetContext: hints.snippetContext,
+        appName: hints.appName
+    )
+
+    let stopSequences = configuration.stopSequences.isEmpty ? nil : configuration.stopSequences
+    let requestBody = ChatCompletionRequest(
+        model: model,
+        temperature: configuration.temperature,
+        maxTokens: configuration.maxOutputTokens,
+        stop: stopSequences,
+        stream: false,
+        messages: [
+            .init(role: "system", content: systemPrompt),
+            .init(role: "user", content: input),
+        ]
+    )
+
+    var request = URLRequest(url: baseURL.appending(path: "chat/completions"))
+    request.httpMethod = "POST"
+    request.timeoutInterval = configuration.requestTimeout
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONEncoder().encode(requestBody)
+
+    let (data, response) = try await perform(request)
+    try validateStatus(response)
+    return try parseOutput(data)
+}
+```
+
+- [ ] **Step 5: Обновить MockLLMClient в TestHelpers.swift**
+
+В `GovorunTests/TestHelpers.swift`, добавить в `MockLLMClient`:
+
+```swift
+var normalizeSuperStyleResult: String?
+var normalizeSuperStyleError: Error?
+private(set) var normalizeSuperStyleCalls: [(text: String, superStyle: SuperTextStyle, hints: NormalizationHints)] = []
+
+func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
+    lock.lock()
+    normalizeSuperStyleCalls.append((text, superStyle, hints))
+    lock.unlock()
+
+    if let error = normalizeSuperStyleError {
+        throw error
+    }
+    return normalizeSuperStyleResult ?? normalizeResult ?? text
+}
+```
+
+- [ ] **Step 6: Обновить все другие LLMClient conformance**
+
+Проверить `grep -rn "LLMClient" GovorunTests/ Govorun/Services/` — все типы, conforming к `LLMClient`, должны получить новый метод. Если есть `NoOpLLMClient` или подобные — добавить default implementation через protocol extension:
+
+```swift
+extension LLMClient {
+    // Дефолт для classic clients, не знающих про Super
+    func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
+        try await normalize(text, mode: .universal, hints: hints)
+    }
+}
+```
+
+Это сохраняет обратную совместимость — существующие conformance не ломаются.
+
+- [ ] **Step 7: Запустить все тесты**
+
+Run: `xcodebuild test -scheme Govorun -destination 'platform=macOS' -skipPackagePluginValidation 2>&1 | tail -10`
+Expected: PASS
+
+- [ ] **Step 8: Коммит**
+
+```bash
+git add Govorun/Services/LLMClient.swift Govorun/Services/LocalLLMClient.swift GovorunTests/TestHelpers.swift GovorunTests/LLMClientSuperStyleTests.swift
+git commit -m "feat: LLMClient.normalize с SuperTextStyle (перегрузка, не замена)"
 ```
 
 ---
@@ -970,15 +1168,122 @@ private func snapshotConfig() -> (ProductMode, TextMode, NormalizationHints, LLM
 }
 ```
 
-- [ ] **Step 3: Использовать superStyle в Super path**
+- [ ] **Step 3: Основной LLM path (строки ~572-646)**
 
-В методе `stopRecording()` / pipeline execution:
+При snapshot: `let (currentProductMode, currentTextMode, currentHints, currentLLMClient, currentSuperStyle) = snapshotConfig()`
 
-1. При snapshot: `let (currentProductMode, currentTextMode, currentHints, llmClient, currentSuperStyle) = snapshotConfig()`
+В блоке LLM нормализации (строка ~582) — выбор метода:
 
-2. Если `currentProductMode.usesLLM && currentSuperStyle != nil` — использовать `currentSuperStyle!.systemPrompt(...)` вместо `currentTextMode.systemPrompt(...)` для LLM вызова.
+```swift
+if let superStyle = currentSuperStyle {
+    llmOutput = try await currentLLMClient.normalize(
+        deterministicText, superStyle: superStyle, hints: currentHints
+    )
+} else {
+    llmOutput = try await currentLLMClient.normalize(
+        deterministicText, mode: currentTextMode, hints: currentHints
+    )
+}
+```
 
-3. Передать `superStyle: currentSuperStyle` в `NormalizationPipeline.postflight()`.
+В postflight (строка ~619) — передать стиль:
+
+```swift
+let postflight = NormalizationPipeline.postflight(
+    deterministicText: deterministicText,
+    llmOutput: llmOutput,
+    textMode: currentTextMode,
+    terminalPeriodEnabled: terminalPeriodEnabled,
+    superStyle: currentSuperStyle
+)
+```
+
+- [ ] **Step 3.1: Trivial path (строка ~555) — стиль владеет точкой**
+
+Сейчас trivial path возвращает `deterministicText` напрямую. В Super mode с relaxed стилем deterministic text будет с заглавной буквой — стиль не применится.
+
+Решение: если `currentSuperStyle != nil`, применить стилевую обработку точки к deterministicText:
+
+```swift
+if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
+    var outputText = deterministicText
+    if let superStyle = currentSuperStyle {
+        // Стиль владеет точкой даже без LLM
+        outputText = superStyle.terminalPeriod
+            ? DeterministicNormalizer.ensureTrailingPeriod(outputText)
+            : DeterministicNormalizer.stripTrailingPeriods(outputText)
+    }
+    let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+    return PipelineResult(
+        ...
+        normalizedText: outputText,
+        ...
+    )
+}
+```
+
+Примечание: relaxed lowercase и кириллица брендов в trivial path НЕ применяются — это задача LLM. Trivial path по определению не проходит через LLM, поэтому стиль ограничен тем что deterministic layer может сделать (только точка). Это ожидаемое поведение — не баг.
+
+- [ ] **Step 3.2: Embedded snippet path (строки ~419-551) — стиль в LLM вызове и gate**
+
+В embedded snippet path (строка ~469) — LLM вызов с superStyle:
+
+```swift
+if let superStyle = currentSuperStyle {
+    let llmOutput = try await currentLLMClient.normalize(
+        deterministicText, superStyle: superStyle, hints: hintsWithSnippet
+    )
+} else {
+    let llmOutput = try await currentLLMClient.normalize(
+        deterministicText, mode: currentTextMode, hints: hintsWithSnippet
+    )
+}
+```
+
+В gate evaluation (строка ~478) — передать стиль:
+
+```swift
+let gateResult = NormalizationGate.evaluate(
+    input: deterministicText,
+    output: llmOutput,
+    contract: currentTextMode.llmOutputContract,
+    ignoredOutputLiterals: Set([SnippetPlaceholder.token]),
+    superStyle: currentSuperStyle
+)
+```
+
+В embedded snippet fallback без LLM (строка ~420-445) — применить стилевую точку:
+
+```swift
+if !currentProductMode.usesLLM {
+    let finalText = SnippetReinserter.mechanicalFallback(...)
+    let outputText: String
+    if let superStyle = currentSuperStyle {
+        outputText = superStyle.terminalPeriod
+            ? finalText
+            : DeterministicNormalizer.stripTrailingPeriods(finalText)
+    } else {
+        outputText = terminalPeriodEnabled
+            ? finalText
+            : DeterministicNormalizer.stripTrailingPeriods(finalText)
+    }
+    ...
+}
+```
+
+- [ ] **Step 3.3: LLM failure graceful degradation (строка ~595-616)**
+
+Когда LLM падает, pipeline возвращает deterministicText через `failedPostflight`. Стилевая точка должна применяться и здесь:
+
+```swift
+let failedPostflight = NormalizationPipeline.failedPostflight(
+    deterministicText: deterministicText,
+    failureContext: String(describing: error),
+    superStyle: currentSuperStyle
+)
+```
+
+Обновить `failedPostflight()` — добавить опциональный `superStyle` и применить terminalPeriod логику.
 
 - [ ] **Step 4: Обновить AppState**
 
@@ -1167,24 +1472,105 @@ struct SuperStyleMenuSection: View {
 }
 ```
 
-- [ ] **Step 3: Вставить секцию в StatusBarController**
+- [ ] **Step 3: Вставить секцию в StatusBarController через NSHostingView bridge**
 
-В `StatusBarController.swift`, в методе где строится NSMenu — добавить NSHostingView с `SuperStyleMenuSection` как menu item. Точная интеграция зависит от текущей архитектуры меню (NSMenu + NSMenuItem). Обернуть SwiftUI view через `NSHostingView`:
+`StatusBarController` строит меню на чистом `NSMenu` + `NSMenuItem`. SwiftUI view нужно встроить через `NSHostingView` в кастомный `NSMenuItem.view`.
+
+В `StatusBarController.swift`:
+
+1. Добавить property для хранения hosting view (нужен для обновления state):
 
 ```swift
-let styleItem = NSMenuItem()
-let hostingView = NSHostingView(rootView:
-    SuperStyleMenuSection(
+private var styleHostingView: NSHostingView<SuperStyleMenuSection>?
+```
+
+2. В методе построения меню (после status item, перед Settings), создать menu item с SwiftUI view:
+
+```swift
+private func makeSuperStyleMenuItem() -> NSMenuItem {
+    let item = NSMenuItem()
+
+    let rootView = SuperStyleMenuSection(
         settings: appState.settings,
         superAssetsState: appState.superAssetsState,
-        currentBundleId: appState.currentAppContext?.bundleId,
-        currentAppName: appState.currentAppContext?.appName
+        currentBundleId: nil,
+        currentAppName: nil
     )
-)
-hostingView.frame = NSRect(x: 0, y: 0, width: 250, height: 160)
-styleItem.view = hostingView
-menu.insertItem(styleItem, at: /* после status item */)
-menu.insertItem(NSMenuItem.separator(), at: /* после style item */)
+    let hosting = NSHostingView(rootView: rootView)
+
+    // NSHostingView в NSMenuItem нуждается в фиксированной ширине, высота — intrinsic
+    hosting.translatesAutoresizingMaskIntoConstraints = false
+    let container = NSView()
+    container.addSubview(hosting)
+    NSLayoutConstraint.activate([
+        hosting.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+        hosting.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        hosting.topAnchor.constraint(equalTo: container.topAnchor),
+        hosting.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        hosting.widthAnchor.constraint(equalToConstant: 250),
+    ])
+    container.frame = hosting.fittingSize.applying(.identity) != .zero
+        ? NSRect(origin: .zero, size: hosting.fittingSize)
+        : NSRect(x: 0, y: 0, width: 250, height: 120)
+
+    item.view = container
+    self.styleHostingView = hosting
+    return item
+}
+```
+
+3. Вставить в меню при построении:
+
+```swift
+let superStyleItem = makeSuperStyleMenuItem()
+menu.insertItem(NSMenuItem.separator(), at: insertIndex)
+menu.insertItem(superStyleItem, at: insertIndex + 1)
+```
+
+4. Обновлять state при открытии меню. В `menuWillOpen(_:)` (или при вызове `updateStatusDisplay()`):
+
+```swift
+func updateSuperStyleView() {
+    guard let hosting = styleHostingView else { return }
+    hosting.rootView = SuperStyleMenuSection(
+        settings: appState.settings,
+        superAssetsState: appState.superAssetsState,
+        currentBundleId: appState.appContextEngine.detectCurrentApp().bundleId,
+        currentAppName: appState.appContextEngine.detectCurrentApp().appName
+    )
+}
+```
+
+Примечание: `SuperModelRequiredAlert` использует `.sheet()` — в контексте NSMenu sheet не работает. Заменить на `NSAlert` или отдельный `NSPanel`:
+
+```swift
+// В disabledView вместо .sheet — вызов через NotificationCenter или callback
+private var disabledView: some View {
+    Button {
+        onShowModelAlert()
+    } label: {
+        HStack {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(.secondary)
+            Text("Говорун Супер")
+                .foregroundStyle(.secondary)
+        }
+    }
+    .buttonStyle(.plain)
+}
+```
+
+И в StatusBarController показать NSAlert:
+
+```swift
+private func showModelRequiredAlert() {
+    let alert = NSAlert()
+    alert.messageText = "Говорун Супер"
+    alert.informativeText = "Для работы Супер-режима нужна ИИ-модель. Скачайте её в настройках приложения."
+    alert.addButton(withTitle: "Понял")
+    alert.alertStyle = .informational
+    alert.runModal()
+}
 ```
 
 - [ ] **Step 4: Запустить билд**
