@@ -7,11 +7,11 @@
 
 ### Стили текста (STYLE)
 
-- [ ] **STYLE-01**: SuperTextStyle enum (relaxed/normal/formal) с rawValue: String, CaseIterable
-- [ ] **STYLE-02**: Каждый стиль имеет computed properties: styleBlock, systemPrompt, contract, applyDeterministic
-- [ ] **STYLE-03**: LLMOutputContract enum (.normalization, .rewriting) — .rewriting как заглушка для 2.5
-- [ ] **STYLE-04**: SuperTextStyle.contract возвращает .normalization для всех трёх стилей (v2)
-- [ ] **STYLE-05**: applyDeterministic контролирует начальную капитализацию (relaxed → строчная, normal/formal → заглавная)
+- [x] **STYLE-01**: SuperTextStyle enum (relaxed/normal/formal) с rawValue: String, CaseIterable
+- [x] **STYLE-02**: Каждый стиль имеет computed properties: styleBlock, systemPrompt, contract, applyDeterministic
+- [x] **STYLE-03**: LLMOutputContract enum (.normalization, .rewriting) — .rewriting как заглушка для 2.5
+- [x] **STYLE-04**: SuperTextStyle.contract возвращает .normalization для всех трёх стилей (v2)
+- [x] **STYLE-05**: applyDeterministic контролирует начальную капитализацию (relaxed → строчная, normal/formal → заглавная)
 
 ### Движок стилей (ENGINE)
 
@@ -76,7 +76,7 @@
 
 ### Тестирование (TEST)
 
-- [ ] **TEST-01**: Unit-тесты SuperTextStyle: enum, styleBlock, systemPrompt, applyDeterministic
+- [x] **TEST-01**: Unit-тесты SuperTextStyle: enum, styleBlock, systemPrompt, applyDeterministic
 - [ ] **TEST-02**: Unit-тесты SuperStyleEngine: bundleId mapping, авто/ручной
 - [ ] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
 - [ ] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
@@ -106,11 +106,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STYLE-01 | Phase 1 | Pending |
-| STYLE-02 | Phase 1 | Pending |
-| STYLE-03 | Phase 1 | Pending |
-| STYLE-04 | Phase 1 | Pending |
-| STYLE-05 | Phase 1 | Pending |
+| STYLE-01 | Phase 1 | Complete |
+| STYLE-02 | Phase 1 | Complete |
+| STYLE-03 | Phase 1 | Complete |
+| STYLE-04 | Phase 1 | Complete |
+| STYLE-05 | Phase 1 | Complete |
 | ENGINE-01 | Phase 1 | Pending |
 | ENGINE-02 | Phase 1 | Pending |
 | ENGINE-03 | Phase 1 | Pending |
@@ -145,7 +145,7 @@
 | DELETE-02 | Phase 9 | Pending |
 | DELETE-03 | Phase 9 | Pending |
 | DELETE-04 | Phase 9 | Pending |
-| TEST-01 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Complete |
 | TEST-02 | Phase 1 | Pending |
 | TEST-03 | Phase 6 | Pending |
 | TEST-04 | Phase 4 | Pending |

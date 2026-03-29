@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04A4B8EE6A9E17E43410ECDC /* AudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE479255B3DDF52CB631916 /* AudioCapture.swift */; };
+		086E08D159A637C3B5F2E9C7 /* SuperTextStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D000A31B5E39142E0314AC1A /* SuperTextStyle.swift */; };
 		08E097BC16B8F13DD54DB8FF /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4A106D1A302C8BD2F46213 /* OnboardingWindowController.swift */; };
 		09728523C8C944517E0DADBC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50430B6D9DD0A441AB071280 /* SettingsView.swift */; };
 		0C8E29BC5E391368ED2AA60E /* ActivationKeyMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14BC63DADD871F4DF9302081 /* ActivationKeyMonitorTests.swift */; };
@@ -29,6 +30,7 @@
 		2C4C386566D4D9BE2CA2A4F6 /* RecordingModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5343CEF90102BB3B8D7604CE /* RecordingModeTests.swift */; };
 		2D09D416CED67DB3C4C0CCE3 /* LLMRuntimeManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA155B90A01C4320FA056EB /* LLMRuntimeManagerTests.swift */; };
 		329C781B200C00AA4F666DB3 /* ActivationKeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA4563898BC6D7ADB090F37 /* ActivationKeyMonitor.swift */; };
+		38BD8CDE5F1BF37130F4CFCC /* SuperTextStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C012BD38A7B9F0CAED87B5 /* SuperTextStyleTests.swift */; };
 		3DCE5E466C8F40CE1707F843 /* STTClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F8F0738B63212E47D3BAF6 /* STTClient.swift */; };
 		3F444BD6693742BD5C5AB130 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB90841FFAE7E688A03225F4 /* SoundManager.swift */; };
 		40A6939C30752A2BF97B8377 /* ActivationKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483F2A271357C95277A16408 /* ActivationKeyTests.swift */; };
@@ -181,6 +183,7 @@
 		67E6ECD0CEBD7AC8C1D96F04 /* TextMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextMode.swift; sourceTree = "<group>"; };
 		6BA4563898BC6D7ADB090F37 /* ActivationKeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationKeyMonitor.swift; sourceTree = "<group>"; };
 		72433A58E521EA03EFA59F93 /* DictionaryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryEntry.swift; sourceTree = "<group>"; };
+		74C012BD38A7B9F0CAED87B5 /* SuperTextStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperTextStyleTests.swift; sourceTree = "<group>"; };
 		7573C6B8472D8D18193083BF /* PostInsertionMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostInsertionMonitorTests.swift; sourceTree = "<group>"; };
 		76A73B6E246DDA1BE722F64C /* ErrorClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorClassifier.swift; sourceTree = "<group>"; };
 		79A0A917EFD70238AEEAC3B4 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
@@ -226,6 +229,7 @@
 		CB81CB40CF9064760691C6C7 /* IntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationTests.swift; sourceTree = "<group>"; };
 		CB90841FFAE7E688A03225F4 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 		CD3BCD3255FD1F71FCA3712D /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		D000A31B5E39142E0314AC1A /* SuperTextStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperTextStyle.swift; sourceTree = "<group>"; };
 		DB050E6FFF7217B85AAEBEE7 /* NumberNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberNormalizer.swift; sourceTree = "<group>"; };
 		DB5B4CF1407D1AF3619BAC10 /* SuperAssetsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAssetsManager.swift; sourceTree = "<group>"; };
 		E12F46919C44581608FF2754 /* NSEventMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSEventMonitoring.swift; sourceTree = "<group>"; };
@@ -302,6 +306,7 @@
 				E41D858E866420642ABD85A1 /* SuperModelCatalog.swift */,
 				310690376B03CCDECF4BCA65 /* SuperModelDownloadSpec.swift */,
 				9F8518F3C85D8707A4EFE554 /* SuperModelDownloadState.swift */,
+				D000A31B5E39142E0314AC1A /* SuperTextStyle.swift */,
 				67E6ECD0CEBD7AC8C1D96F04 /* TextMode.swift */,
 			);
 			path = Models;
@@ -411,6 +416,7 @@
 				14EC150EF61D8B4224B7760B /* SnippetReinserterTests.swift */,
 				818C857C8C2DD921177CD1DA /* SuperAssetsManagerTests.swift */,
 				47B6DBAECA74A82B5F527717 /* SuperModelDownloadManagerTests.swift */,
+				74C012BD38A7B9F0CAED87B5 /* SuperTextStyleTests.swift */,
 				BBB2538D814837D958E44EEA /* TestHelpers.swift */,
 				2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */,
 				07315ED04AA583753A76F33A /* ToggleRecoveryTests.swift */,
@@ -588,6 +594,7 @@
 				67B89E95FEE2B417559E219B /* SnippetReinserterTests.swift in Sources */,
 				E72D9061E6885BA2477B038C /* SuperAssetsManagerTests.swift in Sources */,
 				63D72EC83F972F69892629AE /* SuperModelDownloadManagerTests.swift in Sources */,
+				38BD8CDE5F1BF37130F4CFCC /* SuperTextStyleTests.swift in Sources */,
 				E4ED1EDB43963426C3D473DE /* TestHelpers.swift in Sources */,
 				97F580D6CA61AC67DA9BA975 /* TextInserterTests.swift in Sources */,
 				2230B4B936B91F65AAD72B13 /* ToggleRecoveryTests.swift in Sources */,
@@ -658,6 +665,7 @@
 				C35507E96ED81C5B526C4915 /* SuperModelDownloadManager.swift in Sources */,
 				4CBFA05DB36396165F92E366 /* SuperModelDownloadSpec.swift in Sources */,
 				57A01E3F01C16BEE998D3624 /* SuperModelDownloadState.swift in Sources */,
+				086E08D159A637C3B5F2E9C7 /* SuperTextStyle.swift in Sources */,
 				1FDB718921A55566BB7BBDCD /* SystemSoundPlayer.swift in Sources */,
 				74563C10626B4CD8615D33E7 /* TextInserter.swift in Sources */,
 				EECC63EDC10CC90678F899DE /* TextMode.swift in Sources */,

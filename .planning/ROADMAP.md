@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- SuperTextStyle enum, SuperStyleMode, alias tables, computed properties, systemPrompt, тесты
+- [x] 01-01-PLAN.md -- SuperTextStyle enum, SuperStyleMode, alias tables, computed properties, systemPrompt, тесты
 - [ ] 01-02-PLAN.md -- SuperStyleEngine bundleId resolution, тесты, полная верификация suite
 
 ### Phase 2: Type Extraction
