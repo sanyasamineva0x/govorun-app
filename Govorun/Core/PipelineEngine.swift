@@ -449,7 +449,6 @@ final class PipelineEngine: @unchecked Sendable {
                 let hintsWithSnippet = NormalizationHints(
                     personalDictionary: currentHints.personalDictionary,
                     appName: currentHints.appName,
-                    textMode: currentHints.textMode,
                     currentDate: currentHints.currentDate,
                     snippetContext: snippetCtx
                 )

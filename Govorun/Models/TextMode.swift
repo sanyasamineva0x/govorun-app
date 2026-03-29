@@ -186,39 +186,3 @@ extension TextMode {
         return prompt
     }
 }
-
-// MARK: - Snippet Placeholder
-
-enum SnippetPlaceholder {
-    static let token = "[[[GOVORUN_SNIPPET]]]"
-}
-
-// MARK: - Snippet Context
-
-struct SnippetContext: Equatable {
-    let trigger: String
-}
-
-// MARK: - Хинты для нормализации
-
-struct NormalizationHints: Equatable {
-    let personalDictionary: [String: String]
-    let appName: String?
-    let textMode: TextMode
-    let currentDate: Date
-    let snippetContext: SnippetContext?
-
-    init(
-        personalDictionary: [String: String] = [:],
-        appName: String? = nil,
-        textMode: TextMode = .universal,
-        currentDate: Date = Date(),
-        snippetContext: SnippetContext? = nil
-    ) {
-        self.personalDictionary = personalDictionary
-        self.appName = appName
-        self.textMode = textMode
-        self.currentDate = currentDate
-        self.snippetContext = snippetContext
-    }
-}

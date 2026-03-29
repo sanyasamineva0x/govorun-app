@@ -846,8 +846,7 @@ final class AppState: ObservableObject {
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
             personalDictionary: dictionary.llmReplacements,
-            appName: context.appName,
-            textMode: context.textMode
+            appName: context.appName
         )
 
         Task {
