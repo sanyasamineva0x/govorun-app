@@ -42,9 +42,27 @@
 - Филлеры — убираются всегда
 - Самокоррекция — убирается всегда
 
-### Relaxed: LLM владеет форматированием
+### Style-aware Gate и Postflight
 
-LLM-слой финальный. Если deterministic layer поставил заглавную и точку, LLM в relaxed убирает их.
+LLM-слой финальный — стиль может менять то, что deterministic layer поставил. Это создаёт три конфликта с текущим pipeline, которые нужно решить:
+
+**1. Protected tokens (NormalizationGate)**
+
+Gate извлекает бренды из input (например "Slack") и проверяет их наличие в output. В relaxed output будет "слак" — gate отклонит как `missingProtectedTokens`.
+
+Решение: gate получает `SuperTextStyle`. В relaxed — protected tokens проверяются с учётом style-sensitive маппинга (Slack↔слак оба валидны). В normal/formal — без изменений.
+
+**2. Edit distance (NormalizationGate)**
+
+Relaxed меняет капитализацию + бренды + техтермины. Суммарный edit distance ratio может превысить threshold.
+
+Решение: перед подсчётом edit distance нормализовать оба текста к canonical form (lowercase, бренды к одной форме). Стилистические трансформации не должны считаться "правками".
+
+**3. Postflight terminal period**
+
+`terminalPeriodEnabled` из настроек применяется после gate. Если пользователь включил точки, postflight добавит точку в relaxed output.
+
+Решение: в Super mode стиль владеет конечной точкой, `terminalPeriodEnabled` игнорируется. Relaxed/normal → без точки, formal → с точкой. Пользовательская настройка `terminalPeriodEnabled` действует только в classic mode.
 
 ## Style-sensitive бренды
 
