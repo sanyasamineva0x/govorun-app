@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- SuperTextStyle enum, SuperStyleMode, alias tables, computed properties, systemPrompt, тесты
-- [ ] 01-02-PLAN.md -- SuperStyleEngine bundleId resolution, тесты, полная верификация suite
+- [x] 01-02-PLAN.md -- SuperStyleEngine bundleId resolution, тесты, полная верификация suite
 
 ### Phase 2: Type Extraction
 **Goal**: Типы, живущие сейчас в TextMode.swift, вынесены в отдельные файлы -- TextMode.swift можно безопасно удалить позже

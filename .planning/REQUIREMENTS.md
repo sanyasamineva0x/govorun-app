@@ -15,11 +15,11 @@
 
 ### Движок стилей (ENGINE)
 
-- [ ] **ENGINE-01**: SuperStyleEngine определяет стиль по bundleId в авто-режиме (жёсткий mapping из спеки)
-- [ ] **ENGINE-02**: SuperStyleEngine возвращает выбранный стиль в ручном режиме
-- [ ] **ENGINE-03**: Неизвестные bundleId → normal в авто-режиме
-- [ ] **ENGINE-04**: Авто-режим: relaxed для мессенджеров (Telegram, WhatsApp, Viber, VK, Messages, Discord)
-- [ ] **ENGINE-05**: Авто-режим: formal для почтовых клиентов (Mail, Spark, Outlook)
+- [x] **ENGINE-01**: SuperStyleEngine определяет стиль по bundleId в авто-режиме (жёсткий mapping из спеки)
+- [x] **ENGINE-02**: SuperStyleEngine возвращает выбранный стиль в ручном режиме
+- [x] **ENGINE-03**: Неизвестные bundleId → normal в авто-режиме
+- [x] **ENGINE-04**: Авто-режим: relaxed для мессенджеров (Telegram, WhatsApp, Viber, VK, Messages, Discord)
+- [x] **ENGINE-05**: Авто-режим: formal для почтовых клиентов (Mail, Spark, Outlook)
 
 ### Извлечение типов (EXTRACT)
 
@@ -77,7 +77,7 @@
 ### Тестирование (TEST)
 
 - [x] **TEST-01**: Unit-тесты SuperTextStyle: enum, styleBlock, systemPrompt, applyDeterministic
-- [ ] **TEST-02**: Unit-тесты SuperStyleEngine: bundleId mapping, авто/ручной
+- [x] **TEST-02**: Unit-тесты SuperStyleEngine: bundleId mapping, авто/ручной
 - [ ] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
 - [ ] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
 - [ ] **TEST-05**: Unit-тесты NormalizationPipeline: postflight с SuperTextStyle
@@ -111,11 +111,11 @@
 | STYLE-03 | Phase 1 | Complete |
 | STYLE-04 | Phase 1 | Complete |
 | STYLE-05 | Phase 1 | Complete |
-| ENGINE-01 | Phase 1 | Pending |
-| ENGINE-02 | Phase 1 | Pending |
-| ENGINE-03 | Phase 1 | Pending |
-| ENGINE-04 | Phase 1 | Pending |
-| ENGINE-05 | Phase 1 | Pending |
+| ENGINE-01 | Phase 1 | Complete |
+| ENGINE-02 | Phase 1 | Complete |
+| ENGINE-03 | Phase 1 | Complete |
+| ENGINE-04 | Phase 1 | Complete |
+| ENGINE-05 | Phase 1 | Complete |
 | EXTRACT-01 | Phase 2 | Pending |
 | EXTRACT-02 | Phase 2 | Pending |
 | EXTRACT-03 | Phase 2 | Pending |
@@ -146,7 +146,7 @@
 | DELETE-03 | Phase 9 | Pending |
 | DELETE-04 | Phase 9 | Pending |
 | TEST-01 | Phase 1 | Complete |
-| TEST-02 | Phase 1 | Pending |
+| TEST-02 | Phase 1 | Complete |
 | TEST-03 | Phase 6 | Pending |
 | TEST-04 | Phase 4 | Pending |
 | TEST-05 | Phase 5 | Pending |
