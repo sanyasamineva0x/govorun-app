@@ -48,10 +48,10 @@ Plans:
   1. SnippetPlaceholder, SnippetContext, NormalizationHints существуют в отдельных файлах Models/
   2. NormalizationHints не содержит поля textMode
   3. Проект компилируется, все 986+ тестов проходят без изменений
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD
+- [x] 02-01-PLAN.md -- Extract SnippetPlaceholder, SnippetContext, NormalizationHints; remove textMode from hints; update consumers
 
 ### Phase 3: Pipeline Integration
 **Goal**: Pipeline использует SuperTextStyle вместо TextMode для LLM запросов -- данные текут через новую сигнатуру
@@ -63,11 +63,11 @@ Plans:
   3. PipelineEngine хранит и прокидывает SuperTextStyle вместо TextMode
   4. PipelineResult.superStyle: SuperTextStyle? доступен вместо textMode
   5. MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests обновлены и проходят
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- LLMClient + LocalLLMClient + PipelineEngine + NormalizationPipeline + AppState + HistoryStore production code migration
+- [ ] 03-02-PLAN.md -- MockLLMClient + test files migration, full suite verification
 
 ### Phase 4: Gate Modernization
 **Goal**: NormalizationGate валидирует LLM-выход с учётом стиля -- false rejections для style transforms исключены
