@@ -200,11 +200,24 @@ Breaking change. `TextMode` удаляется вместе со всей инф
 
 ### Изменяются — данные и аналитика
 
-- `PipelineResult.textMode: TextMode` → заменяется на `PipelineResult.superStyle: SuperTextStyle?` (nil в classic). Это поле используется в analytics metadata и HistoryView
+- `PipelineResult.textMode: TextMode` → `PipelineResult.superStyle: SuperTextStyle?` (nil в classic)
 - `PipelineEngine._textMode` → удаляется, заменяется на `_superStyle: SuperTextStyle?`
-- `AnalyticsMetadataKey.textMode` / `"text_mode"` → заменяется на `effective_style` (relaxed/normal/formal/none). Старые event values в аналитике не мигрируем
+- `AnalyticsMetadataKey.textMode` / `"text_mode"` → `effective_style` (relaxed/normal/formal/none). Старые event values не мигрируем
 - `SettingsStore` — удалить `defaultTextMode`, добавить `superStyleMode` + `manualSuperStyle`
 - `AppState` — убрать TextMode из handleActivated, superStyle привязан к effective pipeline state
+
+### Изменяются — persisted data (SwiftData)
+
+`HistoryItem.textMode: String` — persisted поле в SwiftData `@Model`. Хранит rawValue текстового режима.
+
+Решение: **поле остаётся как есть**, без SwiftData model migration. Тип `String` — значения меняются:
+- Старые записи: `"chat"`, `"universal"`, `"email"`, etc. — legacy, не трогаем
+- Новые записи в Super: `"relaxed"`, `"normal"`, `"formal"`
+- Новые записи в Classic: `"none"`
+
+`HistoryStore.save()` — меняется источник: было `result.textMode.rawValue`, станет `result.superStyle?.rawValue ?? "none"`.
+
+`HistoryView` — если показывает textMode пользователю, использовать `SuperTextStyle(rawValue:)?.displayName` с fallback на raw string для legacy значений.
 
 ### Миграция UserDefaults
 
@@ -218,19 +231,7 @@ Breaking change. `TextMode` удаляется вместе со всей инф
 - `SettingsStoreTests` — удалить тесты `defaultTextMode`, добавить superStyle тесты
 - `TestHelpers.MockLLMClient` — обновить сигнатуру на `superStyle: SuperTextStyle?`
 - `SnippetEngineTests.TextModeSnippetPromptTests` — переименовать, использовать `SuperTextStyle`
-- `HistoryStoreTests` — убрать `textMode:` из PipelineResult конструктора
-
-**Миграция UserDefaults:**
-- `defaultTextMode` — удалить при первом запуске
-- `superStyleMode` — новый ключ, default `.auto`
-- `manualSuperStyle` — новый ключ, default `.normal`
-- Старые event values в аналитике не трогаем
-
-**Миграция тестов:**
-- `AppContextEngineTests` — убрать проверки TextMode
-- `SettingsStoreTests` — убрать тесты defaultTextMode, добавить superStyle тесты
-- `TestHelpers.MockLLMClient` — обновить сигнатуру
-- `SnippetEngineTests`, `HistoryStoreTests` — убрать TextMode references
+- `HistoryStoreTests` — убрать `textMode:` из PipelineResult, обновить на `superStyle`
 
 ## Аналитика
 
