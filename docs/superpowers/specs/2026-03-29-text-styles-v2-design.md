@@ -47,27 +47,35 @@ Source of truth: `docs/canonical-style-spec.md`. Один канон для clas
 - Филлеры — убираются всегда
 - Самокоррекция — убирается всегда
 
-Стили влияют **только** на бренды и техтермины (см. таблицы ниже). Всё остальное — canonical-style-spec.
+Стили контролируют капитализацию, точку, бренды, техтермины и сленг (см. секцию "Что стиль контролирует"). Canonical forms выше — не зависят от стиля.
 
-### Style-aware Gate и Postflight
+### Gate: две оси — contract и style
 
-LLM-слой финальный — стиль может менять то, что deterministic layer поставил. Три конфликта:
+`NormalizationGate.evaluate(input:output:contract:superStyle:)` принимает два параметра стиля:
 
-**1. Protected tokens (NormalizationGate)**
+- **`contract: LLMOutputContract`** — какие проверки делать:
+  - `.normalization` — strict: edit distance ≤40%, protected tokens, длина
+  - `.rewriting` — lenient: только NER + длина ±50%, без edit distance
+- **`superStyle: SuperTextStyle?`** — какие трансформации считать валидными:
+  - `.relaxed` — Slack↔слак ок, PDF↔пдф ок
+  - `.formal` — спс↔спасибо ок
+  - `nil` (classic) — gate работает как раньше
 
-Gate извлекает бренды из input ("Slack") и проверяет в output. В relaxed output будет "слак" — gate отклонит.
+Это разные оси. Стиль определяет допустимые замены, contract определяет допустимый масштаб изменений. `SuperTextStyle` имеет свойство `var contract: LLMOutputContract` — сейчас все три → `.normalization`. В 2.5 formal → `.rewriting`.
 
-Решение: gate получает `SuperTextStyle?`. В relaxed — Slack↔слак оба валидны. В formal — спс↔спасибо ожидаемая замена. Без стиля (nil, classic) — gate работает как раньше.
+| | Normalization | Rewriting (2.5) |
+|---|---|---|
+| Relaxed | v2: бренды кириллицей, strict distance | — |
+| Normal | v2: стандартные проверки | — |
+| Formal | v2: сленг раскрыт, strict distance | v2.5: переписывание, lenient |
 
-**2. Edit distance (NormalizationGate)**
+**Protected tokens:** если `superStyle == .relaxed`, brand aliases (Slack↔слак) и tech aliases (PDF↔пдф) — обе формы валидны. Если `.formal` — slang expansions (спс↔спасибо) валидны.
 
-Relaxed меняет капитализацию + бренды + техтермины. Formal раскрывает сленг. Edit distance ratio может превысить threshold.
+**Edit distance:** перед подсчётом нормализовать оба текста к style-neutral form. Стилистические трансформации не считаются "правками".
 
-Решение: перед подсчётом edit distance нормализовать оба текста к style-neutral form. Стилистические трансформации не считаются "правками".
+### Postflight: стиль владеет точкой
 
-**3. Postflight terminal period**
-
-Решение: если `superStyle != nil` — стиль владеет точкой. Если `nil` (classic) — `terminalPeriodEnabled` из настроек.
+Если `superStyle != nil` — стиль определяет точку (relaxed/normal → без, formal → с). Если `nil` (classic) — `terminalPeriodEnabled` из настроек.
 
 ### Известное ограничение v1: trivial path
 
@@ -171,7 +179,7 @@ Breaking change. `TextMode` удаляется вместе со всей инф
 - `LLMClient.normalize()` — одна сигнатура с `SuperTextStyle` вместо `TextMode`
 - `LocalLLMClient` — `sendChatCompletion` использует `SuperTextStyle.systemPrompt()`
 - `NormalizationHints` — теряет поле `textMode`
-- `NormalizationGate.evaluate()` — `superStyle: SuperTextStyle?` вместо `contract: LLMOutputContract`
+- `NormalizationGate.evaluate()` — принимает `contract: LLMOutputContract` + `superStyle: SuperTextStyle?` (две разных оси: contract = какие проверки, style = какие трансформации валидны). `SuperTextStyle` имеет свойство `contract` → сейчас все три → `.normalization`, в 2.5 formal → `.rewriting`
 - `NormalizationPipeline.postflight()` — `superStyle: SuperTextStyle?` вместо `textMode: TextMode`
 - `PipelineEngine` — только `superStyle: SuperTextStyle?` (nil в classic)
 - `SettingsStore` — удалить `defaultTextMode`, добавить `superStyleMode` + `manualSuperStyle`
