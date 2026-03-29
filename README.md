@@ -175,4 +175,4 @@ bash scripts/build-unsigned-dmg.sh
 
 ## Лицензия
 
-[MIT](LICENSE)
+[Лицензия Govorun Source Available 1.0](LICENSE)
