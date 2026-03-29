@@ -838,7 +838,12 @@ final class AppState: ObservableObject {
         currentAppContext = context
         let dictionary = loadDictionaryHints()
 
-        pipelineEngine.textMode = context.textMode
+        let superStyle = SuperStyleEngine.resolve(
+            bundleId: context.bundleId,
+            mode: .auto,
+            manualStyle: .normal
+        )
+        pipelineEngine.superStyle = superStyle
         pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)
             ? .standard
             : currentProductMode

@@ -629,7 +629,7 @@ enum NormalizationPipeline {
     static func postflight(
         deterministicText: String,
         llmOutput: String,
-        textMode: TextMode,
+        contract: LLMOutputContract,
         terminalPeriodEnabled: Bool = true,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationPipelinePostflight {
@@ -639,7 +639,7 @@ enum NormalizationPipeline {
         let gateResult = NormalizationGate.evaluate(
             input: deterministicText,
             output: canonicalOutput,
-            contract: textMode.llmOutputContract,
+            contract: contract,
             ignoredOutputLiterals: ignoredOutputLiterals
         )
         let finalText = terminalPeriodEnabled
