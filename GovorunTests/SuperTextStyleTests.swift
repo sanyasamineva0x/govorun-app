@@ -131,4 +131,142 @@ final class SuperTextStyleTests: XCTestCase {
             SuperTextStyle.techTermAliases.contains(where: { $0.original == "PR" && $0.relaxed == "пр" })
         )
     }
+
+    // MARK: - styleBlock
+
+    func test_style_block_relaxed_contains_brand_instruction() {
+        let block = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(block.contains("бренды"), "relaxed styleBlock should mention brands")
+        XCTAssertTrue(block.contains("кириллица"), "relaxed styleBlock should mention cyrillic")
+    }
+
+    func test_style_block_relaxed_contains_brand_aliases() {
+        let block = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(block.contains("слак"), "relaxed styleBlock should contain слак")
+        XCTAssertTrue(block.contains("зум"), "relaxed styleBlock should contain зум")
+        XCTAssertTrue(block.contains("телега"), "relaxed styleBlock should contain телега")
+    }
+
+    func test_style_block_relaxed_contains_tech_term_aliases() {
+        let block = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(block.contains("пдф"), "relaxed styleBlock should contain пдф")
+        XCTAssertTrue(block.contains("апи"), "relaxed styleBlock should contain апи")
+        XCTAssertTrue(block.contains("урл"), "relaxed styleBlock should contain урл")
+        XCTAssertTrue(block.contains("пр"), "relaxed styleBlock should contain пр")
+    }
+
+    func test_style_block_relaxed_no_capitalization() {
+        let block = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(block.contains("НЕ ставь заглавную букву"))
+    }
+
+    func test_style_block_relaxed_no_trailing_dot() {
+        let block = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(block.contains("Без точки в конце"))
+    }
+
+    func test_style_block_normal_original_brands() {
+        let block = SuperTextStyle.normal.styleBlock
+        XCTAssertTrue(block.contains("оригинальное написание"))
+    }
+
+    func test_style_block_normal_no_relaxed_aliases() {
+        let block = SuperTextStyle.normal.styleBlock
+        XCTAssertFalse(block.contains("слак"), "normal styleBlock should not contain слак")
+        XCTAssertFalse(block.contains("зум"), "normal styleBlock should not contain зум")
+    }
+
+    func test_style_block_formal_slang_expansion() {
+        let block = SuperTextStyle.formal.styleBlock
+        XCTAssertTrue(block.contains("Сленг раскрывать"))
+    }
+
+    func test_style_block_formal_original_brands() {
+        let block = SuperTextStyle.formal.styleBlock
+        XCTAssertTrue(block.contains("оригинальное написание"))
+    }
+
+    // MARK: - basePrompt
+
+    private var fixedDate: Date {
+        var components = DateComponents()
+        components.year = 2025
+        components.month = 1
+        components.day = 1
+        return Calendar(identifier: .gregorian).date(from: components)!
+    }
+
+    func test_base_prompt_contains_postprocessor() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("постпроцессор голосового ввода"))
+    }
+
+    func test_base_prompt_contains_date() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("1 января 2025"))
+    }
+
+    func test_base_prompt_contains_self_correction() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("САМОКОРРЕКЦИЯ"))
+    }
+
+    func test_base_prompt_contains_transliteration() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("ТРАНСЛИТЕРАЦИЯ"))
+    }
+
+    func test_base_prompt_contains_numbers_section() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("ЧИСЛА, ВАЛЮТЫ И ДАТЫ"))
+    }
+
+    func test_base_prompt_with_personal_dictionary() {
+        let prompt = SuperTextStyle.basePrompt(
+            currentDate: fixedDate,
+            personalDictionary: ["тест": "Тест"]
+        )
+        XCTAssertTrue(prompt.contains("Личный словарь"))
+        XCTAssertTrue(prompt.contains("тест→Тест"))
+    }
+
+    // MARK: - systemPrompt
+
+    func test_system_prompt_contains_base_prompt() {
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("постпроцессор голосового ввода"))
+    }
+
+    func test_system_prompt_contains_style_block() {
+        let prompt = SuperTextStyle.relaxed.systemPrompt(currentDate: fixedDate)
+        XCTAssertTrue(prompt.contains("слак"), "systemPrompt for relaxed should contain relaxed aliases")
+    }
+
+    func test_system_prompt_with_app_name() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: fixedDate,
+            appName: "Telegram"
+        )
+        XCTAssertTrue(prompt.contains("КОНТЕКСТ ПРИЛОЖЕНИЯ"))
+        XCTAssertTrue(prompt.contains("Telegram"))
+    }
+
+    func test_system_prompt_without_app_name() {
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: fixedDate)
+        XCTAssertFalse(prompt.contains("КОНТЕКСТ ПРИЛОЖЕНИЯ"))
+    }
+
+    func test_system_prompt_with_snippet_context() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: fixedDate,
+            snippetContext: SnippetContext(trigger: "мой имейл")
+        )
+        XCTAssertTrue(prompt.contains("ПОДСТАНОВКА"))
+        XCTAssertTrue(prompt.contains("мой имейл"))
+    }
+
+    func test_system_prompt_without_snippet_context() {
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: fixedDate)
+        XCTAssertFalse(prompt.contains("ПОДСТАНОВКА"))
+    }
 }
