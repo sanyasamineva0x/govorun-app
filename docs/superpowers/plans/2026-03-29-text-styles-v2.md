@@ -1293,7 +1293,11 @@ if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
 }
 ```
 
-Ограничение: бренды ("Slack"→"слак") и сленг ("спс"→"спасибо") в trivial path НЕ применяются — для этого нужен LLM. Но trivial = одно слово, поэтому бренды/сленг там редко встречаются. Основная ценность — lowercase + точка, что покрывает 90%+ trivial кейсов в мессенджерах.
+**Известное ограничение v1:** бренды ("Slack"→"слак"), техтермины ("PDF"→"пдф") и сленг ("спс"→"спасибо") в trivial path НЕ применяются — для этого нужен LLM. `applyDeterministic()` покрывает только caps и точку.
+
+Текущий `isTrivial()` пропускает одно слово без чисел и самокоррекции. Но условие входа в этот path шире: `!currentProductMode.usesLLM || !shouldInvokeLLM`. Если в будущем `isTrivial()` расширится (или появятся другие причины для `shouldInvokeLLM == false`), gap увеличится. Также LLM failure graceful degradation (строка ~595) тоже возвращает deterministicText без стилевых трансформаций кроме caps/точки.
+
+Это осознанный компромисс v1: полная стилизация требует LLM, deterministic fallback делает минимум. Если gap окажется продуктово заметным — рассмотреть deterministic brand/slang replacements в `applyDeterministic()` как follow-up.
 
 Тесты для `applyDeterministic` добавить в `SuperTextStyleTests.swift`:
 
@@ -1382,41 +1386,68 @@ let failedPostflight = NormalizationPipeline.failedPostflight(
 
 Обновить `failedPostflight()` — добавить опциональный `superStyle` и применить terminalPeriod логику.
 
-- [ ] **Step 4: Обновить AppState**
+- [ ] **Step 4: Обновить AppState — три точки привязки**
 
-В `AppState` — при `handleActivated()` (когда запись начинается):
+**Инвариант:** `pipelineEngine.superStyle != nil` ТОЛЬКО когда `pipelineEngine.productMode.usesLLM == true`. Во всех остальных случаях — `nil`. Три места в AppState, где это нужно гарантировать:
 
-1. Создать `SuperStyleEngine` на основе настроек:
+**4a. `handleActivated()` — установка стиля при начале записи:**
+
 ```swift
-let styleMode: SuperStyleMode
-if settings.superStyleMode == .manual {
-    styleMode = .manual(settings.manualSuperStyle)
+// В handleActivated(), ПОСЛЕ того как pipelineEngine.productMode уже выставлен
+// (он выставляется через handleSuperAssetsChanged → pipelineEngine.productMode = ...)
+let appContext = appContextEngine.detectCurrentApp()
+pipelineEngine.textMode = appContext.textMode
+
+// superStyle привязан к EFFECTIVE product mode pipeline, не к settings
+if pipelineEngine.productMode.usesLLM {
+    let styleMode: SuperStyleMode
+    if settings.superStyleMode == .manual {
+        styleMode = .manual(settings.manualSuperStyle)
+    } else {
+        styleMode = .auto
+    }
+    let styleEngine = SuperStyleEngine(mode: styleMode)
+    pipelineEngine.superStyle = styleEngine.style(for: appContext.bundleId)
 } else {
-    styleMode = .auto
+    pipelineEngine.superStyle = nil
 }
-let styleEngine = SuperStyleEngine(mode: styleMode)
 ```
 
-2. Получить bundleId из `appContextEngine.detectCurrentApp()`.
+**4b. `handleSuperAssetsChanged()` — сброс при потере assets:**
 
-3. Привязать superStyle к **effective** pipeline state, а не к настройкам:
+В существующем блоке `handleSuperAssetsChanged()`, где `pipelineEngine.productMode` откатывается в `.standard` (строка ~368-375), добавить сброс:
 
 ```swift
-// ВАЖНО: проверяем pipelineEngine.productMode, а НЕ settings.productMode.
-// AppState.handleSuperAssetsChanged() может принудительно откатить
-// pipelineEngine.productMode в .standard даже если settings.productMode == .superMode
-// (когда модель не скачана / runtime отсутствует).
-// Если проверять settings — superStyle будет ненулевым при classic execution.
-let effectivelySuper = pipelineEngine.productMode.usesLLM
-pipelineEngine.superStyle = effectivelySuper
-    ? styleEngine.style(for: appContext.bundleId)
-    : nil
-```
-
-Также добавить сброс в `handleSuperAssetsChanged()`:
-```swift
-// Когда assets пропадают и productMode откатывается в .standard:
+// Существующий код (строка ~375):
+pipelineEngine.productMode = .standard
+// ДОБАВИТЬ сразу после:
 pipelineEngine.superStyle = nil
+```
+
+**4c. `handleSuperAssetsChanged()` — восстановление при появлении assets:**
+
+В блоке где assets ok и `pipelineEngine.productMode` восстанавливается (строка ~395), НЕ выставлять superStyle — он будет выставлен при следующем `handleActivated()`. Это гарантирует что superStyle всегда свежий (с актуальным bundleId).
+
+**Тест-кейс для верификации:**
+
+```swift
+func test_super_style_nil_when_assets_missing() {
+    // settings.productMode = .superMode, но assets отсутствуют
+    // → handleSuperAssetsChanged() откатывает pipeline в .standard
+    // → superStyle должен быть nil
+    settings.productMode = .superMode
+    appState.handleSuperAssetsChanged(state: .modelMissing)
+    XCTAssertNil(pipelineEngine.superStyle)
+}
+
+func test_super_style_set_only_when_pipeline_is_super() {
+    // settings.productMode = .superMode, assets installed
+    // → pipeline в .superMode, superStyle выставляется
+    settings.productMode = .superMode
+    appState.handleSuperAssetsChanged(state: .installed)
+    appState.handleActivated()
+    XCTAssertNotNil(pipelineEngine.superStyle)
+}
 ```
 
 - [ ] **Step 5: Запустить все тесты**
