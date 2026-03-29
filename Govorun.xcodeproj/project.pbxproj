@@ -17,6 +17,7 @@
 		10A057C9F7B7B77AF63C1EE4 /* SuperAssetsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5B4CF1407D1AF3619BAC10 /* SuperAssetsManager.swift */; };
 		10B0022E67DCC9C546F62927 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47684C610847BC47C88AF60E /* HistoryView.swift */; };
 		14DE47343A59ABCCF28ADA53 /* NormalizationPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CDCA9EBA069917D92F6F87 /* NormalizationPipeline.swift */; };
+		156E0B322342A780CC5755B4 /* SuperStyleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA6A012FBAB55E198C74EF1 /* SuperStyleEngine.swift */; };
 		157A11B2D8A737A1AC1D8788 /* SettingsTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C663D82CA0B022162A4ECDF3 /* SettingsTheme.swift */; };
 		15D01FE3B2F052C4DC418202 /* NumberNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F7496CFDD5C640E246C5590 /* NumberNormalizerTests.swift */; };
 		1E1FD6A2A99EFCB82A38BFB0 /* RecreateMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F67F121D59B2796FF982947 /* RecreateMonitorTests.swift */; };
@@ -104,6 +105,7 @@
 		E7A7591ACED3A7A23EED0B3D /* DictionaryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72433A58E521EA03EFA59F93 /* DictionaryEntry.swift */; };
 		EAFCA49DF7A7F3DC6231F8FD /* NumberNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB050E6FFF7217B85AAEBEE7 /* NumberNormalizer.swift */; };
 		ECA6004900E23FEE889FF818 /* SnippetListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E988A81074635153A409ADA /* SnippetListView.swift */; };
+		ECCC1A52B80903B2ABBD11F1 /* SuperStyleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CDA17271990F858E2F4B3A /* SuperStyleEngineTests.swift */; };
 		EECC63EDC10CC90678F899DE /* TextMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E6ECD0CEBD7AC8C1D96F04 /* TextMode.swift */; };
 		EF9D0F118C9BF5B4F9C9FCB1 /* PipelineEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3F66ED66F0E696CCCA5DD0 /* PipelineEngineTests.swift */; };
 		F0CBFFF65957AC4E83447F7B /* AnalyticsEmitting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC7436290A2B2148B6328FD /* AnalyticsEmitting.swift */; };
@@ -176,6 +178,7 @@
 		5F7496CFDD5C640E246C5590 /* NumberNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberNormalizerTests.swift; sourceTree = "<group>"; };
 		62948E1CC824F28BDB1F1057 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		634A6B60896D5BBAD1DDAD92 /* ErrorMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorMessages.swift; sourceTree = "<group>"; };
+		63CDA17271990F858E2F4B3A /* SuperStyleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperStyleEngineTests.swift; sourceTree = "<group>"; };
 		655F0EF01C2FB9F10986606E /* AppContextEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContextEngineTests.swift; sourceTree = "<group>"; };
 		6582CA06D85D4BA61305A6C9 /* SnippetEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEngineTests.swift; sourceTree = "<group>"; };
 		660D23FACE18F80A55D3C82A /* AnalyticsEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsEvent.swift; sourceTree = "<group>"; };
@@ -228,6 +231,7 @@
 		CB2F6608A6960547A380E24C /* ModelManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManagerTests.swift; sourceTree = "<group>"; };
 		CB81CB40CF9064760691C6C7 /* IntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationTests.swift; sourceTree = "<group>"; };
 		CB90841FFAE7E688A03225F4 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
+		CCA6A012FBAB55E198C74EF1 /* SuperStyleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperStyleEngine.swift; sourceTree = "<group>"; };
 		CD3BCD3255FD1F71FCA3712D /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		D000A31B5E39142E0314AC1A /* SuperTextStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperTextStyle.swift; sourceTree = "<group>"; };
 		DB050E6FFF7217B85AAEBEE7 /* NumberNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberNormalizer.swift; sourceTree = "<group>"; };
@@ -347,6 +351,7 @@
 				B4D1017293B730D9D1C9F495 /* SessionManager.swift */,
 				FC5C8D4458CEE7320FA4E927 /* SnippetEngine.swift */,
 				CB90841FFAE7E688A03225F4 /* SoundManager.swift */,
+				CCA6A012FBAB55E198C74EF1 /* SuperStyleEngine.swift */,
 				AA98C22FFB16595EC0B8CDF5 /* TextInserter.swift */,
 			);
 			path = Core;
@@ -416,6 +421,7 @@
 				14EC150EF61D8B4224B7760B /* SnippetReinserterTests.swift */,
 				818C857C8C2DD921177CD1DA /* SuperAssetsManagerTests.swift */,
 				47B6DBAECA74A82B5F527717 /* SuperModelDownloadManagerTests.swift */,
+				63CDA17271990F858E2F4B3A /* SuperStyleEngineTests.swift */,
 				74C012BD38A7B9F0CAED87B5 /* SuperTextStyleTests.swift */,
 				BBB2538D814837D958E44EEA /* TestHelpers.swift */,
 				2CD55EC0D90E39D14564EEA1 /* TextInserterTests.swift */,
@@ -594,6 +600,7 @@
 				67B89E95FEE2B417559E219B /* SnippetReinserterTests.swift in Sources */,
 				E72D9061E6885BA2477B038C /* SuperAssetsManagerTests.swift in Sources */,
 				63D72EC83F972F69892629AE /* SuperModelDownloadManagerTests.swift in Sources */,
+				ECCC1A52B80903B2ABBD11F1 /* SuperStyleEngineTests.swift in Sources */,
 				38BD8CDE5F1BF37130F4CFCC /* SuperTextStyleTests.swift in Sources */,
 				E4ED1EDB43963426C3D473DE /* TestHelpers.swift in Sources */,
 				97F580D6CA61AC67DA9BA975 /* TextInserterTests.swift in Sources */,
@@ -665,6 +672,7 @@
 				C35507E96ED81C5B526C4915 /* SuperModelDownloadManager.swift in Sources */,
 				4CBFA05DB36396165F92E366 /* SuperModelDownloadSpec.swift in Sources */,
 				57A01E3F01C16BEE998D3624 /* SuperModelDownloadState.swift in Sources */,
+				156E0B322342A780CC5755B4 /* SuperStyleEngine.swift in Sources */,
 				086E08D159A637C3B5F2E9C7 /* SuperTextStyle.swift in Sources */,
 				1FDB718921A55566BB7BBDCD /* SystemSoundPlayer.swift in Sources */,
 				74563C10626B4CD8615D33E7 /* TextInserter.swift in Sources */,
