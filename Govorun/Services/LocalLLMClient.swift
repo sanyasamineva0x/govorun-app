@@ -47,7 +47,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
         self.session = session
     }
 
-    func normalize(_ text: String, mode: TextMode, hints: NormalizationHints) async throws -> String {
+    func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return trimmedText }
 
@@ -59,7 +59,7 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
         do {
             let output = try await sendChatCompletion(
                 input: trimmedText,
-                mode: mode,
+                superStyle: superStyle,
                 hints: hints,
                 baseURL: baseURL,
                 model: model
@@ -134,12 +134,12 @@ final class LocalLLMClient: LLMClient, @unchecked Sendable {
 
     private func sendChatCompletion(
         input: String,
-        mode: TextMode,
+        superStyle: SuperTextStyle,
         hints: NormalizationHints,
         baseURL: URL,
         model: String
     ) async throws -> String {
-        let systemPrompt = mode.systemPrompt(
+        let systemPrompt = superStyle.systemPrompt(
             currentDate: hints.currentDate,
             personalDictionary: hints.personalDictionary,
             snippetContext: hints.snippetContext,
