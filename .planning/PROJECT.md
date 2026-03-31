@@ -30,7 +30,7 @@
 - [ ] Style-aware protected tokens и edit distance
 - [ ] Postflight: стиль владеет точкой
 - [ ] Удаление TextMode и всей инфраструктуры (AppModeOverriding, UserDefaultsAppModeOverrides, AppModeSettingsView)
-- [ ] Переезд типов: SnippetPlaceholder, SnippetContext, NormalizationHints в отдельные файлы
+- [x] Переезд типов: SnippetPlaceholder, SnippetContext, NormalizationHints в отдельные файлы — Validated in Phase 02: type-extraction
 - [ ] LLMClient.normalize() новая сигнатура (superStyle вместо mode)
 - [ ] AppContextEngine без textMode
 - [ ] PipelineResult.superStyle вместо textMode
@@ -92,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 after initialization*
+*Last updated: 2026-03-30 after Phase 02 completion*

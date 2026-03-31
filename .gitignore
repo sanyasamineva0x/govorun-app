@@ -33,6 +33,9 @@ build/
 .claude/
 AGENTS.md
 
+# Superpowers brainstorming mockups
+.superpowers/
+
 # Worktrees
 .worktrees/
 

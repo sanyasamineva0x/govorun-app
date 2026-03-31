@@ -66,8 +66,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- LLMClient + LocalLLMClient + PipelineEngine + NormalizationPipeline + AppState + HistoryStore production code migration
-- [x] 03-02-PLAN.md -- MockLLMClient + test files migration, full suite verification
+- [x] 03-01-PLAN.md -- LLMClient + LocalLLMClient + PipelineEngine + NormalizationPipeline + AppState + HistoryStore production code migration
+- [ ] 03-02-PLAN.md -- MockLLMClient + test files migration, full suite verification
 
 ### Phase 4: Gate Modernization
 **Goal**: NormalizationGate валидирует LLM-выход с учётом стиля -- false rejections для style transforms исключены
