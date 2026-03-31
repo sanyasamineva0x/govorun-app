@@ -37,7 +37,7 @@ final class LocalLLMClientTests: XCTestCase {
         let client = makeClient()
         let output = try await client.normalize(
             "  ну привет  ",
-            mode: .universal,
+            superStyle: .normal,
             hints: NormalizationHints(currentDate: makeDate())
         )
 
@@ -74,7 +74,7 @@ final class LocalLLMClientTests: XCTestCase {
         do {
             _ = try await client.normalize(
                 "тест",
-                mode: .universal,
+                superStyle: .normal,
                 hints: NormalizationHints(currentDate: makeDate())
             )
             XCTFail("Ожидалась ошибка отсутствующей модели")
@@ -109,7 +109,7 @@ final class LocalLLMClientTests: XCTestCase {
         do {
             _ = try await client.normalize(
                 "тест",
-                mode: .universal,
+                superStyle: .normal,
                 hints: NormalizationHints(currentDate: makeDate())
             )
             XCTFail("Ожидалась server error")
@@ -137,7 +137,7 @@ final class LocalLLMClientTests: XCTestCase {
         do {
             _ = try await client.normalize(
                 "тест",
-                mode: .universal,
+                superStyle: .normal,
                 hints: NormalizationHints(currentDate: makeDate())
             )
             XCTFail("Ожидалась parsing error")
@@ -199,7 +199,7 @@ final class LocalLLMClientTests: XCTestCase {
         )
         _ = try await client.normalize(
             "ок",
-            mode: .universal,
+            superStyle: .normal,
             hints: NormalizationHints(currentDate: makeDate())
         )
 
@@ -228,7 +228,7 @@ final class LocalLLMClientTests: XCTestCase {
         let client = makeClient()
         let output = try await client.normalize(
             "привет",
-            mode: .universal,
+            superStyle: .normal,
             hints: NormalizationHints(currentDate: makeDate())
         )
 
@@ -239,7 +239,7 @@ final class LocalLLMClientTests: XCTestCase {
         let client = makeClient()
         let output = try await client.normalize(
             "   \n  ",
-            mode: .universal,
+            superStyle: .normal,
             hints: NormalizationHints(currentDate: makeDate())
         )
 
@@ -275,7 +275,7 @@ final class LocalLLMClientTests: XCTestCase {
         do {
             _ = try await client.normalize(
                 "привет",
-                mode: .universal,
+                superStyle: .normal,
                 hints: NormalizationHints(currentDate: makeDate())
             )
             XCTFail("Ожидалась отмена")
@@ -286,7 +286,7 @@ final class LocalLLMClientTests: XCTestCase {
 
         let secondOutput = try await client.normalize(
             "привет",
-            mode: .universal,
+            superStyle: .normal,
             hints: NormalizationHints(currentDate: makeDate())
         )
 
@@ -329,7 +329,7 @@ final class LocalLLMClientTests: XCTestCase {
         do {
             _ = try await client.normalize(
                 "тест",
-                mode: .universal,
+                superStyle: .normal,
                 hints: NormalizationHints(currentDate: makeDate())
             )
             XCTFail("Ожидалась ошибка")

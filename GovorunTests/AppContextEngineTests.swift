@@ -132,24 +132,24 @@ final class AppContextEngineTests: XCTestCase {
     func test_prompt_varies_by_mode() {
         let date = Date(timeIntervalSince1970: 1_710_000_000) // фиксированная дата
 
-        let chatPrompt = TextMode.chat.systemPrompt(currentDate: date)
-        let emailPrompt = TextMode.email.systemPrompt(currentDate: date)
+        let relaxedPrompt = SuperTextStyle.relaxed.systemPrompt(currentDate: date)
+        let formalPrompt = SuperTextStyle.formal.systemPrompt(currentDate: date)
 
-        XCTAssertNotEqual(chatPrompt, emailPrompt)
+        XCTAssertNotEqual(relaxedPrompt, formalPrompt)
     }
 
-    // MARK: - 8. .chat → регистр "ты"
+    // MARK: - 8. .relaxed → разговорный стиль
 
-    func test_chat_mode_uses_ty_register() {
-        let style = TextMode.chat.styleBlock
-        XCTAssertTrue(style.contains("\"ты\""))
+    func test_relaxed_style_uses_conversational_register() {
+        let style = SuperTextStyle.relaxed.styleBlock
+        XCTAssertTrue(style.contains("разговорный"))
     }
 
-    // MARK: - 9. .email → регистр "Вы"
+    // MARK: - 9. .formal → деловой стиль
 
-    func test_email_mode_uses_vy_register() {
-        let style = TextMode.email.styleBlock
-        XCTAssertTrue(style.contains("\"Вы\""))
+    func test_formal_style_uses_business_register() {
+        let style = SuperTextStyle.formal.styleBlock
+        XCTAssertTrue(style.contains("деловой"))
     }
 
     // MARK: - 10. Промпт содержит текущую дату
@@ -159,14 +159,14 @@ final class AppContextEngineTests: XCTestCase {
         let components = DateComponents(year: 2_026, month: 3, day: 10)
         let date = try XCTUnwrap(calendar.date(from: components))
 
-        let prompt = TextMode.universal.systemPrompt(currentDate: date)
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: date)
 
         XCTAssertTrue(prompt.contains("10"))
         XCTAssertTrue(prompt.contains("2026"))
     }
 
     func test_prompt_preserves_command_frame_examples() {
-        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: Date())
 
         XCTAssertTrue(prompt.contains("СОХРАНИ эту рамку"))
         XCTAssertTrue(prompt.contains("«Запиши, что ...» НЕЛЬЗЯ превращать просто в «...»"))
@@ -175,7 +175,7 @@ final class AppContextEngineTests: XCTestCase {
     }
 
     func test_prompt_includes_anti_paraphrase_long_form_examples() {
-        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: Date())
 
         XCTAssertTrue(prompt.contains("НЕ компрессируй длинную диктовку"))
         XCTAssertTrue(prompt.contains("НЕ пересказывай и НЕ упрощай инструкцию"))
@@ -184,7 +184,7 @@ final class AppContextEngineTests: XCTestCase {
     }
 
     func test_prompt_correction_examples_preserve_explicit_time_of_day() {
-        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: Date())
 
         XCTAssertTrue(prompt.contains("«позвони в восемь вечера или нет лучше в девять» → «Позвони в девять вечера»"))
         XCTAssertTrue(prompt.contains("«позвони маме в восемь вечера или нет лучше в девять» → «Позвони маме в девять вечера»"))
