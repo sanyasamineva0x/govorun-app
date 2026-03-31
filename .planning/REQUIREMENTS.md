@@ -81,7 +81,7 @@
 - [ ] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
 - [ ] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
 - [ ] **TEST-05**: Unit-тесты NormalizationPipeline: postflight с SuperTextStyle
-- [ ] **TEST-06**: Миграция существующих тестов: MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests
+- [x] **TEST-06**: Миграция существующих тестов: MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests
 
 ## v2 Requirements (2.5)
 
@@ -150,7 +150,7 @@
 | TEST-03 | Phase 6 | Pending |
 | TEST-04 | Phase 4 | Pending |
 | TEST-05 | Phase 5 | Pending |
-| TEST-06 | Phase 3 | Pending |
+| TEST-06 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 45 total
