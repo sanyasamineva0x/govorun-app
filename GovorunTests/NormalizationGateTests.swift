@@ -275,4 +275,162 @@ final class NormalizationGateTests: XCTestCase {
             return XCTFail("Ожидалась invalidLengthRatio, получили \(String(describing: result.failureReason))")
         }
     }
+
+    // MARK: - GATE-01: nil style backward compatibility
+
+    func test_nil_style_preserves_existing_behavior() {
+        let result = NormalizationGate.evaluate(
+            input: "Открой Slack.",
+            output: "Открой приложение.",
+            contract: .normalization,
+            superStyle: nil
+        )
+
+        XCTAssertFalse(result.accepted)
+        guard case .missingProtectedTokens? = result.failureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.failureReason))")
+        }
+    }
+
+    // MARK: - GATE-02: relaxed brand/tech aliases
+
+    func test_relaxed_accepts_brand_alias_as_protected_token() {
+        let result = NormalizationGate.evaluate(
+            input: "Скинь в Slack.",
+            output: "скинь в слак",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertTrue(result.accepted, "relaxed должен принять слак как алиас Slack. Причина: \(String(describing: result.failureReason))")
+    }
+
+    func test_relaxed_accepts_tech_alias_as_protected_token() {
+        let result = NormalizationGate.evaluate(
+            input: "Открой PDF.",
+            output: "открой пдф",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertTrue(result.accepted, "relaxed должен принять пдф как алиас PDF. Причина: \(String(describing: result.failureReason))")
+    }
+
+    func test_relaxed_rejects_missing_token_without_alias() {
+        let result = NormalizationGate.evaluate(
+            input: "Открой Slack и Notion.",
+            output: "открой слак",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertFalse(result.accepted)
+        guard case .missingProtectedTokens(let tokens)? = result.failureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.failureReason))")
+        }
+        XCTAssertTrue(tokens.contains("notion"), "Notion должен быть в missing tokens")
+    }
+
+    func test_normal_does_not_accept_brand_alias() {
+        let result = NormalizationGate.evaluate(
+            input: "Скинь в Slack.",
+            output: "Скинь в слак.",
+            contract: .normalization,
+            superStyle: .normal
+        )
+
+        XCTAssertFalse(result.accepted)
+        guard case .missingProtectedTokens? = result.failureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.failureReason))")
+        }
+    }
+
+    // MARK: - GATE-04: formal slang expansions
+
+    func test_formal_accepts_slang_expansion_as_protected_token() {
+        let result = NormalizationGate.evaluate(
+            input: "Спс за помощь.",
+            output: "Спасибо за помощь.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted, "formal должен принять спасибо как раскрытие спс. Причина: \(String(describing: result.failureReason))")
+    }
+
+    func test_formal_rejects_unknown_slang() {
+        let result = NormalizationGate.evaluate(
+            input: "Хз что делать.",
+            output: "Не знаю что делать.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+
+        XCTAssertFalse(result.accepted, "хз не в таблице slangExpansions, gate должен отклонить")
+    }
+
+    func test_relaxed_does_not_accept_slang_alias() {
+        // relaxed не использует slangExpansions -- спс и спасибо считаются разными словами
+        // 2 из 3 токенов отличаются = 67% edits >> relaxed threshold 0.35
+        let result = NormalizationGate.evaluate(
+            input: "Спс чел.",
+            output: "спасибо человек",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertFalse(result.accepted, "relaxed не использует slang алиасы, спс → спасибо и чел → человек = excessive edits")
+    }
+
+    // MARK: - GATE-03: style-neutral edit distance
+
+    func test_relaxed_style_neutral_distance_brand_alias() {
+        let result = NormalizationGate.evaluate(
+            input: "Скинь в Slack файл.",
+            output: "скинь в слак файл",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertTrue(result.accepted, "Slack→слак не должен давать edit distance. Причина: \(String(describing: result.failureReason))")
+    }
+
+    func test_formal_style_neutral_distance_slang() {
+        let result = NormalizationGate.evaluate(
+            input: "Спс большое чел.",
+            output: "Спасибо большое, человек.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted, "спс→спасибо и чел→человек должны нормализоваться до distance 0. Причина: \(String(describing: result.failureReason))")
+    }
+
+    // MARK: - GATE-03: threshold relaxation
+
+    func test_relaxed_threshold_is_relaxed_for_short_text() {
+        // 4 токена, output убирает 1 + меняет регистр = ~25-30% edits
+        // nil threshold = 0.25 (reject), relaxed threshold = 0.35 (accept)
+        let result = NormalizationGate.evaluate(
+            input: "раз два три четыре",
+            output: "Раз два три.",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertTrue(result.accepted, "relaxed threshold 0.35 должен принять ~25% edits. Причина: \(String(describing: result.failureReason))")
+    }
+
+    func test_formal_threshold_is_relaxed_for_long_text() {
+        // 10 токенов, output убирает 4 = 40% edits
+        // nil threshold = 0.40 (borderline), formal threshold = 0.50 (accept)
+        let result = NormalizationGate.evaluate(
+            input: "один два три четыре пять шесть семь восемь девять десять",
+            output: "Один два три четыре пять шесть.",
+            contract: .normalization,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted, "formal threshold 0.50 должен принять ~40% edits. Причина: \(String(describing: result.failureReason))")
+    }
 }
