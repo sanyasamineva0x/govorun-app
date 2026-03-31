@@ -83,7 +83,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md -- Style-aware gate: slangExpansions table, TDD tests, alias-aware protected tokens, style-neutral edit distance, threshold relaxation
-- [ ] 04-02-PLAN.md -- Wire superStyle through PipelineEngine and NormalizationPipeline call sites
+- [x] 04-02-PLAN.md -- Wire superStyle through PipelineEngine and NormalizationPipeline call sites
 
 ### Phase 5: Postflight
 **Goal**: Финальная обработка текста (точка, капитализация) определяется стилем -- детерминированное поведение для каждого уровня формальности
@@ -167,7 +167,7 @@ Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 -->
 | 1. Foundation Types | 0/2 | Not started | - |
 | 2. Type Extraction | 0/1 | Not started | - |
 | 3. Pipeline Integration | 0/2 | Not started | - |
-| 4. Gate Modernization | 1/2 | In progress | - |
+| 4. Gate Modernization | 2/2 | Complete | 2026-03-31 |
 | 5. Postflight | 0/1 | Not started | - |
 | 6. Settings & Data | 0/2 | Not started | - |
 | 7. Analytics | 0/1 | Not started | - |

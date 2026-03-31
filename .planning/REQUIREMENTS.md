@@ -36,7 +36,7 @@
 
 ### Gate модернизация (GATE)
 
-- [ ] **GATE-01**: NormalizationGate.evaluate(input:output:contract:superStyle:) — две оси
+- [x] **GATE-01**: NormalizationGate.evaluate(input:output:contract:superStyle:) — две оси
 - [ ] **GATE-02**: Style-aware protected tokens: в relaxed обе формы brand/tech aliases валидны
 - [ ] **GATE-03**: Edit distance нормализует к style-neutral form перед подсчётом
 - [ ] **GATE-04**: В formal — slang expansions (спс↔спасибо) валидны как protected tokens
@@ -123,7 +123,7 @@
 | PIPE-02 | Phase 3 | Pending |
 | PIPE-03 | Phase 3 | Pending |
 | PIPE-04 | Phase 3 | Pending |
-| GATE-01 | Phase 4 | Pending |
+| GATE-01 | Phase 4 | Complete |
 | GATE-02 | Phase 4 | Pending |
 | GATE-03 | Phase 4 | Pending |
 | GATE-04 | Phase 4 | Pending |
