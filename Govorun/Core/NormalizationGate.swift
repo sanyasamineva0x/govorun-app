@@ -130,6 +130,7 @@ enum NormalizationGate {
         input: String,
         output: String,
         contract: LLMOutputContract,
+        superStyle: SuperTextStyle? = nil,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationGateResult {
         switch (contract, LLMResponseGuard.firstIssue(output, rawTranscript: input)) {
@@ -149,13 +150,15 @@ enum NormalizationGate {
             return evaluateNormalization(
                 input: input,
                 output: output,
-                ignoredOutputLiterals: ignoredOutputLiterals
+                ignoredOutputLiterals: ignoredOutputLiterals,
+                superStyle: superStyle
             )
         case .rewriting:
             return evaluateRewriting(
                 input: input,
                 output: output,
-                ignoredOutputLiterals: ignoredOutputLiterals
+                ignoredOutputLiterals: ignoredOutputLiterals,
+                superStyle: superStyle
             )
         }
     }
@@ -165,13 +168,15 @@ enum NormalizationGate {
     private static func evaluateNormalization(
         input: String,
         output: String,
-        ignoredOutputLiterals: Set<String>
+        ignoredOutputLiterals: Set<String>,
+        superStyle: SuperTextStyle?
     ) -> NormalizationGateResult {
         let protectedTokens = protectedTokensForNormalization(input)
         let missingTokens = missingProtectedTokens(
             expected: protectedTokens,
             actualText: output,
-            ignoredOutputLiterals: ignoredOutputLiterals
+            ignoredOutputLiterals: ignoredOutputLiterals,
+            superStyle: superStyle
         )
         if !missingTokens.isEmpty {
             return .rejected(
@@ -180,10 +185,12 @@ enum NormalizationGate {
             )
         }
 
-        let inputTokens = tokenizeForDistance(input)
-        let outputTokens = tokenizeForDistance(
-            output,
-            ignoredLiterals: ignoredOutputLiterals
+        let inputTokens = normalizeStyleTokens(
+            tokenizeForDistance(input), style: superStyle
+        )
+        let outputTokens = normalizeStyleTokens(
+            tokenizeForDistance(output, ignoredLiterals: ignoredOutputLiterals),
+            style: superStyle
         )
 
         guard !inputTokens.isEmpty else {
@@ -192,8 +199,8 @@ enum NormalizationGate {
 
         let distance = tokenEditDistance(lhs: inputTokens, rhs: outputTokens)
         let denominator = max(max(inputTokens.count, outputTokens.count), 1)
-        let ratio = Double(distance)/Double(denominator)
-        let threshold = editDistanceThreshold(for: inputTokens.count, input: input)
+        let ratio = Double(distance) / Double(denominator)
+        let threshold = editDistanceThreshold(for: inputTokens.count, input: input, style: superStyle)
 
         guard ratio <= threshold else {
             return .rejected(
@@ -210,13 +217,15 @@ enum NormalizationGate {
     private static func evaluateRewriting(
         input: String,
         output: String,
-        ignoredOutputLiterals: Set<String>
+        ignoredOutputLiterals: Set<String>,
+        superStyle: SuperTextStyle?
     ) -> NormalizationGateResult {
         let protectedTokens = protectedTokensForNormalization(input)
         let missingTokens = missingProtectedTokens(
             expected: protectedTokens,
             actualText: output,
-            ignoredOutputLiterals: ignoredOutputLiterals
+            ignoredOutputLiterals: ignoredOutputLiterals,
+            superStyle: superStyle
         )
         if !missingTokens.isEmpty {
             return .rejected(
@@ -267,10 +276,49 @@ enum NormalizationGate {
         return tail.isEmpty ? input : tail
     }
 
+    // MARK: - Алиас-таблицы
+
+    private static let relaxedAliasLookup: [String: String] = {
+        var dict = [String: String]()
+        for alias in SuperTextStyle.brandAliases {
+            let canonOriginal = canonicalize(alias.original)
+            let canonRelaxed = canonicalize(alias.relaxed)
+            dict[canonRelaxed] = canonOriginal
+            dict[canonOriginal] = canonOriginal
+        }
+        for alias in SuperTextStyle.techTermAliases {
+            let canonOriginal = canonicalize(alias.original)
+            let canonRelaxed = canonicalize(alias.relaxed)
+            dict[canonRelaxed] = canonOriginal
+            dict[canonOriginal] = canonOriginal
+        }
+        return dict
+    }()
+
+    private static let formalAliasLookup: [String: String] = {
+        var dict = [String: String]()
+        for pair in SuperTextStyle.slangExpansions {
+            let canonSlang = canonicalize(pair.slang)
+            let canonFull = canonicalize(pair.full)
+            dict[canonSlang] = canonFull
+            dict[canonFull] = canonFull
+        }
+        return dict
+    }()
+
+    private static func aliasLookup(for style: SuperTextStyle?) -> [String: String] {
+        switch style {
+        case .relaxed: return relaxedAliasLookup
+        case .formal: return formalAliasLookup
+        case .normal, nil: return [:]
+        }
+    }
+
     private static func missingProtectedTokens(
         expected: [String],
         actualText: String,
-        ignoredOutputLiterals: Set<String>
+        ignoredOutputLiterals: Set<String>,
+        superStyle: SuperTextStyle?
     ) -> [String] {
         let actualCanonical = Set(
             extractProtectedTokens(
@@ -278,7 +326,25 @@ enum NormalizationGate {
                 ignoredLiterals: ignoredOutputLiterals
             )
         )
-        return expected.filter { !actualCanonical.contains(canonicalize($0)) }
+        let lookup = aliasLookup(for: superStyle)
+
+        // Все слова output для алиас-проверки (Cyrillic алиасы не попадают в protectedTokenRegexes)
+        let allOutputWords: Set<String> = {
+            guard !lookup.isEmpty else { return [] }
+            return Set(
+                tokenizeForDistance(actualText, ignoredLiterals: ignoredOutputLiterals)
+            )
+        }()
+
+        return expected.filter { token in
+            let canon = canonicalize(token)
+            if actualCanonical.contains(canon) { return false }
+            if let canonical = lookup[canon], actualCanonical.contains(canonical) || allOutputWords.contains(canonical) { return false }
+            for (variant, target) in lookup where target == canon {
+                if actualCanonical.contains(variant) || allOutputWords.contains(variant) { return false }
+            }
+            return true
+        }
     }
 
     private static func extractProtectedTokens(
@@ -310,12 +376,36 @@ enum NormalizationGate {
         )
     }
 
-    private static func editDistanceThreshold(for tokenCount: Int, input: String) -> Double {
+    private static func normalizeStyleTokens(
+        _ tokens: [String],
+        style: SuperTextStyle?
+    ) -> [String] {
+        let lookup = aliasLookup(for: style)
+        guard !lookup.isEmpty else { return tokens }
+        return tokens.flatMap { token -> [String] in
+            if let canonical = lookup[token] {
+                let parts = canonical.split(whereSeparator: \.isWhitespace).map(String.init)
+                return parts.isEmpty ? [token] : parts
+            }
+            return [token]
+        }
+    }
+
+    private static func editDistanceThreshold(
+        for tokenCount: Int,
+        input: String,
+        style: SuperTextStyle?
+    ) -> Double {
         if hasCorrectionCue(input) {
             return 0.8
         }
 
-        return tokenCount < 10 ? 0.25 : 0.4
+        switch style {
+        case .relaxed, .formal:
+            return tokenCount < 10 ? 0.35 : 0.50
+        case .normal, nil:
+            return tokenCount < 10 ? 0.25 : 0.4
+        }
     }
 
     private static func hasCorrectionCue(_ input: String) -> Bool {
