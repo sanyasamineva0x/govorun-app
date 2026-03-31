@@ -39,7 +39,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Созвон в 15:30.",
             llmOutput: "Созвон вечером.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Созвон в 15:30.")
@@ -51,7 +51,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Созвон в 15:30.",
             llmOutput: "Созвон в 15:30.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Созвон в 15:30.")
@@ -64,7 +64,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Подготовь текст: синхронизация со своим Jira Server.",
             llmOutput: "Подготовь текст: синхронизация со своим jira сервером.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Подготовь текст: синхронизация со своим Jira Server.")
@@ -76,7 +76,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "По проекту «Алтай», маржа выросла до 12,5%.",
             llmOutput: "По проекту Алтай, маржа выросла до 12,5 процента.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "По проекту «Алтай», маржа выросла до 12,5%.")
@@ -98,7 +98,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Напомни про 25%.",
             llmOutput: "Напомни про 25%.",
-            textMode: .universal,
+            contract: .normalization,
             terminalPeriodEnabled: false
         )
 

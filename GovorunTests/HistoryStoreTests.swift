@@ -16,7 +16,7 @@ final class HistoryStoreTests: XCTestCase {
     private func makePipelineResult(
         rawTranscript: String = "тест",
         normalizedText: String = "Тест.",
-        textMode: TextMode = .universal,
+        superStyle: SuperTextStyle? = .normal,
         normalizationPath: PipelineResult.NormalizationPath = .trivial,
         sttLatencyMs: Int = 100,
         llmLatencyMs: Int = 0,
@@ -27,7 +27,7 @@ final class HistoryStoreTests: XCTestCase {
             sessionId: UUID(),
             rawTranscript: rawTranscript,
             normalizedText: normalizedText,
-            textMode: textMode,
+            superStyle: superStyle,
             normalizationPath: normalizationPath,
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
@@ -65,7 +65,7 @@ final class HistoryStoreTests: XCTestCase {
         let item = items[0]
         XCTAssertEqual(item.rawTranscript, "привет марк ой точнее саша")
         XCTAssertEqual(item.normalizedText, "Привет, Саша.")
-        XCTAssertEqual(item.textMode, "universal")
+        XCTAssertEqual(item.textMode, "normal")
         XCTAssertEqual(item.appName, "Telegram")
         XCTAssertEqual(item.normalizationPath, "llm")
         XCTAssertEqual(item.sttLatencyMs, 120)
@@ -169,7 +169,7 @@ final class HistoryStoreTests: XCTestCase {
             sessionId: UUID(),
             rawTranscript: "привет\nмир\tтри",
             normalizedText: "привет\nмир\tтри",
-            textMode: .universal,
+            superStyle: .normal,
             normalizationPath: .trivial,
             sttLatencyMs: 0,
             llmLatencyMs: 0,
