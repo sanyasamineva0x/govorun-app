@@ -478,6 +478,7 @@ final class PipelineEngine: @unchecked Sendable {
                         input: deterministicText,
                         output: llmOutput,
                         contract: currentSuperStyle?.contract ?? .normalization,
+                        superStyle: currentSuperStyle,
                         ignoredOutputLiterals: Set([SnippetPlaceholder.token])
                     )
 
@@ -619,6 +620,7 @@ final class PipelineEngine: @unchecked Sendable {
             deterministicText: deterministicText,
             llmOutput: llmOutput,
             contract: currentSuperStyle?.contract ?? .normalization,
+            superStyle: currentSuperStyle,
             terminalPeriodEnabled: terminalPeriodEnabled
         )
         if let failureReason = postflight.gateFailureReason {

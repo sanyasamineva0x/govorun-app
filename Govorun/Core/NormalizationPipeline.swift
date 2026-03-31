@@ -630,6 +630,7 @@ enum NormalizationPipeline {
         deterministicText: String,
         llmOutput: String,
         contract: LLMOutputContract,
+        superStyle: SuperTextStyle? = nil,
         terminalPeriodEnabled: Bool = true,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationPipelinePostflight {
@@ -640,6 +641,7 @@ enum NormalizationPipeline {
             input: deterministicText,
             output: canonicalOutput,
             contract: contract,
+            superStyle: superStyle,
             ignoredOutputLiterals: ignoredOutputLiterals
         )
         let finalText = terminalPeriodEnabled
