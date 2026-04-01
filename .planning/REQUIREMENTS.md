@@ -56,9 +56,9 @@
 
 ### Аналитика (ANALYTICS)
 
-- [ ] **ANALYTICS-01**: События содержат effective_style (relaxed/normal/formal/none)
-- [ ] **ANALYTICS-02**: События Super содержат style_selection_mode (auto/manual)
-- [ ] **ANALYTICS-03**: product_mode (standard/super) и detected_app_bundle в событиях
+- [x] **ANALYTICS-01**: События содержат effective_style (relaxed/normal/formal/none)
+- [x] **ANALYTICS-02**: События Super содержат style_selection_mode (auto/manual)
+- [x] **ANALYTICS-03**: product_mode (standard/super) и detected_app_bundle в событиях
 
 ### UI (UI)
 
@@ -134,9 +134,9 @@
 | DATA-03 | Phase 6 | Complete |
 | DATA-04 | Phase 6 | Complete |
 | DATA-05 | Phase 6 | Complete |
-| ANALYTICS-01 | Phase 7 | Pending |
-| ANALYTICS-02 | Phase 7 | Pending |
-| ANALYTICS-03 | Phase 7 | Pending |
+| ANALYTICS-01 | Phase 7 | Complete |
+| ANALYTICS-02 | Phase 7 | Complete |
+| ANALYTICS-03 | Phase 7 | Complete |
 | UI-01 | Phase 8 | Pending |
 | UI-02 | Phase 8 | Pending |
 | UI-03 | Phase 8 | Pending |

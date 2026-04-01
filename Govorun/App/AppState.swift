@@ -855,11 +855,17 @@ final class AppState: ObservableObject {
         )
 
         Task {
-            await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: [
+            var startMetadata = [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
+                AnalyticsMetadataKey.detectedAppBundle: context.bundleId,
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.textMode: context.textMode.rawValue,
-            ])
+                AnalyticsMetadataKey.effectiveStyle: superStyle.rawValue,
+            ]
+            if pipelineEngine.productMode.usesLLM {
+                startMetadata[AnalyticsMetadataKey.styleSelectionMode] = settings.superStyleMode.rawValue
+            }
+            await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: startMetadata)
         }
 
         do {
@@ -1027,6 +1033,7 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
+                AnalyticsMetadataKey.effectiveStyle: result.superStyle?.rawValue ?? "none",
             ]
             if let gateFailureReason = result.gateFailureReason {
                 metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
@@ -1040,6 +1047,7 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
+                AnalyticsMetadataKey.effectiveStyle: result.superStyle?.rawValue ?? "none",
             ]
             if let snippetFallbackReason = result.snippetFallbackReason {
                 metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue

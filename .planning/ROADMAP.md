@@ -120,10 +120,10 @@ Plans:
   1. Аналитические события содержат effective_style (relaxed/normal/formal/none)
   2. События Super содержат style_selection_mode (auto/manual)
   3. product_mode и detected_app_bundle присутствуют в событиях
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 07-01: TBD
+- [x] 07-01 -- effective_style, style_selection_mode, detected_app_bundle в событиях
 
 ### Phase 8: UI
 **Goal**: Пользователь может переключать стили в menubar -- авто/ручной режим с визуальным feedback
@@ -169,6 +169,6 @@ Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 -->
 | 4. Gate Modernization | 2/2 | Complete | 2026-03-31 |
 | 5. Postflight | 1/1 | Complete | 2026-04-01 |
 | 6. Settings & Data | 1/1 | Complete | 2026-04-01 |
-| 7. Analytics | 0/1 | Not started | - |
+| 7. Analytics | 1/1 | Complete | 2026-04-01 |
 | 8. UI | 0/2 | Not started | - |
 | 9. TextMode Deletion | 0/1 | Not started | - |

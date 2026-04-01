@@ -69,6 +69,9 @@ enum AnalyticsMetadataKey {
     static let errorType = "error_type"
     static let fallbackUsed = "fallback_used"
     static let gateFailureReason = "gate_failure_reason"
+    static let effectiveStyle = "effective_style"
+    static let styleSelectionMode = "style_selection_mode"
+    static let detectedAppBundle = "detected_app_bundle"
 }
 
 // MARK: - SwiftData модель
