@@ -139,7 +139,7 @@ Plans:
 
 Plans:
 - [x] 08-01-PLAN.md -- Model extensions (cardDescription, displayName) + SettingsSection.textStyle + TDD tests
-- [ ] 08-02-PLAN.md -- TextStyleSettingsView (picker, StyleCard, ModelMissingOverlay) + SettingsView wiring
+- [x] 08-02-PLAN.md -- TextStyleSettingsView (picker, StyleCard, ModelMissingOverlay) + SettingsView wiring
 
 ### Phase 9: TextMode Deletion
 **Goal**: TextMode и вся его инфраструктура удалены -- единственная система стилей в проекте это SuperTextStyle
