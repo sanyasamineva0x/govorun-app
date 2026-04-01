@@ -269,4 +269,37 @@ final class SuperTextStyleTests: XCTestCase {
         let prompt = SuperTextStyle.normal.systemPrompt(currentDate: fixedDate)
         XCTAssertFalse(prompt.contains("ПОДСТАНОВКА"))
     }
+
+    // MARK: - cardDescription
+
+    func test_card_description_relaxed() {
+        XCTAssertEqual(
+            SuperTextStyle.relaxed.cardDescription,
+            "Как в мессенджере — строчные буквы, бренды кириллицей, без точки"
+        )
+    }
+
+    func test_card_description_normal() {
+        XCTAssertEqual(
+            SuperTextStyle.normal.cardDescription,
+            "Стандартный — заглавная буква, бренды оригинальные, без точки"
+        )
+    }
+
+    func test_card_description_formal() {
+        XCTAssertEqual(
+            SuperTextStyle.formal.cardDescription,
+            "Деловой — заглавная буква, бренды оригинальные, сленг раскрыт, точка в конце"
+        )
+    }
+
+    // MARK: - SuperStyleMode displayName
+
+    func test_super_style_mode_display_name_auto() {
+        XCTAssertEqual(SuperStyleMode.auto.displayName, "Авто")
+    }
+
+    func test_super_style_mode_display_name_manual() {
+        XCTAssertEqual(SuperStyleMode.manual.displayName, "Ручной")
+    }
 }

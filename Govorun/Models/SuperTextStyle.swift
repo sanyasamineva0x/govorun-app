@@ -15,6 +15,17 @@ enum SuperStyleMode: String, CaseIterable {
     case manual
 }
 
+// MARK: - SuperStyleMode свойства
+
+extension SuperStyleMode {
+    var displayName: String {
+        switch self {
+        case .auto: "Авто"
+        case .manual: "Ручной"
+        }
+    }
+}
+
 // MARK: - Свойства
 
 extension SuperTextStyle {
@@ -34,6 +45,14 @@ extension SuperTextStyle {
         switch self {
         case .relaxed, .normal: false
         case .formal: true
+        }
+    }
+
+    var cardDescription: String {
+        switch self {
+        case .relaxed: "Как в мессенджере — строчные буквы, бренды кириллицей, без точки"
+        case .normal: "Стандартный — заглавная буква, бренды оригинальные, без точки"
+        case .formal: "Деловой — заглавная буква, бренды оригинальные, сленг раскрыт, точка в конце"
         }
     }
 
