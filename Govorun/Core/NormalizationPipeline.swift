@@ -644,9 +644,11 @@ enum NormalizationPipeline {
             superStyle: superStyle,
             ignoredOutputLiterals: ignoredOutputLiterals
         )
-        let finalText = terminalPeriodEnabled
+        let effectiveTerminalPeriod = superStyle?.terminalPeriod ?? terminalPeriodEnabled
+        let periodText = effectiveTerminalPeriod
             ? gateResult.output
             : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
+        let finalText = superStyle?.applyDeterministic(periodText) ?? periodText
 
         return .init(
             finalText: finalText,

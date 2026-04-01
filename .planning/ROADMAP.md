@@ -93,10 +93,10 @@ Plans:
   1. При superStyle != nil стиль определяет точку: relaxed/normal без точки, formal с точкой
   2. При superStyle == nil (classic) точка определяется terminalPeriodEnabled из настроек
   3. Unit-тесты постфлайта покрывают все комбинации стиль/classic x точка
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 05-01: TBD
+- [x] 05-01-PLAN.md -- terminalPeriod property, style-aware postflight period+caps, effectiveTerminalPeriod in PipelineEngine, TDD tests
 
 ### Phase 6: Settings & Data
 **Goal**: Настройки стилей и история сохраняются корректно -- пользователь может переключать авто/ручной и видеть стиль в истории
@@ -168,7 +168,7 @@ Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 -->
 | 2. Type Extraction | 0/1 | Not started | - |
 | 3. Pipeline Integration | 0/2 | Not started | - |
 | 4. Gate Modernization | 2/2 | Complete | 2026-03-31 |
-| 5. Postflight | 0/1 | Not started | - |
+| 5. Postflight | 1/1 | Complete | 2026-04-01 |
 | 6. Settings & Data | 0/2 | Not started | - |
 | 7. Analytics | 0/1 | Not started | - |
 | 8. UI | 0/2 | Not started | - |

@@ -242,7 +242,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _llmClient: LLMClient
 
     private var _productMode: ProductMode = .standard
-    private var _superStyle: SuperTextStyle? = nil
+    private var _superStyle: SuperTextStyle?
     private var _hints: NormalizationHints = .init()
     private var _terminalPeriodEnabled: Bool = true
     private var _saveAudioHistory: Bool = false
@@ -318,6 +318,7 @@ final class PipelineEngine: @unchecked Sendable {
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
         let (currentProductMode, currentSuperStyle, currentHints, currentLLMClient) = snapshotConfig()
+        let effectiveTerminalPeriod = currentSuperStyle?.terminalPeriod ?? terminalPeriodEnabled
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
@@ -390,7 +391,7 @@ final class PipelineEngine: @unchecked Sendable {
         // числа, валюты, время, даты и базовая очистка всегда проходят один и тот же путь.
         let pipelinePreflight = NormalizationPipeline.preflight(
             transcript: correctedTranscript,
-            terminalPeriodEnabled: terminalPeriodEnabled
+            terminalPeriodEnabled: effectiveTerminalPeriod
         )
         let deterministicText = pipelinePreflight.deterministicText
 
@@ -398,11 +399,15 @@ final class PipelineEngine: @unchecked Sendable {
         if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
             switch snippetMatch.kind {
             case .standalone:
+                let snippetPeriod = effectiveTerminalPeriod
+                    ? snippetMatch.content
+                    : DeterministicNormalizer.stripTrailingPeriods(snippetMatch.content)
+                let snippetOutput = currentSuperStyle?.applyDeterministic(snippetPeriod) ?? snippetPeriod
                 let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
                 return PipelineResult(
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
-                    normalizedText: snippetMatch.content,
+                    normalizedText: snippetOutput,
                     superStyle: currentSuperStyle,
                     normalizationPath: .snippet,
                     sttLatencyMs: sttLatencyMs,
@@ -423,9 +428,10 @@ final class PipelineEngine: @unchecked Sendable {
                         trigger: snippetMatch.trigger,
                         content: snippetMatch.content
                     )
-                    let outputText = terminalPeriodEnabled
+                    let periodText = effectiveTerminalPeriod
                         ? finalText
                         : DeterministicNormalizer.stripTrailingPeriods(finalText)
+                    let outputText = currentSuperStyle?.applyDeterministic(periodText) ?? periodText
                     let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
                     return PipelineResult(
                         sessionId: sessionId,
@@ -528,9 +534,10 @@ final class PipelineEngine: @unchecked Sendable {
                 }
 
                 let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
-                let outputText = terminalPeriodEnabled
+                let snippetPeriodText = effectiveTerminalPeriod
                     ? finalText
                     : DeterministicNormalizer.stripTrailingPeriods(finalText)
+                let outputText = currentSuperStyle?.applyDeterministic(snippetPeriodText) ?? snippetPeriodText
                 return PipelineResult(
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
@@ -553,11 +560,12 @@ final class PipelineEngine: @unchecked Sendable {
 
         // Trivial text → только DeterministicNormalizer, без LLM
         if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
+            let trivialOutput = currentSuperStyle?.applyDeterministic(deterministicText) ?? deterministicText
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
-                normalizedText: deterministicText,
+                normalizedText: trivialOutput,
                 superStyle: currentSuperStyle,
                 normalizationPath: .trivial,
                 sttLatencyMs: sttLatencyMs,
@@ -600,11 +608,12 @@ final class PipelineEngine: @unchecked Sendable {
                 deterministicText: deterministicText,
                 failureContext: String(describing: error)
             )
+            let failedOutput = currentSuperStyle?.applyDeterministic(failedPostflight.finalText) ?? failedPostflight.finalText
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
-                normalizedText: failedPostflight.finalText,
+                normalizedText: failedOutput,
                 superStyle: currentSuperStyle,
                 normalizationPath: mapNormalizationPath(failedPostflight.path),
                 sttLatencyMs: sttLatencyMs,
@@ -621,7 +630,7 @@ final class PipelineEngine: @unchecked Sendable {
             llmOutput: llmOutput,
             contract: currentSuperStyle?.contract ?? .normalization,
             superStyle: currentSuperStyle,
-            terminalPeriodEnabled: terminalPeriodEnabled
+            terminalPeriodEnabled: effectiveTerminalPeriod
         )
         if let failureReason = postflight.gateFailureReason {
             Self.logger.warning(

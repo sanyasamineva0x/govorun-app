@@ -30,6 +30,13 @@ extension SuperTextStyle {
         }
     }
 
+    var terminalPeriod: Bool {
+        switch self {
+        case .relaxed, .normal: false
+        case .formal: true
+        }
+    }
+
     func applyDeterministic(_ text: String) -> String {
         guard !text.isEmpty else { return text }
         switch self {

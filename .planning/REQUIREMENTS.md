@@ -37,14 +37,14 @@
 ### Gate модернизация (GATE)
 
 - [x] **GATE-01**: NormalizationGate.evaluate(input:output:contract:superStyle:) — две оси
-- [ ] **GATE-02**: Style-aware protected tokens: в relaxed обе формы brand/tech aliases валидны
-- [ ] **GATE-03**: Edit distance нормализует к style-neutral form перед подсчётом
-- [ ] **GATE-04**: В formal — slang expansions (спс↔спасибо) валидны как protected tokens
+- [x] **GATE-02**: Style-aware protected tokens: в relaxed обе формы brand/tech aliases валидны
+- [x] **GATE-03**: Edit distance нормализует к style-neutral form перед подсчётом
+- [x] **GATE-04**: В formal — slang expansions (спс↔спасибо) валидны как protected tokens
 
 ### Postflight (POST)
 
-- [ ] **POST-01**: Если superStyle != nil — стиль определяет точку (relaxed/normal → без, formal → с)
-- [ ] **POST-02**: Если superStyle == nil (classic) — terminalPeriodEnabled из настроек
+- [x] **POST-01**: Если superStyle != nil — стиль определяет точку (relaxed/normal → без, formal → с)
+- [x] **POST-02**: Если superStyle == nil (classic) — terminalPeriodEnabled из настроек
 
 ### Данные и настройки (DATA)
 
@@ -79,8 +79,8 @@
 - [x] **TEST-01**: Unit-тесты SuperTextStyle: enum, styleBlock, systemPrompt, applyDeterministic
 - [x] **TEST-02**: Unit-тесты SuperStyleEngine: bundleId mapping, авто/ручной
 - [ ] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
-- [ ] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
-- [ ] **TEST-05**: Unit-тесты NormalizationPipeline: postflight с SuperTextStyle
+- [x] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
+- [x] **TEST-05**: Unit-тесты NormalizationPipeline: postflight с SuperTextStyle
 - [x] **TEST-06**: Миграция существующих тестов: MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests
 
 ## v2 Requirements (2.5)
@@ -124,11 +124,11 @@
 | PIPE-03 | Phase 3 | Pending |
 | PIPE-04 | Phase 3 | Pending |
 | GATE-01 | Phase 4 | Complete |
-| GATE-02 | Phase 4 | Pending |
-| GATE-03 | Phase 4 | Pending |
-| GATE-04 | Phase 4 | Pending |
-| POST-01 | Phase 5 | Pending |
-| POST-02 | Phase 5 | Pending |
+| GATE-02 | Phase 4 | Complete |
+| GATE-03 | Phase 4 | Complete |
+| GATE-04 | Phase 4 | Complete |
+| POST-01 | Phase 5 | Complete |
+| POST-02 | Phase 5 | Complete |
 | DATA-01 | Phase 6 | Pending |
 | DATA-02 | Phase 6 | Pending |
 | DATA-03 | Phase 6 | Pending |
@@ -148,8 +148,8 @@
 | TEST-01 | Phase 1 | Complete |
 | TEST-02 | Phase 1 | Complete |
 | TEST-03 | Phase 6 | Pending |
-| TEST-04 | Phase 4 | Pending |
-| TEST-05 | Phase 5 | Pending |
+| TEST-04 | Phase 4 | Complete |
+| TEST-05 | Phase 5 | Complete |
 | TEST-06 | Phase 3 | Complete |
 
 **Coverage:**
