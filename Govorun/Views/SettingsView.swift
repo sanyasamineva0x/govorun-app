@@ -28,8 +28,7 @@ struct SettingsView: View {
                     case .history:
                         HistoryView()
                     case .textStyle:
-                        Text("Стиль текста")
-                            .foregroundStyle(.secondary)
+                        TextStyleSettingsContent(selectedSection: $selectedSection)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
