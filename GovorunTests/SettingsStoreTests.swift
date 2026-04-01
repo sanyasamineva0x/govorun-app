@@ -25,7 +25,8 @@ final class SettingsStoreTests: XCTestCase {
 
     func test_default_values() {
         XCTAssertEqual(store.productMode, .standard)
-        XCTAssertEqual(store.defaultTextMode, "universal")
+        XCTAssertEqual(store.superStyleMode, .auto)
+        XCTAssertEqual(store.manualSuperStyle, .normal)
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         XCTAssertFalse(store.saveAudioHistory, "По умолчанию аудио не сохраняется (privacy)")
@@ -47,13 +48,20 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store2.productMode, .superMode)
     }
 
-    func test_set_default_text_mode() {
-        store.defaultTextMode = "chat"
-        XCTAssertEqual(store.defaultTextMode, "chat")
+    func test_set_super_style_mode() {
+        store.superStyleMode = .manual
+        XCTAssertEqual(store.superStyleMode, .manual)
 
-        // Новый store с теми же defaults — значение сохранилось
         let store2 = SettingsStore(defaults: defaults)
-        XCTAssertEqual(store2.defaultTextMode, "chat")
+        XCTAssertEqual(store2.superStyleMode, .manual)
+    }
+
+    func test_set_manual_super_style() {
+        store.manualSuperStyle = .formal
+        XCTAssertEqual(store.manualSuperStyle, .formal)
+
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.manualSuperStyle, .formal)
     }
 
     func test_set_recording_mode() {
@@ -73,44 +81,49 @@ final class SettingsStoreTests: XCTestCase {
         _ = store.launchAtLogin
     }
 
-    // MARK: - 3. Валидация TextMode
+    // MARK: - 3. SuperStyle fallback при невалидном rawValue
 
-    func test_valid_text_modes() {
-        let validModes = ["chat", "email", "document", "note", "code", "universal"]
-        for mode in validModes {
-            store.defaultTextMode = mode
-            XCTAssertEqual(store.defaultTextMode, mode)
-        }
+    func test_super_style_mode_invalid_fallback() {
+        defaults.set("unknown_mode", forKey: "superStyleMode")
+        XCTAssertEqual(store.superStyleMode, .auto)
+    }
+
+    func test_manual_super_style_invalid_fallback() {
+        defaults.set("unknown_style", forKey: "manualSuperStyle")
+        XCTAssertEqual(store.manualSuperStyle, .normal)
     }
 
     // MARK: - 4. Persistence между экземплярами
 
     func test_persistence_across_instances() {
         store.productMode = .superMode
-        store.defaultTextMode = "email"
+        store.superStyleMode = .manual
+        store.manualSuperStyle = .relaxed
         store.recordingMode = .toggle
         store.soundEnabled = false
 
         let store2 = SettingsStore(defaults: defaults)
         XCTAssertEqual(store2.productMode, .superMode)
-        XCTAssertEqual(store2.defaultTextMode, "email")
+        XCTAssertEqual(store2.superStyleMode, .manual)
+        XCTAssertEqual(store2.manualSuperStyle, .relaxed)
         XCTAssertEqual(store2.recordingMode, .toggle)
         XCTAssertFalse(store2.soundEnabled)
-        // launchAtLogin: SMAppService, не UserDefaults — не проверяем persistence
     }
 
     // MARK: - 5. Сброс к дефолтам
 
     func test_reset_to_defaults() {
         store.productMode = .superMode
-        store.defaultTextMode = "code"
+        store.superStyleMode = .manual
+        store.manualSuperStyle = .formal
         store.recordingMode = .toggle
         store.soundEnabled = false
 
         store.resetToDefaults()
 
         XCTAssertEqual(store.productMode, .standard)
-        XCTAssertEqual(store.defaultTextMode, "universal")
+        XCTAssertEqual(store.superStyleMode, .auto)
+        XCTAssertEqual(store.manualSuperStyle, .normal)
         XCTAssertEqual(store.recordingMode, .pushToTalk)
         XCTAssertTrue(store.soundEnabled)
         // launchAtLogin: SMAppService, resetToDefaults не влияет

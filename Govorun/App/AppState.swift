@@ -840,8 +840,8 @@ final class AppState: ObservableObject {
 
         let superStyle = SuperStyleEngine.resolve(
             bundleId: context.bundleId,
-            mode: .auto,
-            manualStyle: .normal
+            mode: settings.superStyleMode,
+            manualStyle: settings.manualSuperStyle
         )
         pipelineEngine.superStyle = superStyle
         pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)

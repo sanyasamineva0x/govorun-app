@@ -48,11 +48,11 @@
 
 ### Данные и настройки (DATA)
 
-- [ ] **DATA-01**: SettingsStore: superStyleMode (.auto/.manual) с default .auto
-- [ ] **DATA-02**: SettingsStore: manualSuperStyle с default .normal
-- [ ] **DATA-03**: HistoryStore.save() использует result.superStyle?.rawValue ?? "none"
-- [ ] **DATA-04**: HistoryView показывает SuperTextStyle(rawValue:)?.displayName с fallback для legacy
-- [ ] **DATA-05**: UserDefaults: удалить defaultTextMode, register defaults для новых ключей
+- [x] **DATA-01**: SettingsStore: superStyleMode (.auto/.manual) с default .auto
+- [x] **DATA-02**: SettingsStore: manualSuperStyle с default .normal
+- [x] **DATA-03**: HistoryStore.save() использует result.superStyle?.rawValue ?? "none"
+- [x] **DATA-04**: HistoryView показывает SuperTextStyle(rawValue:)?.displayName с fallback для legacy
+- [x] **DATA-05**: UserDefaults: удалить defaultTextMode, register defaults для новых ключей
 
 ### Аналитика (ANALYTICS)
 
@@ -78,7 +78,7 @@
 
 - [x] **TEST-01**: Unit-тесты SuperTextStyle: enum, styleBlock, systemPrompt, applyDeterministic
 - [x] **TEST-02**: Unit-тесты SuperStyleEngine: bundleId mapping, авто/ручной
-- [ ] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
+- [x] **TEST-03**: Unit-тесты SettingsStore: superStyleMode, manualSuperStyle
 - [x] **TEST-04**: Unit-тесты NormalizationGate: style-aware protected tokens, slang, edit distance
 - [x] **TEST-05**: Unit-тесты NormalizationPipeline: postflight с SuperTextStyle
 - [x] **TEST-06**: Миграция существующих тестов: MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests
@@ -129,11 +129,11 @@
 | GATE-04 | Phase 4 | Complete |
 | POST-01 | Phase 5 | Complete |
 | POST-02 | Phase 5 | Complete |
-| DATA-01 | Phase 6 | Pending |
-| DATA-02 | Phase 6 | Pending |
-| DATA-03 | Phase 6 | Pending |
-| DATA-04 | Phase 6 | Pending |
-| DATA-05 | Phase 6 | Pending |
+| DATA-01 | Phase 6 | Complete |
+| DATA-02 | Phase 6 | Complete |
+| DATA-03 | Phase 6 | Complete |
+| DATA-04 | Phase 6 | Complete |
+| DATA-05 | Phase 6 | Complete |
 | ANALYTICS-01 | Phase 7 | Pending |
 | ANALYTICS-02 | Phase 7 | Pending |
 | ANALYTICS-03 | Phase 7 | Pending |
@@ -147,7 +147,7 @@
 | DELETE-04 | Phase 9 | Pending |
 | TEST-01 | Phase 1 | Complete |
 | TEST-02 | Phase 1 | Complete |
-| TEST-03 | Phase 6 | Pending |
+| TEST-03 | Phase 6 | Complete |
 | TEST-04 | Phase 4 | Complete |
 | TEST-05 | Phase 5 | Complete |
 | TEST-06 | Phase 3 | Complete |

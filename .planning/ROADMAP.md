@@ -107,11 +107,10 @@ Plans:
   2. HistoryStore.save() записывает result.superStyle?.rawValue, HistoryView показывает displayName с fallback для legacy
   3. UserDefaults: defaultTextMode удалён, новые defaults зарегистрированы ДО первого чтения
   4. Unit-тесты SettingsStore покрывают superStyleMode и manualSuperStyle
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [x] 06-01-PLAN.md -- superStyleMode/manualSuperStyle в SettingsStore, AppState wiring, HistoryView стиль, удаление defaultTextMode
 
 ### Phase 7: Analytics
 **Goal**: События аналитики содержат информацию о стиле -- метрики стилей доступны ДО удаления TextMode
@@ -169,7 +168,7 @@ Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 -->
 | 3. Pipeline Integration | 0/2 | Not started | - |
 | 4. Gate Modernization | 2/2 | Complete | 2026-03-31 |
 | 5. Postflight | 1/1 | Complete | 2026-04-01 |
-| 6. Settings & Data | 0/2 | Not started | - |
+| 6. Settings & Data | 1/1 | Complete | 2026-04-01 |
 | 7. Analytics | 0/1 | Not started | - |
 | 8. UI | 0/2 | Not started | - |
 | 9. TextMode Deletion | 0/1 | Not started | - |

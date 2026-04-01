@@ -10,7 +10,8 @@ final class SettingsStore: ObservableObject {
 
     private enum Keys {
         static let productMode = "productMode"
-        static let defaultTextMode = "defaultTextMode"
+        static let superStyleMode = "superStyleMode"
+        static let manualSuperStyle = "manualSuperStyle"
         static let recordingMode = "recordingMode"
         static let soundEnabled = "soundEnabled"
         static let launchAtLogin = "launchAtLogin"
@@ -35,7 +36,8 @@ final class SettingsStore: ObservableObject {
     private func registerDefaults() {
         defaults.register(defaults: [
             Keys.productMode: ProductMode.standard.rawValue,
-            Keys.defaultTextMode: "universal",
+            Keys.superStyleMode: SuperStyleMode.auto.rawValue,
+            Keys.manualSuperStyle: SuperTextStyle.normal.rawValue,
             Keys.recordingMode: RecordingMode.default.rawValue,
             Keys.soundEnabled: true,
             Keys.saveAudioHistory: false,
@@ -73,10 +75,32 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    var defaultTextMode: String {
-        get { defaults.string(forKey: Keys.defaultTextMode) ?? "universal" }
+    var superStyleMode: SuperStyleMode {
+        get {
+            guard let raw = defaults.string(forKey: Keys.superStyleMode),
+                  let mode = SuperStyleMode(rawValue: raw)
+            else {
+                return .auto
+            }
+            return mode
+        }
         set {
-            defaults.set(newValue, forKey: Keys.defaultTextMode)
+            defaults.set(newValue.rawValue, forKey: Keys.superStyleMode)
+            objectWillChange.send()
+        }
+    }
+
+    var manualSuperStyle: SuperTextStyle {
+        get {
+            guard let raw = defaults.string(forKey: Keys.manualSuperStyle),
+                  let style = SuperTextStyle(rawValue: raw)
+            else {
+                return .normal
+            }
+            return style
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: Keys.manualSuperStyle)
             objectWillChange.send()
         }
     }
@@ -230,7 +254,8 @@ final class SettingsStore: ObservableObject {
 
     func resetToDefaults() {
         defaults.removeObject(forKey: Keys.productMode)
-        defaults.removeObject(forKey: Keys.defaultTextMode)
+        defaults.removeObject(forKey: Keys.superStyleMode)
+        defaults.removeObject(forKey: Keys.manualSuperStyle)
         defaults.removeObject(forKey: Keys.recordingMode)
         defaults.removeObject(forKey: Keys.soundEnabled)
         defaults.removeObject(forKey: Keys.saveAudioHistory)
