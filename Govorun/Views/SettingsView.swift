@@ -27,6 +27,9 @@ struct SettingsView: View {
                         SnippetListView()
                     case .history:
                         HistoryView()
+                    case .textStyle:
+                        Text("Стиль текста")
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -23,13 +23,14 @@ enum SettingsSection: String, Identifiable {
     case dictionary
     case snippets
     case history
+    case textStyle
 
     var id: String {
         rawValue
     }
 
     /// Секции видимые в UI (appModes скрыт до Фазы 5)
-    static let visibleCases: [SettingsSection] = [.general, .dictionary, .snippets, .history]
+    static let visibleCases: [SettingsSection] = [.general, .textStyle, .dictionary, .snippets, .history]
 
     var title: String {
         switch self {
@@ -38,6 +39,7 @@ enum SettingsSection: String, Identifiable {
         case .dictionary: "Словарь"
         case .snippets: "Команды"
         case .history: "История"
+        case .textStyle: "Стиль текста"
         }
     }
 
@@ -48,6 +50,7 @@ enum SettingsSection: String, Identifiable {
         case .dictionary: "Слова для точного распознавания"
         case .snippets: "Голосовые команды для быстрой вставки текста"
         case .history: "История ваших записей"
+        case .textStyle: "Настройка стиля для Супер-режима"
         }
     }
 
@@ -58,6 +61,7 @@ enum SettingsSection: String, Identifiable {
         case .dictionary: "character.book.closed"
         case .snippets: "text.bubble"
         case .history: "clock.arrow.circlepath"
+        case .textStyle: "textformat"
         }
     }
 }
