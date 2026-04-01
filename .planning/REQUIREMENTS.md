@@ -62,9 +62,9 @@
 
 ### UI (UI)
 
-- [ ] **UI-01**: Вкладка "Стиль текста" в menubar-меню на вкладке Говорун Супер
-- [ ] **UI-02**: Сегмент Авто/Ручной; авто показывает текущий стиль серым ("Расслабленный · Telegram")
-- [ ] **UI-03**: Ручной: три карточки стилей с описанием, чекмарк на выбранном
+- [x] **UI-01**: Вкладка "Стиль текста" в menubar-меню на вкладке Говорун Супер
+- [x] **UI-02**: Сегмент Авто/Ручной; авто показывает текущий стиль серым ("Расслабленный · Telegram")
+- [x] **UI-03**: Ручной: три карточки стилей с описанием, чекмарк на выбранном
 - [ ] **UI-04**: Без модели: пункт активен но серый, при нажатии — NSAlert с предложением скачать
 
 ### Удаление TextMode (DELETE)
@@ -137,9 +137,9 @@
 | ANALYTICS-01 | Phase 7 | Complete |
 | ANALYTICS-02 | Phase 7 | Complete |
 | ANALYTICS-03 | Phase 7 | Complete |
-| UI-01 | Phase 8 | Pending |
-| UI-02 | Phase 8 | Pending |
-| UI-03 | Phase 8 | Pending |
+| UI-01 | Phase 8 | Complete |
+| UI-02 | Phase 8 | Complete |
+| UI-03 | Phase 8 | Complete |
 | UI-04 | Phase 8 | Pending |
 | DELETE-01 | Phase 9 | Pending |
 | DELETE-02 | Phase 9 | Pending |

@@ -134,12 +134,12 @@ Plans:
   2. Сегмент Авто/Ручной работает; авто показывает текущий стиль серым ("Расслабленный . Telegram")
   3. В ручном режиме три карточки стилей с описаниями, чекмарк на выбранном
   4. Без модели: пункт активен но серый, при нажатии NSAlert с предложением скачать
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [x] 08-01-PLAN.md -- Model extensions (cardDescription, displayName) + SettingsSection.textStyle + TDD tests
+- [ ] 08-02-PLAN.md -- TextStyleSettingsView (picker, StyleCard, ModelMissingOverlay) + SettingsView wiring
 
 ### Phase 9: TextMode Deletion
 **Goal**: TextMode и вся его инфраструктура удалены -- единственная система стилей в проекте это SuperTextStyle
