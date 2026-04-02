@@ -629,7 +629,8 @@ enum NormalizationPipeline {
     static func postflight(
         deterministicText: String,
         llmOutput: String,
-        textMode: TextMode,
+        contract: LLMOutputContract,
+        superStyle: SuperTextStyle? = nil,
         terminalPeriodEnabled: Bool = true,
         ignoredOutputLiterals: Set<String> = []
     ) -> NormalizationPipelinePostflight {
@@ -639,12 +640,15 @@ enum NormalizationPipeline {
         let gateResult = NormalizationGate.evaluate(
             input: deterministicText,
             output: canonicalOutput,
-            contract: textMode.llmOutputContract,
+            contract: contract,
+            superStyle: superStyle,
             ignoredOutputLiterals: ignoredOutputLiterals
         )
-        let finalText = terminalPeriodEnabled
+        let effectiveTerminalPeriod = superStyle?.terminalPeriod ?? terminalPeriodEnabled
+        let periodText = effectiveTerminalPeriod
             ? gateResult.output
             : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
+        let finalText = superStyle?.applyDeterministic(periodText) ?? periodText
 
         return .init(
             finalText: finalText,

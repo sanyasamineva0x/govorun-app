@@ -39,7 +39,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Созвон в 15:30.",
             llmOutput: "Созвон вечером.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Созвон в 15:30.")
@@ -51,7 +51,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Созвон в 15:30.",
             llmOutput: "Созвон в 15:30.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Созвон в 15:30.")
@@ -64,7 +64,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Подготовь текст: синхронизация со своим Jira Server.",
             llmOutput: "Подготовь текст: синхронизация со своим jira сервером.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "Подготовь текст: синхронизация со своим Jira Server.")
@@ -76,7 +76,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "По проекту «Алтай», маржа выросла до 12,5%.",
             llmOutput: "По проекту Алтай, маржа выросла до 12,5 процента.",
-            textMode: .universal
+            contract: .normalization
         )
 
         XCTAssertEqual(result.finalText, "По проекту «Алтай», маржа выросла до 12,5%.")
@@ -98,7 +98,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Напомни про 25%.",
             llmOutput: "Напомни про 25%.",
-            textMode: .universal,
+            contract: .normalization,
             terminalPeriodEnabled: false
         )
 
@@ -106,6 +106,69 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertEqual(result.path, .llm)
         XCTAssertNil(result.gateFailureReason)
     }
+
+    // MARK: - Постфлайт: стиль определяет точку и caps (POST-01, POST-02, TEST-05)
+
+    func test_postflight_relaxed_strips_period_and_lowercases() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Привет мир.",
+            llmOutput: "Привет мир.",
+            contract: .normalization,
+            superStyle: .relaxed,
+            terminalPeriodEnabled: true
+        )
+
+        XCTAssertEqual(result.finalText, "привет мир")
+    }
+
+    func test_postflight_normal_strips_period() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Привет мир.",
+            llmOutput: "Привет мир.",
+            contract: .normalization,
+            superStyle: .normal,
+            terminalPeriodEnabled: true
+        )
+
+        XCTAssertEqual(result.finalText, "Привет мир")
+    }
+
+    func test_postflight_formal_keeps_period() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Привет мир.",
+            llmOutput: "Привет мир.",
+            contract: .normalization,
+            superStyle: .formal,
+            terminalPeriodEnabled: false
+        )
+
+        XCTAssertEqual(result.finalText, "Привет мир.")
+    }
+
+    func test_postflight_rejected_with_style_applies_caps() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Привет мир",
+            llmOutput: "Совершенно другой текст.",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertEqual(result.finalText, "привет мир")
+        XCTAssertEqual(result.path, .llmRejected)
+    }
+
+    func test_postflight_nil_style_preserves_terminal_period_setting() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Привет мир.",
+            llmOutput: "Привет мир.",
+            contract: .normalization,
+            terminalPeriodEnabled: true
+        )
+
+        XCTAssertEqual(result.finalText, "Привет мир.")
+    }
+
+    // MARK: - Failed postflight
 
     func test_failed_postflight_returns_deterministic_fallback() {
         let result = NormalizationPipeline.failedPostflight(

@@ -109,6 +109,12 @@ private struct HistoryRowView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    if let styleName = SuperTextStyle(rawValue: item.textMode)?.displayName {
+                        Label(styleName, systemImage: "textformat.alt")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Label("\(item.totalLatencyMs)мс", systemImage: "timer")
                         .font(.caption)
                         .foregroundStyle(.tertiary)

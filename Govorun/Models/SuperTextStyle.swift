@@ -1,20 +1,114 @@
 import Foundation
 
-// MARK: - Режимы текста
+// MARK: - Стиль текста
 
-enum TextMode: String, CaseIterable, Codable {
-    case chat
-    case email
-    case document
-    case note
-    case code
-    case universal
+enum SuperTextStyle: String, CaseIterable, Codable {
+    case relaxed
+    case normal
+    case formal
+}
+
+// MARK: - Режим выбора стиля
+
+enum SuperStyleMode: String, CaseIterable {
+    case auto
+    case manual
+}
+
+// MARK: - SuperStyleMode свойства
+
+extension SuperStyleMode {
+    var displayName: String {
+        switch self {
+        case .auto: "Авто"
+        case .manual: "Ручной"
+        }
+    }
+}
+
+// MARK: - Свойства
+
+extension SuperTextStyle {
+    var contract: LLMOutputContract {
+        .normalization
+    }
+
+    var displayName: String {
+        switch self {
+        case .relaxed: "😌 Расслабленный"
+        case .normal: "✏️ Обычный"
+        case .formal: "👔 Деловой"
+        }
+    }
+
+    var terminalPeriod: Bool {
+        switch self {
+        case .relaxed, .normal: false
+        case .formal: true
+        }
+    }
+
+    var cardDescription: String {
+        switch self {
+        case .relaxed: "Чат с друзьями, заметки и дневники"
+        case .normal: "Режим на каждый день"
+        case .formal: "Почта, рабочая переписка, документы"
+        }
+    }
+
+    // Style-blind: только caps. Brand aliases и slang expansion — только LLM path.
+    func applyDeterministic(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        switch self {
+        case .relaxed:
+            return text.prefix(1).lowercased() + text.dropFirst()
+        case .normal, .formal:
+            return text.prefix(1).uppercased() + text.dropFirst()
+        }
+    }
+}
+
+// MARK: - Стилевой блок
+
+extension SuperTextStyle {
+    var styleBlock: String {
+        switch self {
+        case .relaxed:
+            var block = """
+            Стиль: разговорный, краткий. \
+            ПЕРЕОПРЕДЕЛЕНИЕ регистра: НЕ ставь заглавную букву в начале предложения. \
+            Пиши всё строчными, как в мессенджере. Без точки в конце.
+            ПЕРЕОПРЕДЕЛЕНИЕ транслитерации: бренды и техтермины → кириллица строчными.
+            Таблица замен (используй ТОЛЬКО эти формы):
+            """
+            for alias in Self.brandAliases {
+                block += "\n\(alias.original) → \(alias.relaxed)"
+            }
+            for alias in Self.techTermAliases {
+                block += "\n\(alias.original) → \(alias.relaxed)"
+            }
+            block += "\nПример: «скинь в слак» → «скинь в слак», «открой ноушн» → «открой ношен»."
+            return block
+
+        case .normal:
+            return """
+            Стиль: стандартный. Заглавная буква в начале. Без точки в конце. \
+            Транслитерация: бренды и техтермины → оригинальное написание (Slack, Zoom, Jira, PDF, API).
+            """
+
+        case .formal:
+            return """
+            Стиль: деловой, вежливый. Заглавная буква в начале. Точка в конце. \
+            Транслитерация: бренды и техтермины → оригинальное написание (Slack, Zoom, Jira, PDF, API). \
+            Сленг раскрывать в полные формы (норм → нормально, спс → спасибо, ок → хорошо).
+            """
+        }
+    }
 }
 
 // MARK: - Промпт-генерация
 
-extension TextMode {
-    /// Базовый system prompt (design-doc 5.4)
+extension SuperTextStyle {
     static func basePrompt(currentDate: Date, personalDictionary: [String: String] = [:]) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
@@ -40,7 +134,6 @@ extension TextMode {
         Сегодня: \(dateString), \(dayOfWeek).
 
         АБСОЛЮТНЫЙ ЗАПРЕТ — нарушение любого пункта = брак:
-        - ВСЕГДА заглавная буква в начале предложения
         - НЕ заменяй слова синонимами (надо≠нужно, потому что≠из-за, а потом≠а затем)
         - НЕ переставляй слова — порядок слов автора НЕПРИКОСНОВЕНЕН
         - НЕ добавляй слов, которых не было
@@ -72,7 +165,7 @@ extension TextMode {
 
         ОЧИСТКА:
         - Убери филлеры: ну, короче, типа, в общем, как бы, вот, значит, это самое
-        - ЗАГЛАВНАЯ буква в начале предложения — ОБЯЗАТЕЛЬНО
+        - Регистр первой буквы и точка в конце — по стилевому блоку ниже
         - Пунктуация: запятые при перечислениях и придаточных
         - Вопрос → вопросительный знак
 
@@ -87,7 +180,7 @@ extension TextMode {
         - НЕ додумывай скрытый контекст: «в 5» остаётся «в 5», если нет «утра/вечера»
         - Канон standard: деньги словами («20 000 рублей»), проценты знаком («25%»), время в HH:MM только при явной нормализации, бренды и техтермины в официальном написании
 
-        ПРИМЕРЫ (вход → выход):
+        ПРИМЕРЫ (регистр и бренды в примерах — стандартный стиль; стилевой блок переопределяет):
         «ну привет» → «Привет»
         «типа окей» → «Окей»
         «открой жиру» → «Открой Jira»
@@ -121,41 +214,13 @@ extension TextMode {
         """
     }
 
-    /// Стилевой блок (design-doc 6.4)
-    var styleBlock: String {
-        switch self {
-        case .chat:
-            "Стиль: разговорный, краткий. Регистр \"ты\". " +
-                "ПЕРЕОПРЕДЕЛЕНИЕ регистра: НЕ ставь заглавную букву в начале предложения. Пиши всё строчными, как в мессенджере. Без точки в конце. " +
-                "ПЕРЕОПРЕДЕЛЕНИЕ транслитерации: бренды → кириллица строчными (слак, зум, жира, гитхаб, ноушн). " +
-                "Пример: «скинь в слак» → «скинь в слак», «открой ноушн» → «открой ноушн»."
-        case .email:
-            "Стиль: деловой, вежливый. Регистр \"Вы\". " +
-                "Полные предложения. Транслитерация: бренды → оригинал (Slack, Zoom)."
-        case .document:
-            "Стиль: формальный, структурированный. Регистр \"Вы\". " +
-                "Абзацы где уместно. Транслитерация: бренды → оригинал."
-        case .note:
-            "Стиль: свободный, лаконичный. Регистр \"ты\". " +
-                "Если перечисление — оформи списком. " +
-                "Транслитерация: бренды → оригинал (Slack, Zoom, Jira)."
-        case .code:
-            "Минимальная обработка. Технические термины не трогать. " +
-                "Транслитерация: всё → оригинал (pull request, staging, deploy)."
-        case .universal:
-            "Регистр \"ты\" по умолчанию. Чистый текст. " +
-                "Транслитерация: бренды → оригинал (Slack, Zoom, Jira)."
-        }
-    }
-
-    /// Полный system prompt = base + style + snippet block
     func systemPrompt(
         currentDate: Date,
         personalDictionary: [String: String] = [:],
         snippetContext: SnippetContext? = nil,
         appName: String? = nil
     ) -> String {
-        var prompt = TextMode.basePrompt(currentDate: currentDate, personalDictionary: personalDictionary)
+        var prompt = Self.basePrompt(currentDate: currentDate, personalDictionary: personalDictionary)
         prompt += "\n\n" + styleBlock
 
         if let app = appName, !app.isEmpty {
@@ -187,38 +252,61 @@ extension TextMode {
     }
 }
 
-// MARK: - Snippet Placeholder
+// MARK: - Таблицы алиасов
 
-enum SnippetPlaceholder {
-    static let token = "[[[GOVORUN_SNIPPET]]]"
-}
+extension SuperTextStyle {
+    static let brandAliases: [(original: String, relaxed: String)] = [
+        ("Slack", "слак"),
+        ("Zoom", "зум"),
+        ("Telegram", "телега"),
+        ("Jira", "жира"),
+        ("Notion", "ношен"),
+        ("GitHub", "гитхаб"),
+        ("YouTube", "ютуб"),
+        ("Google", "гугл"),
+        ("WhatsApp", "вотсап"),
+        ("Discord", "дискорд"),
+        ("Figma", "фигма"),
+        ("Docker", "докер"),
+        ("Chrome", "хром"),
+        ("Safari", "сафари"),
+        ("Teams", "тимс"),
+        ("Trello", "трелло"),
+        ("Confluence", "конфлюенс"),
+        ("Excel", "эксель"),
+        ("Word", "ворд"),
+        ("Photoshop", "фотошоп"),
+        ("iPhone", "айфон"),
+        ("MacBook", "макбук"),
+        ("Windows", "винда"),
+        ("Linux", "линукс"),
+        ("Python", "питон"),
+    ]
 
-// MARK: - Snippet Context
+    static let techTermAliases: [(original: String, relaxed: String)] = [
+        ("PDF", "пдф"),
+        ("API", "апи"),
+        ("URL", "урл"),
+        ("PR", "пр"),
+    ]
 
-struct SnippetContext: Equatable {
-    let trigger: String
-}
-
-// MARK: - Хинты для нормализации
-
-struct NormalizationHints: Equatable {
-    let personalDictionary: [String: String]
-    let appName: String?
-    let textMode: TextMode
-    let currentDate: Date
-    let snippetContext: SnippetContext?
-
-    init(
-        personalDictionary: [String: String] = [:],
-        appName: String? = nil,
-        textMode: TextMode = .universal,
-        currentDate: Date = Date(),
-        snippetContext: SnippetContext? = nil
-    ) {
-        self.personalDictionary = personalDictionary
-        self.appName = appName
-        self.textMode = textMode
-        self.currentDate = currentDate
-        self.snippetContext = snippetContext
-    }
+    static let slangExpansions: [(slang: String, full: String)] = [
+        ("норм", "нормально"),
+        ("спс", "спасибо"),
+        ("ок", "хорошо"),
+        ("чё", "что"),
+        ("щас", "сейчас"),
+        ("инфа", "информация"),
+        ("комп", "компьютер"),
+        ("прога", "программа"),
+        ("чел", "человек"),
+        ("оч", "очень"),
+        ("пож", "пожалуйста"),
+        ("тел", "телефон"),
+        ("мб", "может быть"),
+        ("плз", "пожалуйста"),
+        ("ладн", "ладно"),
+        ("темп", "температура"),
+        ("инет", "интернет"),
+    ]
 }

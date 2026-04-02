@@ -29,12 +29,12 @@ final class MockSTTClient: STTClient, @unchecked Sendable {
 final class MockLLMClient: LLMClient, @unchecked Sendable {
     var normalizeResult: String?
     var normalizeError: Error?
-    private(set) var normalizeCalls: [(text: String, mode: TextMode, hints: NormalizationHints)] = []
+    private(set) var normalizeCalls: [(text: String, superStyle: SuperTextStyle, hints: NormalizationHints)] = []
     private let lock = NSLock()
 
-    func normalize(_ text: String, mode: TextMode, hints: NormalizationHints) async throws -> String {
+    func normalize(_ text: String, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
         lock.lock()
-        normalizeCalls.append((text, mode, hints))
+        normalizeCalls.append((text, superStyle, hints))
         lock.unlock()
 
         if let error = normalizeError {

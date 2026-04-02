@@ -19,14 +19,14 @@ struct SettingsView: View {
                     switch selectedSection {
                     case .general:
                         GeneralSettingsContent()
-                    case .appModes:
-                        AppModeSettingsView()
                     case .dictionary:
                         DictionaryView()
                     case .snippets:
                         SnippetListView()
                     case .history:
                         HistoryView()
+                    case .textStyle:
+                        TextStyleSettingsContent(selectedSection: $selectedSection)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

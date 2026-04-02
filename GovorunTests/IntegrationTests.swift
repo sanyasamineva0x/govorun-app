@@ -79,6 +79,11 @@ private func makeTestAppState(
     let settings = SettingsStore(defaults: testDefaults)
     settings.productMode = productMode
 
+    let mockWorkspace = MockWorkspaceProvider()
+    mockWorkspace.bundleId = "com.govorun.test"
+    mockWorkspace.appName = "Test"
+    let appContextEngine = AppContextEngine(workspace: mockWorkspace)
+
     let appState = AppState(
         activationKeyMonitor: ActivationKeyMonitor(
             activationKey: .default,
@@ -90,6 +95,7 @@ private func makeTestAppState(
         textInserter: inserter,
         bottomBar: BottomBarController(),
         audioCapture: AudioCapture(),
+        appContextEngine: appContextEngine,
         modelContainer: modelContainer,
         analytics: analytics,
         superAssetsManager: MockSuperAssetsManager(),

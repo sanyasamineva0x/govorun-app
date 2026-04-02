@@ -111,7 +111,6 @@ final class AppState: ObservableObject {
         accessibility: AccessibilityProviding = SystemAccessibilityProvider(),
         clipboard: ClipboardProviding = SystemClipboardProvider(),
         workspace: WorkspaceProviding = NSWorkspaceProvider(),
-        modeOverrides: AppModeOverriding = UserDefaultsAppModeOverrides(),
         soundPlayer: SoundPlaying = SystemSoundPlayer(),
         analytics: AnalyticsEmitting? = nil
     ) {
@@ -179,10 +178,7 @@ final class AppState: ObservableObject {
         bottomBar = BottomBarController()
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
-        appContextEngine = AppContextEngine(
-            workspace: workspace,
-            modeOverrides: modeOverrides
-        )
+        appContextEngine = AppContextEngine(workspace: workspace)
         self.soundPlayer = soundPlayer
         if let analytics {
             self.analytics = analytics
@@ -252,8 +248,7 @@ final class AppState: ObservableObject {
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
         self.appContextEngine = appContextEngine ?? AppContextEngine(
-            workspace: NSWorkspaceProvider(),
-            modeOverrides: UserDefaultsAppModeOverrides()
+            workspace: NSWorkspaceProvider()
         )
         self.soundPlayer = soundPlayer
         snippetEngine = SnippetEngine()
@@ -562,7 +557,10 @@ final class AppState: ObservableObject {
 
     private func wireSettingsChange() {
         settingsCancellable = settings.objectWillChange.sink { [weak self] _ in
-            Task { @MainActor [weak self] in self?.handleSettingsChanged() }
+            Task { @MainActor [weak self] in
+                self?.objectWillChange.send()
+                self?.handleSettingsChanged()
+            }
         }
     }
 
@@ -838,24 +836,37 @@ final class AppState: ObservableObject {
         currentAppContext = context
         let dictionary = loadDictionaryHints()
 
-        pipelineEngine.textMode = context.textMode
-        pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+        let effectiveProductMode = (currentProductMode.usesLLM && superAssetsState != .installed)
             ? .standard
             : currentProductMode
+        pipelineEngine.productMode = effectiveProductMode
+        pipelineEngine.superStyle = effectiveProductMode == .superMode
+            ? SuperStyleEngine.resolve(
+                bundleId: context.bundleId,
+                mode: settings.superStyleMode,
+                manualStyle: settings.manualSuperStyle
+            )
+            : nil
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
             personalDictionary: dictionary.llmReplacements,
-            appName: context.appName,
-            textMode: context.textMode
+            appName: context.appName
         )
 
         Task {
-            await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: [
+            var startMetadata = [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
-                AnalyticsMetadataKey.textMode: context.textMode.rawValue,
-            ])
+                AnalyticsMetadataKey.effectiveStyle: pipelineEngine.superStyle?.rawValue ?? "none",
+            ]
+            if pipelineEngine.productMode.usesLLM {
+                startMetadata[AnalyticsMetadataKey.styleSelectionMode] = settings.superStyleMode.rawValue
+            }
+            if currentProductMode != effectiveProductMode {
+                startMetadata[AnalyticsMetadataKey.productModeDowngraded] = "true"
+            }
+            await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: startMetadata)
         }
 
         do {
@@ -1023,6 +1034,7 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.cleanTextLengthChars: "\(result.normalizedText.count)",
+                AnalyticsMetadataKey.effectiveStyle: result.superStyle?.rawValue ?? "none",
             ]
             if let gateFailureReason = result.gateFailureReason {
                 metadata[AnalyticsMetadataKey.gateFailureReason] = gateFailureReason.analyticsValue
@@ -1036,6 +1048,7 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.normalizationLatencyMs: "\(result.llmLatencyMs)",
                 AnalyticsMetadataKey.errorType: AnalyticsErrorType.normalizationApi.rawValue,
+                AnalyticsMetadataKey.effectiveStyle: result.superStyle?.rawValue ?? "none",
             ]
             if let snippetFallbackReason = result.snippetFallbackReason {
                 metadata[AnalyticsMetadataKey.fallbackUsed] = snippetFallbackReason.analyticsValue

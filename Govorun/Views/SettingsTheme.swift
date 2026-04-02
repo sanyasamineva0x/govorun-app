@@ -19,45 +19,45 @@ extension Color {
 
 enum SettingsSection: String, Identifiable {
     case general
-    case appModes // Скрыт до Фазы 5 (LocalLLMClient) — TextMode без LLM не работает
     case dictionary
     case snippets
     case history
+    case textStyle
 
     var id: String {
         rawValue
     }
 
-    /// Секции видимые в UI (appModes скрыт до Фазы 5)
-    static let visibleCases: [SettingsSection] = [.general, .dictionary, .snippets, .history]
+    /// Секции видимые в UI
+    static let visibleCases: [SettingsSection] = [.general, .textStyle, .dictionary, .snippets, .history]
 
     var title: String {
         switch self {
         case .general: "Основные"
-        case .appModes: "Приложения"
         case .dictionary: "Словарь"
         case .snippets: "Команды"
         case .history: "История"
+        case .textStyle: "Стиль текста"
         }
     }
 
     var subtitle: String {
         switch self {
         case .general: "Основные настройки Говоруна"
-        case .appModes: "Настройка режимов для конкретных приложений"
         case .dictionary: "Слова для точного распознавания"
         case .snippets: "Голосовые команды для быстрой вставки текста"
         case .history: "История ваших записей"
+        case .textStyle: "Настройка стиля для Супер-режима"
         }
     }
 
     var icon: String {
         switch self {
         case .general: "gearshape"
-        case .appModes: "app.badge"
         case .dictionary: "character.book.closed"
         case .snippets: "text.bubble"
         case .history: "clock.arrow.circlepath"
+        case .textStyle: "textformat"
         }
     }
 }

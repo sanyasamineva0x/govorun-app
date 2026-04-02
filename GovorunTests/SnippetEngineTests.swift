@@ -508,12 +508,12 @@ final class SnippetStoreTests: XCTestCase {
     }
 }
 
-// MARK: - TextMode Snippet Prompt тесты
+// MARK: - SuperTextStyle Snippet Prompt тесты
 
-final class TextModeSnippetPromptTests: XCTestCase {
+final class SuperTextStyleSnippetPromptTests: XCTestCase {
     func test_systemPrompt_includes_snippet_placeholder_block() {
         let ctx = SnippetContext(trigger: "мой адрес")
-        let prompt = TextMode.universal.systemPrompt(
+        let prompt = SuperTextStyle.normal.systemPrompt(
             currentDate: Date(),
             snippetContext: ctx
         )
@@ -523,7 +523,7 @@ final class TextModeSnippetPromptTests: XCTestCase {
     }
 
     func test_systemPrompt_without_snippet_has_no_substitution_block() {
-        let prompt = TextMode.universal.systemPrompt(currentDate: Date())
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: Date())
         XCTAssertFalse(prompt.contains("ПОДСТАНОВКА"))
         XCTAssertFalse(prompt.contains("[[[GOVORUN_SNIPPET]]]"))
     }

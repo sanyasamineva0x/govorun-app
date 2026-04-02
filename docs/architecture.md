@@ -70,7 +70,7 @@ Govorun/
 ├── Models/
 │   ├── ActivationKey.swift
 │   ├── RecordingMode.swift        # pushToTalk / toggle
-│   ├── TextMode.swift             # universal/chat/email/document/note/code + prompt generation
+│   ├── SuperTextStyle.swift        # relaxed/normal/formal + styleBlock + systemPrompt
 │   ├── ProductMode.swift          # standard / superMode
 │   ├── SuperModelDownloadSpec.swift  # Spec для скачивания (url, SHA256, size)
 │   ├── SuperModelDownloadState.swift # State machine скачивания + ошибки
@@ -94,11 +94,11 @@ Govorun/
 │   ├── DictionaryView.swift
 │   ├── SnippetListView.swift
 │   ├── OnboardingView.swift
-│   └── AppModeSettingsView.swift
+│   └── TextStyleSettingsView.swift  # Авто/ручной, карточки стилей
 └── Resources/
     ├── Assets.xcassets
     └── Sounds/
-GovorunTests/                      # 986 тестов
+GovorunTests/                      # 1061 тестов
 worker/                            # Python ASR worker
 ├── server.py
 ├── requirements.txt

@@ -22,7 +22,7 @@ final class HistoryStore {
             sessionId: result.sessionId,
             rawTranscript: result.rawTranscript,
             normalizedText: result.normalizedText,
-            textMode: result.textMode.rawValue,
+            textMode: result.superStyle?.rawValue ?? "none",
             appName: appContext.appName.isEmpty ? nil : appContext.appName,
             normalizationPath: result.normalizationPath.rawValue,
             sttLatencyMs: result.sttLatencyMs,
