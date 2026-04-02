@@ -202,5 +202,27 @@
                    sparkle:edSignature="mKgMCi1zn+2PEXYpMKS80fUb5Ew3IyFupp9wo7qsZJ4cYgWM9bNaiobBceKoCQldHiNha5seOEenPjHNayPABg=="
                    length="165072893" />
       </item>
+<item>
+        <title>Version 0.2.1</title>
+        <pubDate>Thu, 02 Apr 2026 23:15:15 +0000</pubDate>
+        <sparkle:version>1</sparkle:version>
+        <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[## Новое
+В Супер-режиме появилось три стиля: **Деловой,** **Обычный** и **Расслабленный**. 
+
+Вы можете включить авторежим: тогда Говорун сам подберет режим под приложение в котором вы работаете. Либо выбрать режим самостоятельно в настройках приложения.
+
+
+## Удалено
+- TextMode и вся его инфраструктура (523 строки)
+
+---
+78 коммитов · 33 Swift файла · 1064 теста]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.1/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="i7jgxvXiEv/uvUvR4Ap4wHDTny2H9g88l2e0iPvGyomE2w1ByEdeuhe372GNGokQzf88GZ38VXR3SDYMgwQ0Cg=="
+                   length="165101526" />
+      </item>
   </channel>
 </rss>
