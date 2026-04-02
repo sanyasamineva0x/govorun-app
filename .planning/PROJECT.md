@@ -31,9 +31,9 @@
 - [ ] Postflight: стиль владеет точкой
 - [ ] Удаление TextMode и всей инфраструктуры (AppModeOverriding, UserDefaultsAppModeOverrides, AppModeSettingsView)
 - [x] Переезд типов: SnippetPlaceholder, SnippetContext, NormalizationHints в отдельные файлы — Validated in Phase 02: type-extraction
-- [ ] LLMClient.normalize() новая сигнатура (superStyle вместо mode)
+- [x] LLMClient.normalize() новая сигнатура (superStyle вместо mode) — Validated in Phase 03: pipeline-integration
 - [ ] AppContextEngine без textMode
-- [ ] PipelineResult.superStyle вместо textMode
+- [x] PipelineResult.superStyle вместо textMode — Validated in Phase 03: pipeline-integration
 - [ ] SettingsStore: superStyleMode + manualSuperStyle вместо defaultTextMode
 - [ ] HistoryStore/HistoryItem миграция на superStyle
 - [ ] Аналитика: effective_style, style_selection_mode
@@ -92,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-30 after Phase 02 completion*
+*Last updated: 2026-03-30 after Phase 03 completion*

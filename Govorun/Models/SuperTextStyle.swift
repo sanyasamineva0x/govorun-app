@@ -35,9 +35,9 @@ extension SuperTextStyle {
 
     var displayName: String {
         switch self {
-        case .relaxed: "Расслабленный"
-        case .normal: "Обычный"
-        case .formal: "Формальный"
+        case .relaxed: "😌 Расслабленный"
+        case .normal: "✏️ Обычный"
+        case .formal: "👔 Деловой"
         }
     }
 
@@ -50,9 +50,9 @@ extension SuperTextStyle {
 
     var cardDescription: String {
         switch self {
-        case .relaxed: "Как в мессенджере — строчные буквы, бренды кириллицей, без точки"
-        case .normal: "Стандартный — заглавная буква, бренды оригинальные, без точки"
-        case .formal: "Деловой — заглавная буква, бренды оригинальные, сленг раскрыт, точка в конце"
+        case .relaxed: "Чат с друзьями, заметки и дневники"
+        case .normal: "Режим на каждый день"
+        case .formal: "Почта, рабочая переписка, документы"
         }
     }
 

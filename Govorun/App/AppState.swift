@@ -557,7 +557,10 @@ final class AppState: ObservableObject {
 
     private func wireSettingsChange() {
         settingsCancellable = settings.objectWillChange.sink { [weak self] _ in
-            Task { @MainActor [weak self] in self?.handleSettingsChanged() }
+            Task { @MainActor [weak self] in
+                self?.objectWillChange.send()
+                self?.handleSettingsChanged()
+            }
         }
     }
 
