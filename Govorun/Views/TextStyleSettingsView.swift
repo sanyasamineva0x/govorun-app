@@ -95,12 +95,10 @@ private struct StyleCard: View {
 
                 Spacer()
 
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.cottonCandy)
-                        .font(.title3)
-                        .transition(.scale.combined(with: .opacity))
-                }
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.cottonCandy)
+                    .font(.title3)
+                    .opacity(isSelected ? 1 : 0)
             }
             .settingsCard()
             .contentShape(Rectangle())

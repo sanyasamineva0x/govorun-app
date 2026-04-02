@@ -58,6 +58,15 @@ final class SuperStyleEngineTests: XCTestCase {
         XCTAssertEqual(style, .relaxed)
     }
 
+    func test_auto_mode_returns_relaxed_for_slack() {
+        let style = SuperStyleEngine.resolve(
+            bundleId: "com.tinyspeck.slackmacgap",
+            mode: .auto,
+            manualStyle: .normal
+        )
+        XCTAssertEqual(style, .relaxed)
+    }
+
     // MARK: - Авто: почта -> formal
 
     func test_auto_mode_returns_formal_for_apple_mail() {
