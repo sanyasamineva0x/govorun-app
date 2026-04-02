@@ -82,10 +82,7 @@ private func makeTestAppState(
     let mockWorkspace = MockWorkspaceProvider()
     mockWorkspace.bundleId = "com.govorun.test"
     mockWorkspace.appName = "Test"
-    let appContextEngine = AppContextEngine(
-        workspace: mockWorkspace,
-        modeOverrides: MockAppModeOverrides()
-    )
+    let appContextEngine = AppContextEngine(workspace: mockWorkspace)
 
     let appState = AppState(
         activationKeyMonitor: ActivationKeyMonitor(
