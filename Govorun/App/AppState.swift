@@ -111,7 +111,6 @@ final class AppState: ObservableObject {
         accessibility: AccessibilityProviding = SystemAccessibilityProvider(),
         clipboard: ClipboardProviding = SystemClipboardProvider(),
         workspace: WorkspaceProviding = NSWorkspaceProvider(),
-        modeOverrides: AppModeOverriding = UserDefaultsAppModeOverrides(),
         soundPlayer: SoundPlaying = SystemSoundPlayer(),
         analytics: AnalyticsEmitting? = nil
     ) {
@@ -179,10 +178,7 @@ final class AppState: ObservableObject {
         bottomBar = BottomBarController()
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
-        appContextEngine = AppContextEngine(
-            workspace: workspace,
-            modeOverrides: modeOverrides
-        )
+        appContextEngine = AppContextEngine(workspace: workspace)
         self.soundPlayer = soundPlayer
         if let analytics {
             self.analytics = analytics
@@ -252,8 +248,7 @@ final class AppState: ObservableObject {
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
         self.appContextEngine = appContextEngine ?? AppContextEngine(
-            workspace: NSWorkspaceProvider(),
-            modeOverrides: UserDefaultsAppModeOverrides()
+            workspace: NSWorkspaceProvider()
         )
         self.soundPlayer = soundPlayer
         snippetEngine = SnippetEngine()
@@ -859,7 +854,6 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
                 AnalyticsMetadataKey.detectedAppBundle: context.bundleId,
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
-                AnalyticsMetadataKey.textMode: context.textMode.rawValue,
                 AnalyticsMetadataKey.effectiveStyle: superStyle.rawValue,
             ]
             if pipelineEngine.productMode.usesLLM {
