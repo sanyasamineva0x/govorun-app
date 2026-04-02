@@ -7,15 +7,6 @@ enum LLMOutputContract: Equatable {
     case rewriting
 }
 
-extension TextMode {
-    /// Пока в продукте нет отдельного пользовательского режима
-    /// «как сказал / чисто / формально», все app-aware режимы идут
-    /// через контракт нормализации. Rewriting останется для следующего этапа.
-    var llmOutputContract: LLMOutputContract {
-        .normalization
-    }
-}
-
 // MARK: - Результат gate
 
 enum NormalizationGateFailureReason: Equatable {
