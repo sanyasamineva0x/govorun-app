@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-04-02T16:47:19.108Z"
-last_activity: 2026-04-02
+status: complete
+stopped_at: Completed 09-02-PLAN.md — all phases done
+last_updated: "2026-04-02T20:07:00.000Z"
+last_activity: 2026-04-02 -- Phase 09 plan 02 executed (test cleanup)
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 8
-  percent: 60
+  completed_phases: 9
+  total_plans: 14
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Стиль текста адаптируется к контексту -- расслабленный в мессенджерах, формальный в почте, обычный везде остальном
-**Current focus:** Phase 08 — ui
+**Current focus:** All phases complete — TextMode fully deleted
 
 ## Current Position
 
-Phase: 08 (ui) — EXECUTING
+Phase: 09 (textmode-deletion) — COMPLETE
 Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-04-02
+Status: All phases complete — milestone ready for verification
+Last activity: 2026-04-02 -- Phase 09 plan 02 executed (test cleanup)
 
-Progress: [######....] 60%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [######....] 60%
 | Phase 08 P01 | 2m | 2 tasks | 4 files |
 | Phase 08-ui P02 | 3m | 2 tasks | 2 files |
 | Phase 09 P01 | 23min | 7 tasks | 8 files |
+| Phase 09 P02 | 5min | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Recent decisions affecting current work:
 - [Phase 08]: Placeholder Text view в SettingsView.swift для textStyle case — Exhaustive switch requirement -- Plan 02 заменит на TextStyleSettingsContent
 - [Phase 08-ui]: xcodegen regeneration needed after creating new Swift file — Standard step when adding files to XcodeGen-based project
 - [Phase 09]: NSWorkspaceProvider consolidated into AppContextEngine.swift with canImport(Cocoa) guard — Core/ layer must not unconditionally import AppKit; canImport guard keeps the class accessible in macOS target while respecting architecture
+- [Phase 09-02]: No SwiftData migration — HistoryItem.textMode remains String column storing style name
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T16:46:42.820Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-04-02T20:07:00.000Z
+Stopped at: Completed 09-02-PLAN.md — all phases done
 Resume file: None
