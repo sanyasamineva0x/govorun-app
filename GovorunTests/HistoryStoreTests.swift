@@ -40,7 +40,7 @@ final class HistoryStoreTests: XCTestCase {
         appName: String = "Telegram",
         bundleId: String = "ru.keepcoder.Telegram"
     ) -> AppContext {
-        AppContext(bundleId: bundleId, appName: appName, textMode: .chat)
+        AppContext(bundleId: bundleId, appName: appName)
     }
 
     // MARK: - 1. Сохранение и чтение
@@ -176,7 +176,7 @@ final class HistoryStoreTests: XCTestCase {
             insertionLatencyMs: 0,
             totalLatencyMs: 0
         )
-        try store.save(result, appContext: AppContext(bundleId: "", appName: "", textMode: .universal))
+        try store.save(result, appContext: AppContext(bundleId: "", appName: ""))
         let items = try store.recent()
         XCTAssertEqual(items.first?.wordCount, 3)
     }
