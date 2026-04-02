@@ -29,10 +29,10 @@
 
 ### Pipeline интеграция (PIPE)
 
-- [ ] **PIPE-01**: LLMClient.normalize(_:superStyle:hints:) — одна сигнатура, не перегрузка
-- [ ] **PIPE-02**: LocalLLMClient использует SuperTextStyle.systemPrompt() для LLM запроса
-- [ ] **PIPE-03**: PipelineEngine хранит _superStyle: SuperTextStyle? вместо _textMode
-- [ ] **PIPE-04**: PipelineResult.superStyle: SuperTextStyle? вместо textMode: TextMode
+- [x] **PIPE-01**: LLMClient.normalize(_:superStyle:hints:) — одна сигнатура, не перегрузка
+- [x] **PIPE-02**: LocalLLMClient использует SuperTextStyle.systemPrompt() для LLM запроса
+- [x] **PIPE-03**: PipelineEngine хранит _superStyle: SuperTextStyle? вместо _textMode
+- [x] **PIPE-04**: PipelineResult.superStyle: SuperTextStyle? вместо textMode: TextMode
 
 ### Gate модернизация (GATE)
 
@@ -119,10 +119,10 @@
 | EXTRACT-01 | Phase 2 | Complete |
 | EXTRACT-02 | Phase 2 | Complete |
 | EXTRACT-03 | Phase 2 | Complete |
-| PIPE-01 | Phase 3 | Pending |
-| PIPE-02 | Phase 3 | Pending |
-| PIPE-03 | Phase 3 | Pending |
-| PIPE-04 | Phase 3 | Pending |
+| PIPE-01 | Phase 3 | Complete |
+| PIPE-02 | Phase 3 | Complete |
+| PIPE-03 | Phase 3 | Complete |
+| PIPE-04 | Phase 3 | Complete |
 | GATE-01 | Phase 4 | Complete |
 | GATE-02 | Phase 4 | Complete |
 | GATE-03 | Phase 4 | Complete |
