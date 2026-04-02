@@ -19,8 +19,6 @@ struct SettingsView: View {
                     switch selectedSection {
                     case .general:
                         GeneralSettingsContent()
-                    case .appModes:
-                        AppModeSettingsView()
                     case .dictionary:
                         DictionaryView()
                     case .snippets:
