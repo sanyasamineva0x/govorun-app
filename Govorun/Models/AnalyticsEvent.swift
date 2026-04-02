@@ -54,7 +54,6 @@ enum AnalyticsErrorType: String {
 
 enum AnalyticsMetadataKey {
     static let appBundleId = "app_bundle_id"
-    static let textMode = "text_mode"
     static let productMode = "product_mode"
     static let language = "language"
     static let normalizationPath = "normalization_path"
