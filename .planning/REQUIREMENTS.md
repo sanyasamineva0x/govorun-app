@@ -69,10 +69,10 @@
 
 ### Удаление TextMode (DELETE)
 
-- [ ] **DELETE-01**: Удалены файлы TextMode.swift и AppModeSettingsView.swift
-- [ ] **DELETE-02**: Удалены AppModeOverriding протокол и UserDefaultsAppModeOverrides класс
-- [ ] **DELETE-03**: AppContextEngine: AppContext без textMode, удалены defaultAppModes и resolveTextMode()
-- [ ] **DELETE-04**: AppState: убран TextMode из handleActivated
+- [x] **DELETE-01**: Удалены файлы TextMode.swift и AppModeSettingsView.swift
+- [x] **DELETE-02**: Удалены AppModeOverriding протокол и UserDefaultsAppModeOverrides класс
+- [x] **DELETE-03**: AppContextEngine: AppContext без textMode, удалены defaultAppModes и resolveTextMode()
+- [x] **DELETE-04**: AppState: убран TextMode из handleActivated
 
 ### Тестирование (TEST)
 
@@ -141,10 +141,10 @@
 | UI-02 | Phase 8 | Complete |
 | UI-03 | Phase 8 | Complete |
 | UI-04 | Phase 8 | Complete |
-| DELETE-01 | Phase 9 | Pending |
-| DELETE-02 | Phase 9 | Pending |
-| DELETE-03 | Phase 9 | Pending |
-| DELETE-04 | Phase 9 | Pending |
+| DELETE-01 | Phase 9 | Complete |
+| DELETE-02 | Phase 9 | Complete |
+| DELETE-03 | Phase 9 | Complete |
+| DELETE-04 | Phase 9 | Complete |
 | TEST-01 | Phase 1 | Complete |
 | TEST-02 | Phase 1 | Complete |
 | TEST-03 | Phase 6 | Complete |

@@ -151,10 +151,11 @@ Plans:
   3. AppContextEngine: AppContext не содержит textMode, методы defaultAppModes и resolveTextMode() удалены
   4. AppState: TextMode не упоминается в handleActivated
   5. Проект компилируется, все тесты проходят без ссылок на TextMode
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: TBD
+- [x] 09-01-PLAN.md -- Delete TextMode files + surgical production edits
+- [ ] 09-02-PLAN.md -- Test file cleanup and migration
 
 ## Progress
 
@@ -171,4 +172,4 @@ Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 -->
 | 6. Settings & Data | 1/1 | Complete | 2026-04-01 |
 | 7. Analytics | 1/1 | Complete | 2026-04-01 |
 | 8. UI | 0/2 | Not started | - |
-| 9. TextMode Deletion | 0/1 | Not started | - |
+| 9. TextMode Deletion | 1/2 | In Progress | - |
