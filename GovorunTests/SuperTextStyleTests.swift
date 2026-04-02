@@ -2,7 +2,6 @@
 import XCTest
 
 final class SuperTextStyleTests: XCTestCase {
-
     // MARK: - Enum cases
 
     func test_has_exactly_three_cases() {
@@ -45,15 +44,15 @@ final class SuperTextStyleTests: XCTestCase {
     // MARK: - displayName
 
     func test_display_name_relaxed() {
-        XCTAssertEqual(SuperTextStyle.relaxed.displayName, "Расслабленный")
+        XCTAssertEqual(SuperTextStyle.relaxed.displayName, "😌 Расслабленный")
     }
 
     func test_display_name_normal() {
-        XCTAssertEqual(SuperTextStyle.normal.displayName, "Обычный")
+        XCTAssertEqual(SuperTextStyle.normal.displayName, "✏️ Обычный")
     }
 
     func test_display_name_formal() {
-        XCTAssertEqual(SuperTextStyle.formal.displayName, "Формальный")
+        XCTAssertEqual(SuperTextStyle.formal.displayName, "👔 Деловой")
     }
 
     // MARK: - applyDeterministic
@@ -190,7 +189,7 @@ final class SuperTextStyleTests: XCTestCase {
 
     private var fixedDate: Date {
         var components = DateComponents()
-        components.year = 2025
+        components.year = 2_025
         components.month = 1
         components.day = 1
         return Calendar(identifier: .gregorian).date(from: components)!
@@ -275,21 +274,21 @@ final class SuperTextStyleTests: XCTestCase {
     func test_card_description_relaxed() {
         XCTAssertEqual(
             SuperTextStyle.relaxed.cardDescription,
-            "Как в мессенджере — строчные буквы, бренды кириллицей, без точки"
+            "Чат с друзьями, заметки и дневники"
         )
     }
 
     func test_card_description_normal() {
         XCTAssertEqual(
             SuperTextStyle.normal.cardDescription,
-            "Стандартный — заглавная буква, бренды оригинальные, без точки"
+            "Режим на каждый день"
         )
     }
 
     func test_card_description_formal() {
         XCTAssertEqual(
             SuperTextStyle.formal.cardDescription,
-            "Деловой — заглавная буква, бренды оригинальные, сленг раскрыт, точка в конце"
+            "Почта, рабочая переписка, документы"
         )
     }
 

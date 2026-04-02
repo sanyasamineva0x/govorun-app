@@ -836,15 +836,17 @@ final class AppState: ObservableObject {
         currentAppContext = context
         let dictionary = loadDictionaryHints()
 
-        let superStyle = SuperStyleEngine.resolve(
-            bundleId: context.bundleId,
-            mode: settings.superStyleMode,
-            manualStyle: settings.manualSuperStyle
-        )
-        pipelineEngine.superStyle = superStyle
-        pipelineEngine.productMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+        let effectiveProductMode = (currentProductMode.usesLLM && superAssetsState != .installed)
             ? .standard
             : currentProductMode
+        pipelineEngine.productMode = effectiveProductMode
+        pipelineEngine.superStyle = effectiveProductMode == .superMode
+            ? SuperStyleEngine.resolve(
+                bundleId: context.bundleId,
+                mode: settings.superStyleMode,
+                manualStyle: settings.manualSuperStyle
+            )
+            : nil
         pipelineEngine.terminalPeriodEnabled = settings.terminalPeriodEnabled
         pipelineEngine.saveAudioHistory = settings.saveAudioHistory
         pipelineEngine.hints = NormalizationHints(
@@ -857,7 +859,7 @@ final class AppState: ObservableObject {
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
                 AnalyticsMetadataKey.detectedAppBundle: context.bundleId,
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
-                AnalyticsMetadataKey.effectiveStyle: superStyle.rawValue,
+                AnalyticsMetadataKey.effectiveStyle: pipelineEngine.superStyle?.rawValue ?? "none",
             ]
             if pipelineEngine.productMode.usesLLM {
                 startMetadata[AnalyticsMetadataKey.styleSelectionMode] = settings.superStyleMode.rawValue

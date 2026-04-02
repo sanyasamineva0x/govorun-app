@@ -399,10 +399,8 @@ final class PipelineEngine: @unchecked Sendable {
         if let snippetEngine, let snippetMatch = snippetEngine.match(correctedTranscript) {
             switch snippetMatch.kind {
             case .standalone:
-                let snippetPeriod = effectiveTerminalPeriod
-                    ? snippetMatch.content
-                    : DeterministicNormalizer.stripTrailingPeriods(snippetMatch.content)
-                let snippetOutput = currentSuperStyle?.applyDeterministic(snippetPeriod) ?? snippetPeriod
+                // Standalone сниппеты — литеральный контент, без мутаций
+                let snippetOutput = snippetMatch.content
                 let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
                 return PipelineResult(
                     sessionId: sessionId,

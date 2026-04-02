@@ -10,6 +10,7 @@ enum SuperStyleEngine {
         "com.vk.messenger",
         "com.apple.MobileSMS",
         "com.hnc.Discord",
+        "com.tinyspeck.slackmacgap",
     ]
 
     private static let mailBundleIds: Set<String> = [
