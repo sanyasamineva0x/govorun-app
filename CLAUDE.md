@@ -109,11 +109,13 @@ LLM параметры: temperature=0, max_tokens=128, stop=["\n\n"], llama-serv
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**Стили текста v2**
+**Стили текста v2 (shipped v1.0)**
 
-Замена системы TextMode на SuperTextStyle — три уровня формальности (relaxed/normal/formal) с глобальным переключателем авто/ручной для Говорун Super. Удаление TextMode и всей его инфраструктуры. Фича затрагивает модели, pipeline, gate, UI, аналитику и тесты.
+SuperTextStyle (relaxed/normal/formal) заменила TextMode. SuperStyleEngine определяет стиль по bundleId в авто-режиме. Вкладка "Стиль текста" в menubar с авто/ручной. TextMode полностью удалён.
 
 **Core Value:** Стиль текста адаптируется к контексту — расслабленный в мессенджерах, формальный в почте, обычный везде остальном. Одна точка настройки вместо per-app оверрайдов.
+
+**Known limitation:** applyDeterministic (trivial/snippet/fallback paths) — только caps, без brand aliases и slang expansion. Однословные бренды/сленг не доходят до LLM (isTrivial gate). Scope для v2.
 
 ### Constraints
 
@@ -354,7 +356,7 @@ LLM параметры: temperature=0, max_tokens=128, stop=["\n\n"], llama-serv
 | `AnalyticsEmitting` | `Core/AnalyticsEmitting.swift` | `AnalyticsService` (actor), `NoOpAnalyticsService` |
 | `AccessibilityProviding` | `Core/TextInserter.swift` | `SystemAccessibilityProvider` |
 | `ClipboardProviding` | `Core/TextInserter.swift` | `SystemClipboardProvider` |
-| `WorkspaceProviding` | `Core/AppContextEngine.swift` | `NSWorkspaceProvider` |
+| `WorkspaceProviding` | `Core/AppContextEngine.swift` | `NSWorkspaceProvider` (inline) |
 | `SoundPlaying` | `Core/SoundManager.swift` | `SystemSoundPlayer`, `MuteSoundPlayer` |
 | `PostInsertionMonitoring` | `Core/PostInsertionMonitor.swift` | `PostInsertionMonitor` |
 ## Concurrency модель
@@ -363,10 +365,12 @@ LLM параметры: temperature=0, max_tokens=128, stop=["\n\n"], llama-serv
 - `@unchecked Sendable` + `NSLock` — PipelineEngine, ASRWorkerManager, LocalLLMClient, SnippetEngine, TextInserterEngine (ручная синхронизация для thread-safe доступа к mutable state)
 - `async/await` — всё IPC и HTTP; никаких completion handlers
 - Swift strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`)
-## AppContextEngine (TextMode detection)
-- hardcoded маппинг 15 приложений (Telegram→chat, Mail→email, Xcode→code, ...)
-- пользовательские overrides через `UserDefaults` (`AppModeOverriding` протокол)
-- `TextMode` определяет system prompt для LLM нормализации
+## AppContextEngine (bundleId detection)
+- `detectCurrentApp()` возвращает `AppContext(bundleId, appName)` через NSWorkspace
+- `SuperStyleEngine.resolve(bundleId:mode:manualStyle:)` определяет стиль по bundleId в авто-режиме
+- Мессенджеры (Telegram, WhatsApp, Viber, VK, iMessage, Discord, Slack) → relaxed
+- Почта (Mail, Spark, Outlook) → formal
+- Всё остальное → normal
 ## LLM Runtime (Говорун Super)
 ## Analytics
 - zero-edit rate (§6.1)
