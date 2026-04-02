@@ -229,6 +229,18 @@ final class SuperTextStyleTests: XCTestCase {
         XCTAssertTrue(prompt.contains("тест→Тест"))
     }
 
+    func test_base_prompt_does_not_mandate_capitalization() {
+        let prompt = SuperTextStyle.basePrompt(currentDate: fixedDate)
+        XCTAssertFalse(
+            prompt.contains("ВСЕГДА заглавная"),
+            "basePrompt не должен содержать caps mandate — регистр задаётся стилевым блоком"
+        )
+        XCTAssertFalse(
+            prompt.contains("ЗАГЛАВНАЯ буква в начале предложения — ОБЯЗАТЕЛЬНО"),
+            "basePrompt не должен содержать caps mandate — регистр задаётся стилевым блоком"
+        )
+    }
+
     // MARK: - systemPrompt
 
     func test_system_prompt_contains_base_prompt() {

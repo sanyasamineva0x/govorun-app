@@ -70,7 +70,7 @@ enum AnalyticsMetadataKey {
     static let gateFailureReason = "gate_failure_reason"
     static let effectiveStyle = "effective_style"
     static let styleSelectionMode = "style_selection_mode"
-    static let detectedAppBundle = "detected_app_bundle"
+    static let productModeDowngraded = "product_mode_downgraded"
 }
 
 // MARK: - SwiftData модель

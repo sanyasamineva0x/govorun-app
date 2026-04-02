@@ -857,12 +857,14 @@ final class AppState: ObservableObject {
         Task {
             var startMetadata = [
                 AnalyticsMetadataKey.appBundleId: context.bundleId,
-                AnalyticsMetadataKey.detectedAppBundle: context.bundleId,
                 AnalyticsMetadataKey.productMode: pipelineEngine.productMode.rawValue,
                 AnalyticsMetadataKey.effectiveStyle: pipelineEngine.superStyle?.rawValue ?? "none",
             ]
             if pipelineEngine.productMode.usesLLM {
                 startMetadata[AnalyticsMetadataKey.styleSelectionMode] = settings.superStyleMode.rawValue
+            }
+            if currentProductMode != effectiveProductMode {
+                startMetadata[AnalyticsMetadataKey.productModeDowngraded] = "true"
             }
             await analytics.emit(.dictationStarted, sessionId: sessionId, metadata: startMetadata)
         }

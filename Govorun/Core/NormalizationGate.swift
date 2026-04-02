@@ -1,12 +1,5 @@
 import Foundation
 
-// MARK: - Контракт выхода LLM
-
-enum LLMOutputContract: Equatable {
-    case normalization
-    case rewriting
-}
-
 // MARK: - Результат gate
 
 enum NormalizationGateFailureReason: Equatable {

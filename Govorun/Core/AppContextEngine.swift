@@ -24,25 +24,9 @@ final class AppContextEngine {
 
     func detectCurrentApp() -> AppContext {
         let (rawBundleId, rawAppName) = workspace.frontmostApp()
-        let bundleId = rawBundleId ?? ""
-        let appName = rawAppName ?? ""
-
         return AppContext(
-            bundleId: bundleId,
-            appName: appName
+            bundleId: rawBundleId ?? "",
+            appName: rawAppName ?? ""
         )
     }
 }
-
-// MARK: - NSWorkspace-реализация WorkspaceProviding
-
-#if canImport(Cocoa)
-import Cocoa
-
-final class NSWorkspaceProvider: WorkspaceProviding {
-    func frontmostApp() -> (bundleId: String?, appName: String?) {
-        let app = NSWorkspace.shared.frontmostApplication
-        return (app?.bundleIdentifier, app?.localizedName)
-    }
-}
-#endif

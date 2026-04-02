@@ -1370,4 +1370,46 @@ final class IsTrivialTests: XCTestCase {
     func test_correction_marker_not_trivial() {
         XCTAssertFalse(NormalizationPipeline.isTrivial("привет точнее"))
     }
+
+    // MARK: - Style gating: standard mode → superStyle nil
+
+    func test_standard_mode_with_nil_style_produces_unaffected_output() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет")
+
+        let (engine, _, _, _) = makePipeline(stt: stt)
+        engine.productMode = .standard
+        engine.superStyle = nil
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertNil(result.superStyle, "standard mode: superStyle nil в результате")
+        XCTAssertEqual(result.normalizationPath, .trivial)
+        XCTAssertTrue(result.normalizedText.hasPrefix("П"), "standard mode: DeterministicNormalizer caps, но не style-driven")
+    }
+
+    // MARK: - Standalone snippet: литеральный контент без мутаций
+
+    func test_standalone_snippet_preserves_lowercase_verbatim() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "мой имейл")
+
+        let snippets = MockSnippetEngine()
+        snippets.configureStandalone("мой имейл", content: "sanya@example.com")
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: MockLLMClient(),
+            snippetEngine: snippets
+        )
+        engine.productMode = .superMode
+        engine.superStyle = .formal
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "sanya@example.com", "standalone snippet не должен мутироваться — ни caps, ни period")
+    }
 }

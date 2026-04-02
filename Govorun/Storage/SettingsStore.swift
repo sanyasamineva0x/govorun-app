@@ -77,9 +77,9 @@ final class SettingsStore: ObservableObject {
 
     var superStyleMode: SuperStyleMode {
         get {
-            guard let raw = defaults.string(forKey: Keys.superStyleMode),
-                  let mode = SuperStyleMode(rawValue: raw)
-            else {
+            guard let raw = defaults.string(forKey: Keys.superStyleMode) else { return .auto }
+            guard let mode = SuperStyleMode(rawValue: raw) else {
+                print("[Govorun] SuperStyleMode: unknown value '\(raw)', using auto")
                 return .auto
             }
             return mode
@@ -92,9 +92,9 @@ final class SettingsStore: ObservableObject {
 
     var manualSuperStyle: SuperTextStyle {
         get {
-            guard let raw = defaults.string(forKey: Keys.manualSuperStyle),
-                  let style = SuperTextStyle(rawValue: raw)
-            else {
+            guard let raw = defaults.string(forKey: Keys.manualSuperStyle) else { return .normal }
+            guard let style = SuperTextStyle(rawValue: raw) else {
+                print("[Govorun] ManualSuperStyle: unknown value '\(raw)', using normal")
                 return .normal
             }
             return style
