@@ -23,23 +23,27 @@
 
 ### Active
 
-- [x] SuperTextStyle enum (relaxed/normal/formal) с styleBlock, systemPrompt, applyDeterministic — Validated in Phase 01: foundation-types
-- [x] SuperStyleEngine: авто (bundleId mapping) и ручной режим — Validated in Phase 01: foundation-types
-- [ ] LLMOutputContract enum (.normalization, .rewriting заглушка)
-- [ ] NormalizationGate с двумя осями (contract + superStyle)
-- [ ] Style-aware protected tokens и edit distance
-- [ ] Postflight: стиль владеет точкой
-- [ ] Удаление TextMode и всей инфраструктуры (AppModeOverriding, UserDefaultsAppModeOverrides, AppModeSettingsView)
-- [x] Переезд типов: SnippetPlaceholder, SnippetContext, NormalizationHints в отдельные файлы — Validated in Phase 02: type-extraction
-- [x] LLMClient.normalize() новая сигнатура (superStyle вместо mode) — Validated in Phase 03: pipeline-integration
-- [ ] AppContextEngine без textMode
-- [x] PipelineResult.superStyle вместо textMode — Validated in Phase 03: pipeline-integration
-- [ ] SettingsStore: superStyleMode + manualSuperStyle вместо defaultTextMode
-- [ ] HistoryStore/HistoryItem миграция на superStyle
-- [ ] Аналитика: effective_style, style_selection_mode
-- [ ] UI: вкладка "Стиль текста" в menubar (авто/ручной, три карточки, состояние без модели)
-- [ ] Миграция всех тестов на SuperTextStyle
-- [ ] Новые тесты: SuperTextStyle, SuperStyleEngine, gate style-aware, postflight
+(Нет активных требований — v1.0 milestone завершён)
+
+### Validated — v1.0 Стили текста v2
+
+- ✓ SuperTextStyle enum (relaxed/normal/formal) — Phase 1
+- ✓ SuperStyleEngine: авто (bundleId) и ручной режим — Phase 1
+- ✓ LLMOutputContract enum (.normalization, .rewriting заглушка) — Phase 1
+- ✓ Переезд типов: SnippetPlaceholder, SnippetContext, NormalizationHints — Phase 2
+- ✓ LLMClient.normalize() новая сигнатура (superStyle) — Phase 3
+- ✓ PipelineResult.superStyle вместо textMode — Phase 3
+- ✓ NormalizationGate с двумя осями (contract + superStyle) — Phase 4
+- ✓ Style-aware protected tokens и edit distance — Phase 4
+- ✓ Postflight: стиль владеет точкой — Phase 5
+- ✓ SettingsStore: superStyleMode + manualSuperStyle — Phase 6
+- ✓ HistoryStore/HistoryItem миграция на superStyle — Phase 6
+- ✓ Аналитика: effective_style, style_selection_mode — Phase 7
+- ✓ UI: вкладка "Стиль текста" в menubar — Phase 8
+- ✓ Удаление TextMode и всей инфраструктуры — Phase 9
+- ✓ AppContextEngine без textMode — Phase 9
+- ✓ Миграция всех тестов на SuperTextStyle — Phase 9
+- ✓ Новые тесты: SuperTextStyle, SuperStyleEngine, gate, postflight — Phases 1-9
 
 ### Out of Scope
 
@@ -70,8 +74,12 @@
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| LLMOutputContract.rewriting как заглушка | Подготовка к 2.5, formal.contract = .normalization пока | — Pending |
-| HistoryItem.textMode без SwiftData migration | String поле, новые значения relaxed/normal/formal/none, legacy не трогаем | — Pending |
+| LLMOutputContract.rewriting как заглушка | Подготовка к 2.5, formal.contract = .normalization пока | ✓ Shipped v1.0 |
+| HistoryItem.textMode без SwiftData migration | String поле, новые значения relaxed/normal/formal/none, legacy не трогаем | ✓ Shipped v1.0 |
+| NSWorkspaceProvider → AppContextEngine | bundleId detection нужен для SuperStyleEngine авто-режима | ✓ Shipped v1.0 |
+
+---
+*Last updated: 2026-04-02 after v1.0 milestone*
 | Удаление TextMode целиком | Breaking change, SuperTextStyle полная замена | — Pending |
 
 ## Evolution
