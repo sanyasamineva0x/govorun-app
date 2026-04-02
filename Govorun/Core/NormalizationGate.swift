@@ -190,7 +190,7 @@ enum NormalizationGate {
 
         let distance = tokenEditDistance(lhs: inputTokens, rhs: outputTokens)
         let denominator = max(max(inputTokens.count, outputTokens.count), 1)
-        let ratio = Double(distance) / Double(denominator)
+        let ratio = Double(distance)/Double(denominator)
         let threshold = editDistanceThreshold(for: inputTokens.count, input: input, style: superStyle)
 
         guard ratio <= threshold else {
@@ -299,9 +299,9 @@ enum NormalizationGate {
 
     private static func aliasLookup(for style: SuperTextStyle?) -> [String: String] {
         switch style {
-        case .relaxed: return relaxedAliasLookup
-        case .formal: return formalAliasLookup
-        case .normal, nil: return [:]
+        case .relaxed: relaxedAliasLookup
+        case .formal: formalAliasLookup
+        case .normal, nil: [:]
         }
     }
 

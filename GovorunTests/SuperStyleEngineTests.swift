@@ -2,7 +2,6 @@
 import XCTest
 
 final class SuperStyleEngineTests: XCTestCase {
-
     // MARK: - Авто: мессенджеры -> relaxed
 
     func test_auto_mode_returns_relaxed_for_telegram() {
