@@ -251,5 +251,17 @@
                    sparkle:edSignature="oLdAypJGepIB+slo0i2zSAtBHBiw37EVSkHzB1lSfSAZd6HmWuAnhqmOr2wFiW1OQj25STr3Igx3fGKq8RcACA=="
                    length="165852730" />
       </item>
+<item>
+        <title>Version 0.2.2</title>
+        <pubDate>Fri, 03 Apr 2026 13:50:38 +0000</pubDate>
+        <sparkle:version>2</sparkle:version>
+        <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[**Full Changelog**: https://github.com/sanyasamineva0x/govorun-app/compare/v0.2.1...v0.2.2]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.2/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="6IV+eedU+yVZwOql/UW7evgzQ1vacOeCyotn+GHnIGeOVFJIzpABMT2Pdb72dF6e7nxjXtJQ20ueLR8+cZ+7CA=="
+                   length="165111003" />
+      </item>
   </channel>
 </rss>
