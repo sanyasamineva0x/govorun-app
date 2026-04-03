@@ -28,7 +28,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
-          BUILD="${VERSION##*.}"
+          BUILD=$(grep 'CURRENT_PROJECT_VERSION' project.yml | head -1 | awk '{print $NF}' | tr -d '"')
           echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD"     >> "$GITHUB_OUTPUT"
@@ -38,20 +38,14 @@ jobs:
       - name: Validate version in project.yml
         env:
           EXPECTED_VERSION: ${{ steps.version.outputs.version }}
-          EXPECTED_BUILD: ${{ steps.version.outputs.build }}
         run: |
           PROJ_VERSION=$(grep 'MARKETING_VERSION' project.yml | head -1 | awk '{print $NF}' | tr -d '"')
-          PROJ_BUILD=$(grep 'CURRENT_PROJECT_VERSION' project.yml | head -1 | awk '{print $NF}' | tr -d '"')
 
-          echo "project.yml: MARKETING_VERSION=$PROJ_VERSION  CURRENT_PROJECT_VERSION=$PROJ_BUILD"
-          echo "Expected:    version=$EXPECTED_VERSION  build=$EXPECTED_BUILD"
+          echo "project.yml: MARKETING_VERSION=$PROJ_VERSION"
+          echo "Expected:    version=$EXPECTED_VERSION"
 
           if [ "$PROJ_VERSION" != "$EXPECTED_VERSION" ]; then
             echo "::error::MARKETING_VERSION mismatch: project.yml has '$PROJ_VERSION' but tag expects '$EXPECTED_VERSION'"
-            exit 1
-          fi
-          if [ "$PROJ_BUILD" != "$EXPECTED_BUILD" ]; then
-            echo "::error::CURRENT_PROJECT_VERSION mismatch: project.yml has '$PROJ_BUILD' but tag expects '$EXPECTED_BUILD'"
             exit 1
           fi
 
