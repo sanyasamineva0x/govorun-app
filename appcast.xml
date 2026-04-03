@@ -224,5 +224,32 @@
                    sparkle:edSignature="i7jgxvXiEv/uvUvR4Ap4wHDTny2H9g88l2e0iPvGyomE2w1ByEdeuhe372GNGokQzf88GZ38VXR3SDYMgwQ0Cg=="
                    length="165101526" />
       </item>
+<item>
+        <title>Version 0.2.1</title>
+        <pubDate>Fri, 03 Apr 2026 13:38:36 +0000</pubDate>
+        <sparkle:version>1</sparkle:version>
+        <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[## Стили
+
+В Супер-режиме Говоруна появились стили текста:
+
+- **Деловой** — точка в конце, обращение на «вы», чистый и официальный текст для деловой переписки или документов
+- Обычный — базовая очистка текста на все случае жизни
+
+- Расслабленный — с маленькой буквы, без точек и с сохранением сленга и сокращений. Подойдет для заметок и переписок с друзьями
+
+Включите авторежим — Говорун сам подберет стиль под каждое приложение. Если автопилот не нужен, выберите любимый стиль в настройках.
+
+## Удалено
+- TextMode и вся его инфраструктура (523 строки)
+
+---
+78 коммитов · 33 Swift файла · 1064 теста]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.1/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="oLdAypJGepIB+slo0i2zSAtBHBiw37EVSkHzB1lSfSAZd6HmWuAnhqmOr2wFiW1OQj25STr3Igx3fGKq8RcACA=="
+                   length="165852730" />
+      </item>
   </channel>
 </rss>
