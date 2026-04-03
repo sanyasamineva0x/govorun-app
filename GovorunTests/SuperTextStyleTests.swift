@@ -73,6 +73,27 @@ final class SuperTextStyleTests: XCTestCase {
         XCTAssertEqual(SuperTextStyle.relaxed.applyDeterministic("Слово"), "слово")
     }
 
+    func test_apply_deterministic_relaxed_lowercases_all_sentence_starts() {
+        XCTAssertEqual(
+            SuperTextStyle.relaxed.applyDeterministic("Привет. Как дела. Всё хорошо"),
+            "привет. как дела. всё хорошо"
+        )
+    }
+
+    func test_apply_deterministic_relaxed_handles_exclamation_and_question() {
+        XCTAssertEqual(
+            SuperTextStyle.relaxed.applyDeterministic("Круто! Давай завтра? Ок"),
+            "круто! давай завтра? ок"
+        )
+    }
+
+    func test_apply_deterministic_normal_keeps_sentence_starts_uppercase() {
+        XCTAssertEqual(
+            SuperTextStyle.normal.applyDeterministic("привет. как дела"),
+            "Привет. как дела"
+        )
+    }
+
     func test_apply_deterministic_empty_string_all_styles() {
         for style in SuperTextStyle.allCases {
             XCTAssertEqual(style.applyDeterministic(""), "", "\(style) should handle empty string")

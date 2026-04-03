@@ -56,15 +56,27 @@ extension SuperTextStyle {
         }
     }
 
-    // Style-blind: только caps. Brand aliases и slang expansion — только LLM path.
+    // Style-blind: только caps на границах предложений. Brand aliases и slang expansion — только LLM path.
     func applyDeterministic(_ text: String) -> String {
         guard !text.isEmpty else { return text }
         switch self {
         case .relaxed:
-            return text.prefix(1).lowercased() + text.dropFirst()
+            return Self.lowercaseSentenceStarts(text)
         case .normal, .formal:
             return text.prefix(1).uppercased() + text.dropFirst()
         }
+    }
+
+    private static func lowercaseSentenceStarts(_ text: String) -> String {
+        var result = text.prefix(1).lowercased() + text.dropFirst()
+        let pattern = /([.!?])\s+(\p{Lu})/
+        while let match = result.firstMatch(of: pattern) {
+            let lower = String(match.output.2).lowercased()
+            result = result[result.startIndex..<match.range.lowerBound]
+                + String(match.output.1) + " " + lower
+                + result[result.index(match.range.lowerBound, offsetBy: match.output.0.count)...]
+        }
+        return result
     }
 }
 
@@ -87,7 +99,13 @@ extension SuperTextStyle {
             for alias in Self.techTermAliases {
                 block += "\n\(alias.original) → \(alias.relaxed)"
             }
-            block += "\nПример: «скинь в слак» → «скинь в слак», «открой ноушн» → «открой ношен»."
+            block += """
+            \nПримеры relaxed-стиля (ВСЕ предложения со строчной):
+            «скинь в слак» → «скинь в слак»
+            «открой ноушн» → «открой ношен»
+            «привет давай завтра созвонимся. скинь ссылку на зум» → «привет давай завтра созвонимся. скинь ссылку на зум»
+            «ну окей. напиши в телегу что опоздаю» → «окей. напиши в телегу что опоздаю»
+            """
             return block
 
         case .normal:
