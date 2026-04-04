@@ -17,7 +17,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 HELPER_SOURCE = REPO_ROOT / "scripts" / "benchmark-full-pipeline-helper.swift"
 HELPER_BINARY = REPO_ROOT / "build" / "benchmark-full-pipeline-helper"
 HELPER_SWIFT_SOURCES = [
-    REPO_ROOT / "Govorun/Models/TextMode.swift",
+    REPO_ROOT / "Govorun/Models/LLMOutputContract.swift",
+    REPO_ROOT / "Govorun/Models/SnippetContext.swift",
+    REPO_ROOT / "Govorun/Models/SnippetPlaceholder.swift",
+    REPO_ROOT / "Govorun/Models/SuperTextStyle.swift",
     REPO_ROOT / "Govorun/Core/NumberNormalizer.swift",
     REPO_ROOT / "Govorun/Core/NormalizationGate.swift",
     REPO_ROOT / "Govorun/Core/NormalizationPipeline.swift",
@@ -43,6 +46,16 @@ class FullPipelineHelperUnavailableError(FullPipelineHelperError):
 
 class LLMRequestError(BenchmarkError):
     pass
+
+
+LEGACY_TEXT_MODE_TO_SUPER_STYLE = {
+    "chat": "relaxed",
+    "note": "relaxed",
+    "email": "formal",
+    "document": "normal",
+    "code": "normal",
+    "universal": "normal",
+}
 
 
 def fail(message: str) -> None:
@@ -124,9 +137,14 @@ def parse_args() -> argparse.Namespace:
         help="Benchmark only the LLM input/output contract or the full normalization pipeline.",
     )
     parser.add_argument(
+        "--super-style",
+        default="normal",
+        choices=["relaxed", "normal", "formal"],
+        help="SuperTextStyle raw value for generated production prompt in full-pipeline mode.",
+    )
+    parser.add_argument(
         "--text-mode",
-        default="universal",
-        help="TextMode raw value for generated production prompt in full-pipeline mode.",
+        help="Deprecated legacy alias. Maps chat/note→relaxed, email→formal, document/code/universal→normal.",
     )
     parser.add_argument(
         "--current-date",
@@ -142,6 +160,21 @@ def parse_args() -> argparse.Namespace:
         help="Disable terminal period policy in full-pipeline mode.",
     )
     return parser.parse_args()
+
+
+def resolve_super_style(args: argparse.Namespace) -> str:
+    if args.text_mode:
+        style = LEGACY_TEXT_MODE_TO_SUPER_STYLE.get(args.text_mode)
+        if style is None:
+            raise BenchmarkConfigurationError(
+                f"Unsupported legacy --text-mode value: {args.text_mode}"
+            )
+        print(
+            f"WARNING: --text-mode is deprecated, use --super-style {style} instead.",
+            file=sys.stderr,
+        )
+        return style
+    return args.super_style
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -231,6 +264,7 @@ def ensure_full_pipeline_helper(binary_path: Path) -> Path:
     compile_cmd = [
         "xcrun",
         "swiftc",
+        "-enable-bare-slash-regex",
         *[str(source) for source in HELPER_SWIFT_SOURCES],
         "-o",
         str(binary_path),
@@ -337,6 +371,7 @@ def resolve_system_prompt(
     *,
     args: argparse.Namespace,
     helper: FullPipelineHelper | None,
+    effective_super_style: str,
 ) -> tuple[str | None, str | None]:
     if args.system_prompt_file:
         return load_system_prompt(args.system_prompt_file), args.system_prompt_file
@@ -351,7 +386,7 @@ def resolve_system_prompt(
 
     response = helper.request({
         "op": "prompt",
-        "textMode": args.text_mode,
+        "superStyle": effective_super_style,
         "currentDate": args.current_date,
     })
     return response["systemPrompt"], "<generated-from-production>"
@@ -643,6 +678,7 @@ def main() -> int:
     helper: FullPipelineHelper | None = None
     try:
         args = parse_args()
+        effective_super_style = resolve_super_style(args)
         dataset_path = Path(args.dataset)
         output_path = Path(args.output)
         summary_path = Path(args.summary)
@@ -657,11 +693,17 @@ def main() -> int:
             helper_binary = ensure_full_pipeline_helper(HELPER_BINARY)
             helper = FullPipelineHelper(helper_binary)
 
-        system_prompt, prompt_source = resolve_system_prompt(args=args, helper=helper)
+        system_prompt, prompt_source = resolve_system_prompt(
+            args=args,
+            helper=helper,
+            effective_super_style=effective_super_style,
+        )
         prompt_hash = prompt_sha256(system_prompt)
 
         print(f"Loaded {len(dataset)} samples from {dataset_path}")
         print(f"Pipeline mode: {args.pipeline_mode}")
+        if args.pipeline_mode == "full-pipeline":
+            print(f"Super style: {effective_super_style}")
         if system_prompt:
             print(f"Using system prompt from {prompt_source}")
             print(f"Prompt SHA-256: {prompt_hash}")
@@ -772,7 +814,7 @@ def main() -> int:
                                 "op": "postflight",
                                 "deterministicText": deterministic_text,
                                 "llmOutput": llm_output,
-                                "textMode": args.text_mode,
+                                "superStyle": effective_super_style,
                                 "terminalPeriodEnabled": not args.no_terminal_period,
                             })
                         except FullPipelineHelperError as exc:
@@ -853,7 +895,8 @@ def main() -> int:
                 "base_url": args.base_url,
                 "warmup": args.warmup,
                 "pipeline_mode": args.pipeline_mode,
-                "text_mode": args.text_mode,
+                "super_style": effective_super_style if args.pipeline_mode == "full-pipeline" else None,
+                "legacy_text_mode": args.text_mode,
                 "prompt_source": prompt_source,
                 "prompt_sha256": prompt_hash,
                 "prompt_override": bool(args.system_prompt_file),

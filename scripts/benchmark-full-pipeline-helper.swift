@@ -2,6 +2,7 @@ import Foundation
 
 private struct Request: Decodable {
     let op: String
+    let superStyle: String?
     let textMode: String?
     let currentDate: String?
     let transcript: String?
@@ -69,11 +70,11 @@ struct BenchmarkFullPipelineHelper {
     private static func handle(_ request: Request) throws -> Response {
         switch request.op {
         case "prompt":
-            let textMode = try parseTextMode(request.textMode)
+            let superStyle = try parseSuperStyle(request)
             let currentDate = try parseDate(request.currentDate)
             return .init(
                 ok: true,
-                systemPrompt: textMode.systemPrompt(currentDate: currentDate),
+                systemPrompt: superStyle.systemPrompt(currentDate: currentDate),
                 deterministicText: nil,
                 shouldInvokeLLM: nil,
                 finalText: nil,
@@ -110,11 +111,12 @@ struct BenchmarkFullPipelineHelper {
             guard let llmOutput = request.llmOutput else {
                 return .error("missing llmOutput")
             }
-            let textMode = try parseTextMode(request.textMode)
+            let superStyle = try parseSuperStyle(request)
             let postflight = NormalizationPipeline.postflight(
                 deterministicText: deterministicText,
                 llmOutput: llmOutput,
-                textMode: textMode,
+                contract: superStyle.contract,
+                superStyle: superStyle,
                 terminalPeriodEnabled: request.terminalPeriodEnabled ?? true
             )
             return .init(
@@ -154,11 +156,32 @@ struct BenchmarkFullPipelineHelper {
         }
     }
 
-    private static func parseTextMode(_ rawValue: String?) throws -> TextMode {
-        guard let rawValue, let mode = TextMode(rawValue: rawValue) else {
-            throw HelperError.invalidTextMode(rawValue ?? "nil")
+    private static func parseSuperStyle(_ request: Request) throws -> SuperTextStyle {
+        if let rawValue = request.superStyle {
+            guard let style = SuperTextStyle(rawValue: rawValue) else {
+                throw HelperError.invalidSuperStyle(rawValue)
+            }
+            return style
         }
-        return mode
+
+        if let legacyTextMode = request.textMode {
+            return mapLegacyTextMode(legacyTextMode)
+        }
+
+        throw HelperError.invalidSuperStyle("nil")
+    }
+
+    private static func mapLegacyTextMode(_ rawValue: String) -> SuperTextStyle {
+        switch rawValue {
+        case "chat", "note":
+            .relaxed
+        case "email":
+            .formal
+        case "document", "code", "universal":
+            .normal
+        default:
+            .normal
+        }
     }
 
     private static func parseDate(_ rawValue: String?) throws -> Date {
@@ -173,13 +196,13 @@ struct BenchmarkFullPipelineHelper {
     }
 
     private enum HelperError: Error, CustomStringConvertible {
-        case invalidTextMode(String)
+        case invalidSuperStyle(String)
         case invalidDate(String)
 
         var description: String {
             switch self {
-            case .invalidTextMode(let value):
-                "invalid text mode: \(value)"
+            case .invalidSuperStyle(let value):
+                "invalid super style: \(value)"
             case .invalidDate(let value):
                 "invalid currentDate: \(value)"
             }
