@@ -1,12 +1,12 @@
 # Full Pipeline Benchmark After Date-Year Gate Fix
 
-**Дата:** 2026-04-04  
-**Железо:** Apple M1, 16 GB RAM, macOS  
-**Модель:** `GigaChat3.1-10B-A1.8B-q4_K_M.gguf`  
-**Endpoint alias:** `gigachat-gguf`  
-**Runtime:** `llama-server` (Metal backend)  
-**Dataset:** `benchmarks/llm-normalization-seed.jsonl` (36 samples)  
-**Prompt source:** production `SuperTextStyle.normal`  
+**Дата:** 2026-04-04
+**Железо:** Apple M1, 16 GB RAM, macOS
+**Модель:** `GigaChat3.1-10B-A1.8B-q4_K_M.gguf`
+**Endpoint alias:** `gigachat-gguf`
+**Runtime:** `llama-server` (Metal backend)
+**Dataset:** `benchmarks/llm-normalization-seed.jsonl` (36 samples)
+**Prompt source:** production `SuperTextStyle.normal`
 **Prompt hash:** `0bfca3fee10a667c0bb7676cdb39bd4878927a04064c569cbd60ca0aab5696ec`
 
 ## Что проверяли
