@@ -868,6 +868,10 @@ enum NumberNormalizer {
                     guard numResult.value <= Double(Int.max) else { i += numResult.consumed; continue }
                     let intVal = Int(numResult.value)
                     if intVal >= 1_000, numResult.consumed == 1, Double(intVal) == numResult.value {
+                        if isYearInsideDate(tokens, at: i, value: intVal) {
+                            i += numResult.consumed
+                            continue
+                        }
                         let formatted = formatNumber(numResult.value)
                         let currentCore = tokens[i].core
                         if formatted != currentCore {
@@ -924,6 +928,11 @@ enum NumberNormalizer {
             i += 1
         }
         return spans
+    }
+
+    private static func isYearInsideDate(_ tokens: [Token], at index: Int, value: Int) -> Bool {
+        guard validYearRange.contains(value), index > 0 else { return false }
+        return months.contains(tokens[index - 1].core.lowercased())
     }
 
     // MARK: - applySpans (v2)

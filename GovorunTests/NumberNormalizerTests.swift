@@ -368,6 +368,13 @@ final class DateNormalizerTests: XCTestCase {
             "23 марта 2026"
         )
     }
+
+    func test_numeric_year_in_date_is_not_grouped() {
+        XCTAssertEqual(
+            NumberNormalizer.normalize("релиз переносится на 23 марта 2026"),
+            "релиз переносится на 23 марта 2026"
+        )
+    }
 }
 
 // MARK: - Порядковые (без месяца)
