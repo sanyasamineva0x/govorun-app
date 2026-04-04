@@ -726,6 +726,31 @@ enum NumberNormalizer {
         while i < tokens.count {
             let lower = tokens[i].core.lowercased()
 
+            // Числовой день + месяц (+ год)
+            if let numericDay = parseNumericNumber(tokens, at: i),
+               numericDay.currency == nil,
+               !numericDay.isAbbreviated,
+               numericDay.consumed == 1,
+               numericDay.value.rounded(.down) == numericDay.value
+            {
+                let dayValue = Int(numericDay.value)
+                let monthIdx = i + numericDay.consumed
+                if (1...31).contains(dayValue),
+                   monthIdx < tokens.count,
+                   months.contains(tokens[monthIdx].core.lowercased())
+                {
+                    let year = parseYear(tokens, at: monthIdx + 1)
+                    let upperBound = monthIdx + 1 + (year?.consumed ?? 0)
+                    spans.append(Span(
+                        range: i..<upperBound,
+                        kind: .date(day: dayValue, month: tokens[monthIdx].core, year: year?.value),
+                        priority: SpanPriority.date
+                    ))
+                    i = upperBound
+                    continue
+                }
+            }
+
             // Составное: "двадцать" + порядковое + месяц
             if let tens = tensCardinals[lower], i + 2 < tokens.count {
                 let nextLower = tokens[i + 1].core.lowercased()
@@ -776,7 +801,9 @@ enum NumberNormalizer {
            numeric.value.rounded(.down) == numeric.value
         {
             let year = Int(numeric.value)
-            if validYearRange.contains(year) {
+            if validYearRange.contains(year),
+               isYearBoundary(tokens, after: start + numeric.consumed)
+            {
                 let trailingYearWord = start + numeric.consumed < tokens.count &&
                     yearWords.contains(tokens[start + numeric.consumed].core.lowercased())
                 return (year, numeric.consumed + (trailingYearWord ? 1 : 0))
@@ -800,7 +827,9 @@ enum NumberNormalizer {
                 return (combined, consumed)
             }
 
-            if validYearRange.contains(year) {
+            if validYearRange.contains(year),
+               isYearBoundary(tokens, after: start + spoken.consumedCount)
+            {
                 let trailingYearWord = start + spoken.consumedCount < tokens.count &&
                     yearWords.contains(tokens[start + spoken.consumedCount].core.lowercased())
                 return (year, spoken.consumedCount + (trailingYearWord ? 1 : 0))
@@ -924,6 +953,11 @@ enum NumberNormalizer {
             i += 1
         }
         return spans
+    }
+
+    private static func isYearBoundary(_ tokens: [Token], after index: Int) -> Bool {
+        guard index < tokens.count else { return true }
+        return yearWords.contains(tokens[index].core.lowercased())
     }
 
     // MARK: - applySpans (v2)

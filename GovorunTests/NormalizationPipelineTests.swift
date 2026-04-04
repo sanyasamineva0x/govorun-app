@@ -84,6 +84,20 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertNil(result.gateFailureReason)
     }
 
+    func test_postflight_keeps_numeric_year_in_date_for_gate() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Запиши что релиз переносится на 23 марта 2026.",
+            llmOutput: "Запиши, что релиз переносится на 23 марта 2026.",
+            contract: .normalization,
+            superStyle: .normal,
+            terminalPeriodEnabled: false
+        )
+
+        XCTAssertEqual(result.finalText, "Запиши, что релиз переносится на 23 марта 2026")
+        XCTAssertEqual(result.path, .llm)
+        XCTAssertNil(result.gateFailureReason)
+    }
+
     func test_preflight_carries_explicit_time_of_day_through_correction() {
         let result = NormalizationPipeline.preflight(
             transcript: "позвони маме в восемь вечера или нет лучше в девять",
