@@ -165,13 +165,13 @@ struct BenchmarkFullPipelineHelper {
         }
 
         if let legacyTextMode = request.textMode {
-            return mapLegacyTextMode(legacyTextMode)
+            return try mapLegacyTextMode(legacyTextMode)
         }
 
         throw HelperError.invalidSuperStyle("nil")
     }
 
-    private static func mapLegacyTextMode(_ rawValue: String) -> SuperTextStyle {
+    private static func mapLegacyTextMode(_ rawValue: String) throws -> SuperTextStyle {
         switch rawValue {
         case "chat", "note":
             .relaxed
@@ -180,7 +180,7 @@ struct BenchmarkFullPipelineHelper {
         case "document", "code", "universal":
             .normal
         default:
-            .normal
+            throw HelperError.invalidLegacyTextMode(rawValue)
         }
     }
 
@@ -197,12 +197,15 @@ struct BenchmarkFullPipelineHelper {
 
     private enum HelperError: Error, CustomStringConvertible {
         case invalidSuperStyle(String)
+        case invalidLegacyTextMode(String)
         case invalidDate(String)
 
         var description: String {
             switch self {
             case .invalidSuperStyle(let value):
                 "invalid super style: \(value)"
+            case .invalidLegacyTextMode(let value):
+                "invalid legacy text mode: \(value)"
             case .invalidDate(let value):
                 "invalid currentDate: \(value)"
             }

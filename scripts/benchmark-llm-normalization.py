@@ -138,7 +138,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--super-style",
-        default="normal",
         choices=["relaxed", "normal", "formal"],
         help="SuperTextStyle raw value for generated production prompt in full-pipeline mode.",
     )
@@ -163,6 +162,26 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_super_style(args: argparse.Namespace) -> str:
+    if args.super_style:
+        if args.text_mode:
+            legacy_style = LEGACY_TEXT_MODE_TO_SUPER_STYLE.get(args.text_mode)
+            if legacy_style is None:
+                raise BenchmarkConfigurationError(
+                    f"Unsupported legacy --text-mode value: {args.text_mode}"
+                )
+            if legacy_style != args.super_style:
+                print(
+                    f"WARNING: ignoring deprecated --text-mode {args.text_mode} "
+                    f"in favor of explicit --super-style {args.super_style}.",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"WARNING: --text-mode is deprecated; keep only --super-style {args.super_style}.",
+                    file=sys.stderr,
+                )
+        return args.super_style
+
     if args.text_mode:
         style = LEGACY_TEXT_MODE_TO_SUPER_STYLE.get(args.text_mode)
         if style is None:
@@ -174,7 +193,7 @@ def resolve_super_style(args: argparse.Namespace) -> str:
             file=sys.stderr,
         )
         return style
-    return args.super_style
+    return "normal"
 
 
 def load_dataset(path: Path) -> list[dict]:

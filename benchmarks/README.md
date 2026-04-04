@@ -87,6 +87,7 @@ python3 scripts/benchmark-llm-normalization.py \
 - `chat`, `note` → `relaxed`
 - `email` → `formal`
 - `document`, `code`, `universal` → `normal`
+- если переданы оба флага, приоритет у явного `--super-style`
 
 Если нужен старый чистый `llm-only` замер, оставь `--pipeline-mode llm-only` или не указывай флаг вовсе.
 
