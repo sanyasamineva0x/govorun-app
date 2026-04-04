@@ -67,16 +67,27 @@ python3 scripts/benchmark-llm-normalization.py \
   --base-url http://127.0.0.1:8080/v1 \
   --model local-model \
   --dataset benchmarks/llm-normalization-seed.jsonl \
-  --text-mode universal \
+  --super-style normal \
   --output build/llm-normalization-full-pipeline.jsonl \
   --summary build/llm-normalization-full-pipeline-summary.json
 ```
 
 В этом режиме harness:
-- генерирует production system prompt из текущего `TextMode`;
+- генерирует production system prompt из текущего `SuperTextStyle`;
 - прогоняет `raw input -> DeterministicNormalizer -> LLM -> NormalizationGate -> final output`;
 - сравнивает `output` с `expected_full_pipeline`, если оно есть, иначе с `expected`.
 - сохраняет в summary `prompt_source`, `prompt_sha256` и `prompt_override`, чтобы было видно, мерили ли мы текущий production prompt или внешний snapshot.
+
+Доступные стили:
+- `--super-style relaxed`
+- `--super-style normal`
+- `--super-style formal`
+
+Для старых команд сохранён совместимый алиас `--text-mode`, но он deprecated:
+- `chat`, `note` → `relaxed`
+- `email` → `formal`
+- `document`, `code`, `universal` → `normal`
+- если переданы оба флага, приоритет у явного `--super-style`
 
 Если нужен старый чистый `llm-only` замер, оставь `--pipeline-mode llm-only` или не указывай флаг вовсе.
 
