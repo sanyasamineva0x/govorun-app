@@ -14,11 +14,17 @@
 STT → Dictionary → DeterministicNormalizer → [LLM → Gate] → Style → ListFormatter → Insert
 ```
 
-Вызывается в двух точках:
-1. `applyPostProcessing()` в `PipelineEngine` — после `applyDeterministic` (trivial path, **кроме standalone snippets**)
-2. `postflight()` в `NormalizationPipeline` — после `finalText` (LLM path)
+Вызывается в двух точках кода:
 
-**Standalone snippets не проходят через ListFormatter** — их контракт требует verbatim возврата, закреплено тестом `test_standalone_snippet_preserves_lowercase_verbatim`.
+1. **`applyPostProcessing()`** в `PipelineEngine` — после `applyDeterministic`. Покрывает все пути, кроме standalone snippet и LLM success:
+   - trivial path (строка 562) — `isTrivial` или Standard mode
+   - embedded snippet, mechanical fallback без LLM (строка 436)
+   - embedded snippet, LLM output или LLM failed fallback (строка 539)
+   - LLM failed, plain text fallback (строка 610)
+
+2. **`postflight()`** в `NormalizationPipeline` — после `finalText` (LLM success + gate pass/reject)
+
+**Standalone snippets** (ветка `.standalone` в PipelineEngine) не проходят через `applyPostProcessing` вообще — возвращаются verbatim. ListFormatter их не видит. Закреплено тестом `test_standalone_snippet_preserves_lowercase_verbatim`.
 
 ### Почему final pass, а не до LLM
 
@@ -68,6 +74,10 @@ STT → Dictionary → DeterministicNormalizer → [LLM → Gate] → Style → 
 - Trim whitespace
 
 Пункты списка не содержат завершающей пунктуации — ни точек, ни запятых, ничего.
+
+**Правила пунктуации для списков:**
+- Завершающая пунктуация у пунктов запрещена во всех стилях
+- formal-правило terminal period применяется только к plain text, НО НЕ к list items
 
 ### Шапка
 
