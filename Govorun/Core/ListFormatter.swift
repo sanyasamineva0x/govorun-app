@@ -139,7 +139,7 @@ enum ListFormatter {
         var items: [String] = []
         let header: String?
 
-        let firstPos = positions[0]
+        guard let firstPos = positions.first else { return (nil, []) }
         let beforeFirst = String(text[text.startIndex..<firstPos.range.lowerBound])
             .trimmingCharacters(in: .whitespaces)
         header = beforeFirst.isEmpty ? nil : beforeFirst

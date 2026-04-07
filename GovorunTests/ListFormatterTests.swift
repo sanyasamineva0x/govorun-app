@@ -85,7 +85,8 @@ final class ListFormatterTests: XCTestCase {
     // MARK: - Overlap suppression: «а также» vs «также»
 
     func test_a_takzhe_not_double_counted() {
-        let input = "кроме того скорость а также простота"
+        // «а также» — один фразовый маркер, «также» внутри не порождает отдельный матч
+        let input = "а также скорость помимо этого простота"
         let result = ListFormatter.format(input)
         XCTAssertEqual(result, "– Скорость\n– Простота")
     }
@@ -260,5 +261,43 @@ final class ListFormatterTests: XCTestCase {
         let input = "во-первых, скорость; во-вторых — простота. в-третьих, цена,"
         let result = ListFormatter.format(input)
         XCTAssertEqual(result, "1. Скорость\n2. Простота\n3. Цена")
+    }
+
+    // MARK: - Нормализованные формы (после NumberNormalizer)
+
+    func test_normalized_ordinal_forms() {
+        let input = "1-е молоко 2-е хлеб 3-е масло"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб\n3. Масло")
+    }
+
+    func test_normalized_punkt_forms() {
+        let input = "пункт 1 задача пункт 2 баг"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Задача\n2. Баг")
+    }
+
+    // MARK: - Multi-word items
+
+    func test_multi_word_items() {
+        let input = "первое купить молоко второе позвонить маме"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Купить молоко\n2. Позвонить маме")
+    }
+
+    // MARK: - «помимо этого» маркер
+
+    func test_pomimo_etogo_marker() {
+        let input = "помимо этого скорость кроме того простота"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "– Скорость\n– Простота")
+    }
+
+    // MARK: - Шапка + дефисный список
+
+    func test_header_with_dashed_list() {
+        let input = "преимущества кроме того скорость помимо этого простота"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "преимущества\n– Скорость\n– Простота")
     }
 }
