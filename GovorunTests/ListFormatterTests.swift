@@ -205,4 +205,60 @@ final class ListFormatterTests: XCTestCase {
         XCTAssertEqual(result, "во-первых во-вторых простота",
                        "только 1 непустой item — fallback")
     }
+
+    // MARK: - Очистка пунктуации
+
+    func test_comma_after_marker_stripped() {
+        let input = "во-первых, скорость, во-вторых, простота."
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Скорость\n2. Простота")
+    }
+
+    func test_dash_after_marker_stripped() {
+        let input = "первое — молоко второе — хлеб"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_trailing_period_stripped() {
+        let input = "первое молоко. второе хлеб."
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_trailing_semicolon_stripped() {
+        let input = "первое молоко; второе хлеб;"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_trailing_comma_stripped() {
+        let input = "первое молоко, второе хлеб,"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_trailing_colon_stripped() {
+        let input = "первое молоко: второе хлеб:"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_trailing_exclamation_stripped() {
+        let input = "первое скорость! второе простота!"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Скорость\n2. Простота")
+    }
+
+    func test_trailing_question_stripped() {
+        let input = "первое скорость? второе простота?"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Скорость\n2. Простота")
+    }
+
+    func test_mixed_punctuation_cleanup() {
+        let input = "во-первых, скорость; во-вторых — простота. в-третьих, цена,"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "1. Скорость\n2. Простота\n3. Цена")
+    }
 }
