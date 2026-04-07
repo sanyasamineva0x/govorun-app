@@ -112,6 +112,7 @@ enum ListFormatter {
             while let range = lowered.range(of: marker, range: searchStart..<lowered.endIndex) {
                 let isWordStart = range.lowerBound == lowered.startIndex
                     || lowered[lowered.index(before: range.lowerBound)].isWhitespace
+                    || lowered[lowered.index(before: range.lowerBound)].isPunctuation
                 let isWordEnd = range.upperBound == lowered.endIndex
                     || lowered[range.upperBound].isWhitespace
                     || lowered[range.upperBound].isPunctuation

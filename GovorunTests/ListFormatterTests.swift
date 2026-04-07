@@ -300,4 +300,12 @@ final class ListFormatterTests: XCTestCase {
         let result = ListFormatter.format(input)
         XCTAssertEqual(result, "преимущества\n– Скорость\n– Простота")
     }
+
+    // MARK: - Маркер после пунктуации
+
+    func test_marker_after_punctuation() {
+        let input = "список:первое молоко второе хлеб"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "список:\n1. Молоко\n2. Хлеб")
+    }
 }
