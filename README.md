@@ -16,6 +16,7 @@ macOS menu bar приложение для голосового ввода на 
 - Два режима: Push to Talk (удерживай) и Toggle (нажми — нажми)
 - Сниппеты — "мой имейл" → подставляет email
 - Словарь замен — "жира" → "Jira"
+- Списки в диктовке — "первое молоко второе хлеб" → нумерованный список
 - Нормализация чисел — "двадцать пять процентов" → "25%"
 - Вставка через Accessibility API с clipboard fallback
 - Автообновление через Sparkle
@@ -137,6 +138,7 @@ Swift App (menu bar)                    Python Worker
 │ DictionaryStore      │               └──────────────────────┘
 │ SnippetEngine        │
 │ NumberNormalizer     │               Local LLM (Super)
+│ ListFormatter        │
 │ TextInserter (AX)    │               ┌──────────────────────┐
 │ SuperModelDownload   │── HTTP ──────▶│ llama-server          │
 │ Manager              │  localhost    │ GigaChat 3.1 Q4_K_M   │
@@ -158,7 +160,7 @@ Swift App (menu bar)                    Python Worker
 - CryptoKit (SHA256 верификация модели)
 - Sparkle 2 (автообновление)
 - SwiftData (история, словарь, сниппеты)
-- XCTest (986 тестов)
+- XCTest (1124 теста)
 
 ## Разработка
 
