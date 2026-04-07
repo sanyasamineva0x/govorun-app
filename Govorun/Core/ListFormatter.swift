@@ -43,16 +43,22 @@ enum ListFormatter {
         ], style: .dashed, minCount: 3),
     ]
 
-    private static let allFamilies: [MarkerFamily] = numberedFamilies + dashedFamilies
+    /// Семьи отсортированы: длинные маркеры → короткие (для cross-family overlap suppression)
+    private static let allFamilies: [MarkerFamily] = {
+        let all = numberedFamilies + dashedFamilies
+        return all.sorted { a, b in
+            let aMax = a.markers.map(\.count).max() ?? 0
+            let bMax = b.markers.map(\.count).max() ?? 0
+            return aMax > bMax
+        }
+    }()
 
     // MARK: - Public API
 
     static func format(_ text: String, style: SuperTextStyle? = nil) -> String {
         guard !text.isEmpty else { return "" }
 
-        let lowered = text.lowercased()
-
-        guard let (family, positions) = detectFamily(in: lowered) else {
+        guard let (family, positions) = detectFamily(in: text) else {
             return text
         }
 
@@ -73,13 +79,17 @@ enum ListFormatter {
     // MARK: - Детекция
 
     private static func detectFamily(
-        in lowered: String
+        in text: String
     ) -> (family: MarkerFamily, positions: [(range: Range<String.Index>, marker: String)])? {
         var bestFamily: MarkerFamily?
         var bestPositions: [(range: Range<String.Index>, marker: String)] = []
+        // shared между семьями: длинные маркеры блокируют подстроки в других семьях
+        var globalOccupied: [Range<String.Index>] = []
 
         for family in allFamilies {
-            let positions = findMarkerPositions(in: lowered, markers: family.markers)
+            let positions = findMarkerPositions(
+                in: text, markers: family.markers, occupied: &globalOccupied
+            )
             guard positions.count >= family.minCount else { continue }
 
             let isNumbered = family.style == .numbered
@@ -99,23 +109,28 @@ enum ListFormatter {
     }
 
     private static func findMarkerPositions(
-        in lowered: String,
-        markers: [String]
+        in text: String,
+        markers: [String],
+        occupied: inout [Range<String.Index>]
     ) -> [(range: Range<String.Index>, marker: String)] {
         var positions: [(range: Range<String.Index>, marker: String)] = []
-        var occupied: [Range<String.Index>] = []
 
+        // longest-match first внутри семьи
         let sorted = markers.sorted { $0.count > $1.count }
 
         for marker in sorted {
-            var searchStart = lowered.startIndex
-            while let range = lowered.range(of: marker, range: searchStart..<lowered.endIndex) {
-                let isWordStart = range.lowerBound == lowered.startIndex
-                    || lowered[lowered.index(before: range.lowerBound)].isWhitespace
-                    || lowered[lowered.index(before: range.lowerBound)].isPunctuation
-                let isWordEnd = range.upperBound == lowered.endIndex
-                    || lowered[range.upperBound].isWhitespace
-                    || lowered[range.upperBound].isPunctuation
+            var searchStart = text.startIndex
+            while let range = text.range(
+                of: marker,
+                options: .caseInsensitive,
+                range: searchStart..<text.endIndex
+            ) {
+                let isWordStart = range.lowerBound == text.startIndex
+                    || text[text.index(before: range.lowerBound)].isWhitespace
+                    || text[text.index(before: range.lowerBound)].isPunctuation
+                let isWordEnd = range.upperBound == text.endIndex
+                    || text[range.upperBound].isWhitespace
+                    || text[range.upperBound].isPunctuation
 
                 let overlaps = occupied.contains { $0.overlaps(range) }
 

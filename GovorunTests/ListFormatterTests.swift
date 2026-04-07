@@ -308,4 +308,23 @@ final class ListFormatterTests: XCTestCase {
         let result = ListFormatter.format(input)
         XCTAssertEqual(result, "список:\n1. Молоко\n2. Хлеб")
     }
+
+    // MARK: - Unicode safety (индексы на одной строке)
+
+    func test_turkish_i_prefix_no_crash() {
+        let input = "İ список первое молоко второе хлеб"
+        let result = ListFormatter.format(input)
+        XCTAssertEqual(result, "İ список\n1. Молоко\n2. Хлеб")
+    }
+
+    // MARK: - Cross-family overlap suppression
+
+    func test_takzhe_inside_a_takzhe_not_counted_cross_family() {
+        // «а также» блокирует «также» даже в другой семье
+        let input = "а также скорость также простота также цена"
+        let result = ListFormatter.format(input)
+        // «а также» = 1 фразовый (< minCount 2), «также» без overlap = 2 (< minCount 3)
+        XCTAssertEqual(result, "а также скорость также простота также цена",
+                       "cross-family overlap: «также» внутри «а также» не считается")
+    }
 }
