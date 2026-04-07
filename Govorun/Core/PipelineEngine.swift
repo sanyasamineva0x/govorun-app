@@ -324,7 +324,8 @@ final class PipelineEngine: @unchecked Sendable {
             let periodText = effectiveTerminalPeriod
                 ? text
                 : DeterministicNormalizer.stripTrailingPeriods(text)
-            return currentSuperStyle?.applyDeterministic(periodText) ?? periodText
+            let styledText = currentSuperStyle?.applyDeterministic(periodText) ?? periodText
+            return ListFormatter.format(styledText, style: currentSuperStyle)
         }
 
         markRecordingStopped()

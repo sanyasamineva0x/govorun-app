@@ -1412,4 +1412,69 @@ final class IsTrivialTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "sanya@example.com", "standalone snippet не должен мутироваться — ни caps, ни period")
     }
+
+    // MARK: - ListFormatter интеграция
+
+    func test_trivial_path_formats_list() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "первое молоко второе хлеб")
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: MockLLMClient(),
+            snippetEngine: MockSnippetEngine()
+        )
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_standalone_snippet_not_formatted_as_list() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "мой список")
+
+        let snippets = MockSnippetEngine()
+        snippets.configureStandalone("мой список", content: "первое молоко второе хлеб")
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: MockLLMClient(),
+            snippetEngine: snippets
+        )
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(
+            result.normalizedText,
+            "первое молоко второе хлеб",
+            "standalone snippet — verbatim, ListFormatter не должен трогать"
+        )
+    }
+
+    func test_llm_failed_fallback_formats_list() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "первое молоко второе хлеб")
+
+        let llm = MockLLMClient()
+        llm.normalizeError = LLMError.serverError(statusCode: 500)
+
+        let engine = PipelineEngine(
+            audioCapture: MockAudioRecording(),
+            sttClient: stt,
+            llmClient: llm,
+            snippetEngine: MockSnippetEngine()
+        )
+        engine.productMode = .superMode
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "1. Молоко\n2. Хлеб",
+                       "LLM failed fallback тоже проходит через ListFormatter")
+    }
 }
