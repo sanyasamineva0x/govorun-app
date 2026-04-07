@@ -1,4 +1,4 @@
-# Formal Rewriting — ты→вы в деловом стиле
+# Formal ты→вы — обращение на «вы» в деловом стиле
 
 ## Контекст
 
@@ -126,6 +126,7 @@ var contract: LLMOutputContract {
 ### NormalizationPipelineTests
 
 - `postflight` с formal стилем пропускает ты→вы через `.rewriting` gate
+- `postflight` с formal стилем сохраняет лексику: input `"скинь отчёт"` / llmOutput `"Скиньте отчёт."` → accept (детерминированный тест, не зависит от LLM)
 
 ### Benchmark
 
