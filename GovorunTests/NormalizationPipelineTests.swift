@@ -182,6 +182,45 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertEqual(result.finalText, "Привет мир.")
     }
 
+    // MARK: - Постфлайт: ListFormatter (LIST-POST-01..03)
+
+    func test_postflight_formats_list_in_llm_output() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "во-первых скорость во-вторых простота",
+            llmOutput: "во-первых скорость во-вторых простота",
+            contract: .normalization
+        )
+
+        XCTAssertEqual(result.finalText, "1. Скорость\n2. Простота")
+    }
+
+    func test_postflight_formats_list_with_relaxed_style() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "первое молоко второе хлеб",
+            llmOutput: "первое молоко второе хлеб",
+            contract: .normalization,
+            superStyle: .relaxed
+        )
+
+        XCTAssertEqual(result.finalText, "1. молоко\n2. хлеб")
+    }
+
+    func test_postflight_list_no_terminal_period() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "первое молоко второе хлеб",
+            llmOutput: "первое молоко второе хлеб",
+            contract: .normalization,
+            superStyle: .formal,
+            terminalPeriodEnabled: true
+        )
+
+        XCTAssertEqual(
+            result.finalText,
+            "1. Молоко\n2. Хлеб",
+            "terminal period не применяется к list items"
+        )
+    }
+
     // MARK: - Failed postflight
 
     func test_failed_postflight_returns_deterministic_fallback() {
