@@ -648,7 +648,8 @@ enum NormalizationPipeline {
         let periodText = effectiveTerminalPeriod
             ? gateResult.output
             : DeterministicNormalizer.stripTrailingPeriods(gateResult.output)
-        let finalText = superStyle?.applyDeterministic(periodText) ?? periodText
+        let styledText = superStyle?.applyDeterministic(periodText) ?? periodText
+        let finalText = ListFormatter.format(styledText, style: superStyle)
 
         return .init(
             finalText: finalText,
