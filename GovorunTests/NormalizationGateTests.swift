@@ -236,9 +236,6 @@ final class NormalizationGateTests: XCTestCase {
         }
     }
 
-    /// Пока .rewriting не используется в production-коде.
-    /// Эти тесты фиксируют контракт заранее, чтобы следующая итерация
-    /// не вводила его вслепую.
     func test_rewriting_contract_allows_style_shift_within_length_bounds() {
         let result = NormalizationGate.evaluate(
             input: "Перенеси встречу с Ивановым на четверг.",
@@ -349,6 +346,30 @@ final class NormalizationGateTests: XCTestCase {
         XCTAssertEqual(result.failureReason, .empty)
     }
 
+    func test_rewriting_skips_disproportionate_length() {
+        // .rewriting пропускает disproportionateLength — умеренный рост допустим
+        let result = NormalizationGate.evaluate(
+            input: "Ты можешь скинуть отчёт до пятницы.",
+            output: "Вы можете скинуть отчёт до пятницы, пожалуйста.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted, ".rewriting допускает рост в пределах 1.5x")
+    }
+
+    func test_rewriting_rejects_refusal() {
+        let result = NormalizationGate.evaluate(
+            input: "Скажи пете что встреча перенеслась.",
+            output: "Я не могу выполнить этот запрос.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertFalse(result.accepted)
+        XCTAssertEqual(result.failureReason, .refusal)
+    }
+
     func test_rewriting_accepts_already_formal_text_unchanged() {
         let result = NormalizationGate.evaluate(
             input: "Вы можете отправить документ.",
@@ -436,14 +457,15 @@ final class NormalizationGateTests: XCTestCase {
         let result = NormalizationGate.evaluate(
             input: "Спс за помощь.",
             output: "Спасибо за помощь.",
-            contract: .normalization,
+            contract: .rewriting,
             superStyle: .formal
         )
 
         XCTAssertTrue(result.accepted, "formal должен принять спасибо как раскрытие спс. Причина: \(String(describing: result.failureReason))")
     }
 
-    func test_formal_rejects_unknown_slang() {
+    func test_formal_rejects_unknown_slang_under_normalization() {
+        // .normalization отклоняет неизвестный сленг через edit distance
         let result = NormalizationGate.evaluate(
             input: "Хз что делать.",
             output: "Не знаю что делать.",
@@ -451,7 +473,7 @@ final class NormalizationGateTests: XCTestCase {
             superStyle: .formal
         )
 
-        XCTAssertFalse(result.accepted, "хз не в таблице slangExpansions, gate должен отклонить")
+        XCTAssertFalse(result.accepted, "хз не в таблице slangExpansions, .normalization gate должен отклонить")
     }
 
     func test_relaxed_does_not_accept_slang_alias() {
@@ -484,11 +506,11 @@ final class NormalizationGateTests: XCTestCase {
         let result = NormalizationGate.evaluate(
             input: "Спс большое чел.",
             output: "Спасибо большое, человек.",
-            contract: .normalization,
+            contract: .rewriting,
             superStyle: .formal
         )
 
-        XCTAssertTrue(result.accepted, "спс→спасибо и чел→человек должны нормализоваться до distance 0. Причина: \(String(describing: result.failureReason))")
+        XCTAssertTrue(result.accepted, "спс→спасибо и чел→человек в .rewriting. Причина: \(String(describing: result.failureReason))")
     }
 
     // MARK: - GATE-03: threshold relaxation

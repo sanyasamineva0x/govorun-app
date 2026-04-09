@@ -151,7 +151,7 @@ final class NormalizationPipelineTests: XCTestCase {
         let result = NormalizationPipeline.postflight(
             deterministicText: "Привет мир.",
             llmOutput: "Привет мир.",
-            contract: .normalization,
+            contract: .rewriting,
             superStyle: .formal,
             terminalPeriodEnabled: false
         )
