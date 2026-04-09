@@ -219,8 +219,8 @@ final class SuperTextStyleTests: XCTestCase {
 
     func test_style_block_formal_lexical_prohibition() {
         let block = SuperTextStyle.formal.styleBlock
-        XCTAssertTrue(block.contains("ЗАПРЕТ"))
-        XCTAssertTrue(block.contains("не заменяй лексику"))
+        XCTAssertTrue(block.contains("ЗАПРЕТ ПЕРЕФРАЗИРОВАНИЯ"))
+        XCTAssertTrue(block.contains("НЕ заменяй глаголы синонимами"))
     }
 
     // MARK: - basePrompt
