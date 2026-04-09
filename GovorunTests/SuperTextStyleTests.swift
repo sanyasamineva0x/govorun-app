@@ -35,10 +35,16 @@ final class SuperTextStyleTests: XCTestCase {
 
     // MARK: - contract
 
-    func test_contract_returns_normalization_for_all_styles() {
-        for style in SuperTextStyle.allCases {
-            XCTAssertEqual(style.contract, .normalization, "\(style) should return .normalization")
-        }
+    func test_formal_contract_is_rewriting() {
+        XCTAssertEqual(SuperTextStyle.formal.contract, .rewriting)
+    }
+
+    func test_normal_contract_is_normalization() {
+        XCTAssertEqual(SuperTextStyle.normal.contract, .normalization)
+    }
+
+    func test_relaxed_contract_is_normalization() {
+        XCTAssertEqual(SuperTextStyle.relaxed.contract, .normalization)
     }
 
     // MARK: - displayName
@@ -204,6 +210,17 @@ final class SuperTextStyleTests: XCTestCase {
     func test_style_block_formal_original_brands() {
         let block = SuperTextStyle.formal.styleBlock
         XCTAssertTrue(block.contains("оригинальное написание"))
+    }
+
+    func test_style_block_formal_you_form() {
+        let block = SuperTextStyle.formal.styleBlock
+        XCTAssertTrue(block.contains("ОБРАЩЕНИЕ НА «ВЫ»"))
+    }
+
+    func test_style_block_formal_lexical_prohibition() {
+        let block = SuperTextStyle.formal.styleBlock
+        XCTAssertTrue(block.contains("ЗАПРЕТ"))
+        XCTAssertTrue(block.contains("не заменяй лексику"))
     }
 
     // MARK: - basePrompt

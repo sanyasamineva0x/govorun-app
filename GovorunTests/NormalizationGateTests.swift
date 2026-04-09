@@ -276,6 +276,91 @@ final class NormalizationGateTests: XCTestCase {
         }
     }
 
+    // MARK: - GATE-05: formal ты→вы через .rewriting
+
+    func test_rewriting_accepts_ty_to_vy_transformation() {
+        let result = NormalizationGate.evaluate(
+            input: "Ты можешь скинуть отчёт до пятницы.",
+            output: "Вы можете скинуть отчёт до пятницы.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted)
+        XCTAssertEqual(result.output, "Вы можете скинуть отчёт до пятницы.")
+    }
+
+    func test_rewriting_accepts_imperative_te_form() {
+        let result = NormalizationGate.evaluate(
+            input: "Скажи Пете, что встреча перенеслась.",
+            output: "Скажите Пете, что встреча перенеслась.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted)
+    }
+
+    func test_rewriting_accepts_possessive_replacement() {
+        let result = NormalizationGate.evaluate(
+            input: "Перешли ей твой отчёт за март.",
+            output: "Перешлите ей ваш отчёт за март.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted)
+    }
+
+    func test_rewriting_preserves_protected_tokens() {
+        let result = NormalizationGate.evaluate(
+            input: "Ты получил моё письмо от 25 марта в Slack.",
+            output: "Вы получили моё письмо от 25 марта в Slack.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted)
+    }
+
+    func test_rewriting_rejects_missing_protected_token() {
+        let result = NormalizationGate.evaluate(
+            input: "Ты получил моё письмо от 25 марта в Slack.",
+            output: "Вы получили моё письмо от марта.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertFalse(result.accepted)
+        guard case .missingProtectedTokens? = result.failureReason else {
+            return XCTFail("Ожидалась missingProtectedTokens, получили \(String(describing: result.failureReason))")
+        }
+    }
+
+    func test_rewriting_rejects_empty_output_formal() {
+        let result = NormalizationGate.evaluate(
+            input: "Скажи пете что встреча перенеслась.",
+            output: "",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertFalse(result.accepted)
+        XCTAssertEqual(result.failureReason, .empty)
+    }
+
+    func test_rewriting_accepts_already_formal_text_unchanged() {
+        let result = NormalizationGate.evaluate(
+            input: "Вы можете отправить документ.",
+            output: "Вы можете отправить документ.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertTrue(result.accepted)
+        XCTAssertEqual(result.output, "Вы можете отправить документ.")
+    }
+
     // MARK: - GATE-01: nil style backward compatibility
 
     func test_nil_style_preserves_existing_behavior() {

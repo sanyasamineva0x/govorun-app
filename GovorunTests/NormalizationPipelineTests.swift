@@ -234,4 +234,34 @@ final class NormalizationPipelineTests: XCTestCase {
         XCTAssertNil(result.gateFailureReason)
         XCTAssertEqual(result.failureContext, "HTTP 500")
     }
+
+    // MARK: - Formal ты→вы через .rewriting
+
+    func test_postflight_formal_accepts_ty_to_vy() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Ты можешь скинуть отчёт до пятницы.",
+            llmOutput: "Вы можете скинуть отчёт до пятницы.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertEqual(result.finalText, "Вы можете скинуть отчёт до пятницы.")
+        XCTAssertEqual(result.path, .llm)
+    }
+
+    func test_postflight_formal_preserves_lexicon() {
+        let result = NormalizationPipeline.postflight(
+            deterministicText: "Скинь отчёт.",
+            llmOutput: "Скиньте отчёт.",
+            contract: .rewriting,
+            superStyle: .formal
+        )
+
+        XCTAssertEqual(
+            result.finalText,
+            "Скиньте отчёт.",
+            "скинь→скиньте, лексика сохранена — gate не должен reject'ить"
+        )
+        XCTAssertEqual(result.path, .llm)
+    }
 }

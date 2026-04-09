@@ -1,0 +1,15 @@
+{"id":"formal-001","bucket":"formal-positive","input":"ты можешь скинуть отчёт до пятницы","expected":"Вы можете скинуть отчёт до пятницы."}
+{"id":"formal-002","bucket":"formal-positive","input":"скажи пете что встреча перенеслась","expected":"Скажите Пете, что встреча перенеслась."}
+{"id":"formal-003","bucket":"formal-positive","input":"проверь пожалуйста документ и скинь мне","expected":"Проверьте, пожалуйста, документ и скиньте мне."}
+{"id":"formal-004","bucket":"formal-positive","input":"напиши маше что дедлайн в пятницу","expected":"Напишите Маше, что дедлайн в пятницу."}
+{"id":"formal-005","bucket":"formal-positive","input":"ты сегодня свободен в 15:30","expected":"Вы сегодня свободны в 15:30."}
+{"id":"formal-006","bucket":"formal-positive","input":"перешли ей твой отчёт за март","expected":"Перешлите ей ваш отчёт за март."}
+{"id":"formal-007","bucket":"formal-positive","input":"ты получил моё письмо от 25 марта в слак","expected":"Вы получили моё письмо от 25 марта в Slack."}
+{"id":"formal-008","bucket":"formal-positive","input":"позвони клиенту и уточни сроки а потом напиши мне","expected":"Позвоните клиенту и уточните сроки, а потом напишите мне."}
+{"id":"formal-009","bucket":"formal-positive","input":"я хочу чтобы ты подготовил презентацию и отправил её пете","expected":"Я хочу, чтобы вы подготовили презентацию и отправили её Пете."}
+{"id":"formal-010","bucket":"formal-positive","input":"спс скинь в слак ссылку на задачу в жире","expected":"Спасибо, скиньте в Slack ссылку на задачу в Jira."}
+{"id":"formal-011","bucket":"formal-negative","input":"скинь отчёт","expected":"Скиньте отчёт."}
+{"id":"formal-012","bucket":"formal-negative","input":"скажи ему что я опоздаю","expected":"Скажите ему, что я опоздаю."}
+{"id":"formal-013","bucket":"formal-negative","input":"привет ты можешь помочь","expected":"Привет, вы можете помочь."}
+{"id":"formal-014","bucket":"formal-negative","input":"вы можете отправить документ","expected":"Вы можете отправить документ."}
+{"id":"formal-015","bucket":"formal-negative","input":"подготовьте отчёт к пятнице","expected":"Подготовьте отчёт к пятнице."}
