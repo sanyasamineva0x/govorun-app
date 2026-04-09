@@ -22,6 +22,7 @@ HELPER_SWIFT_SOURCES = [
     REPO_ROOT / "Govorun/Models/SnippetPlaceholder.swift",
     REPO_ROOT / "Govorun/Models/SuperTextStyle.swift",
     REPO_ROOT / "Govorun/Core/NumberNormalizer.swift",
+    REPO_ROOT / "Govorun/Core/ListFormatter.swift",
     REPO_ROOT / "Govorun/Core/NormalizationGate.swift",
     REPO_ROOT / "Govorun/Core/NormalizationPipeline.swift",
     HELPER_SOURCE,
