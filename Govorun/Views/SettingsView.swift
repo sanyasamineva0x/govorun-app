@@ -93,7 +93,7 @@ private struct SettingsSidebar: View {
                         updater.checkForUpdates()
                     }
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(Color.skyAqua)
+                    .foregroundStyle(Color.sage)
                     .buttonStyle(.plain)
                     .disabled(!updater.canCheckForUpdates)
                 }
@@ -105,7 +105,7 @@ private struct SettingsSidebar: View {
             ZStack {
                 Color(.controlBackgroundColor).opacity(0.5)
                 LinearGradient(
-                    colors: [Color.cottonCandy.opacity(0.04), Color.clear],
+                    colors: [Color.sage.opacity(0.04), Color.clear],
                     startPoint: .top,
                     endPoint: .center
                 )
@@ -123,7 +123,7 @@ private struct SidebarItem: View {
     @State private var isHovered = false
 
     private var backgroundColor: Color {
-        if isSelected { return Color.cottonCandy.opacity(0.14) }
+        if isSelected { return Color.ink.opacity(0.06) }
         if isHovered { return Color.primary.opacity(0.06) }
         return Color.clear
     }
@@ -133,14 +133,14 @@ private struct SidebarItem: View {
             HStack(spacing: 0) {
                 // Accent bar
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.cottonCandy)
+                    .fill(Color.ink)
                     .frame(width: 3, height: 16)
                     .opacity(isSelected ? 1 : 0)
                     .padding(.trailing, 8)
 
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundStyle(isSelected ? Color.cottonCandy : .secondary)
+                    .foregroundStyle(isSelected ? Color.ink : .secondary)
                     .frame(width: 22)
                     .padding(.trailing, 8)
 
@@ -200,7 +200,7 @@ private struct GeneralSettingsContent: View {
                 HStack(spacing: 12) {
                     Image(systemName: "rectangle.and.hand.point.up.left")
                         .font(.body)
-                        .foregroundStyle(Color.cottonCandy.opacity(0.7))
+                        .foregroundStyle(Color.sage.opacity(0.7))
                         .frame(width: 24, height: 24)
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -245,7 +245,7 @@ private struct GeneralSettingsContent: View {
                     title: "Автозапуск",
                     description: "Запуск Говоруна при включении компьютера",
                     icon: "power",
-                    iconColor: .oceanMist,
+                    iconColor: .sage,
                     isOn: settingsBinding(\.launchAtLogin)
                 )
 
@@ -492,7 +492,7 @@ private struct ProductModeCard: View {
             HStack(spacing: 12) {
                 Image(systemName: selection.usesLLM ? "sparkles" : "waveform")
                     .font(.body)
-                    .foregroundStyle(Color.cottonCandy.opacity(0.75))
+                    .foregroundStyle(Color.sage.opacity(0.75))
                     .frame(width: 24, height: 24)
 
                 VStack(alignment: .leading, spacing: 6) {
