@@ -96,7 +96,7 @@ private struct StyleCard: View {
                 Spacer()
 
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.cottonCandy)
+                    .foregroundStyle(Color.sage)
                     .font(.title3)
                     .opacity(isSelected ? 1 : 0)
             }
@@ -163,7 +163,7 @@ private struct ModelMissingOverlay: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial.opacity(0.8))
+        .background(Color.snow.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }

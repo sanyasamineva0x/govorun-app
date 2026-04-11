@@ -76,7 +76,7 @@ private struct DictionaryRowView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "textformat.abc")
                 .font(.callout)
-                .foregroundStyle(Color.skyAqua.opacity(0.5))
+                .foregroundStyle(Color.sage.opacity(0.5))
                 .frame(width: 20)
                 .padding(.top, 2)
 

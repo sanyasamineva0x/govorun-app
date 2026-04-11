@@ -32,10 +32,10 @@ struct HistoryView: View {
                             Text("Очистить")
                                 .font(.callout.weight(.medium))
                         }
-                        .foregroundStyle(Color.cottonCandy)
+                        .foregroundStyle(Color.ink.opacity(0.5))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
-                        .background(Color.cottonCandy.opacity(0.15))
+                        .background(Color.mist)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -87,7 +87,7 @@ private struct HistoryRowView: View {
                 Button(action: togglePlayback) {
                     Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(isPlaying ? Color.oceanMist : Color.cottonCandy)
+                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.38))
                 }
                 .buttonStyle(.plain)
                 .help(isPlaying ? "Остановить" : "Прослушать")
@@ -126,7 +126,7 @@ private struct HistoryRowView: View {
         .padding(.vertical, 2)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.cottonCandy.opacity(isHovered ? 0.06 : 0))
+                .fill(Color.ink.opacity(isHovered ? 0.04 : 0))
         )
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.15)) {

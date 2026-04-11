@@ -52,12 +52,12 @@ struct OnboardingView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.alabasterGrey.opacity(0.15))
+                        .fill(Color.mist)
                         .frame(height: 3)
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [Color.cottonCandy, Color.cottonCandy.opacity(0.6)],
+                                colors: [Color.sage, Color.sage.opacity(0.6)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -168,7 +168,8 @@ private struct WelcomeStepView: View {
 
             VStack(spacing: 8) {
                 Text("Привет, это Говорун!")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.serif(28))
+                    .tracking(-0.8)
                     .staggeredAppear(index: 1)
                 Text("Голосовой ввод на русском")
                     .font(.title3)
@@ -203,7 +204,8 @@ private struct MicrophoneStepView: View {
 
             VStack(spacing: 8) {
                 Text("Доступ к микрофону")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.serif(22))
+                    .tracking(-0.4)
                     .staggeredAppear(index: 1)
                 Text("Я превращаю ваш голос в готовый текст")
                     .font(.callout)
@@ -215,7 +217,7 @@ private struct MicrophoneStepView: View {
             Group {
                 if permissionChecked {
                     if permissionGranted {
-                        OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .oceanMist)
+                        OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .sage)
                     } else {
                         OnboardingStatusBadge(text: "Откройте Настройки системы → Микрофон", icon: "xmark.circle.fill", color: .red)
                     }
@@ -266,12 +268,13 @@ private struct AccessibilityStepView: View {
         VStack(spacing: 20) {
             Image(systemName: "hand.raised.fill")
                 .font(.system(size: 44))
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.sage)
                 .staggeredAppear(index: 0)
 
             VStack(spacing: 8) {
                 Text("Вставка текста")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.serif(22))
+                    .tracking(-0.4)
                     .staggeredAppear(index: 1)
                 Text("Я вставлю текст прямо в поле ввода.\nБез этого разрешения придётся использовать буфер обмена.")
                     .font(.callout)
@@ -282,7 +285,7 @@ private struct AccessibilityStepView: View {
 
             VStack(spacing: 12) {
                 if accessibilityGranted {
-                    OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .oceanMist)
+                    OnboardingStatusBadge(text: "Доступ разрешён", icon: "checkmark.circle.fill", color: .sage)
                 } else {
                     OnboardingStatusBadge(text: "Ожидание разрешения…", icon: "clock", color: .orange)
                 }
@@ -327,12 +330,13 @@ private struct ModelStepView: View {
         VStack(spacing: 20) {
             Image(systemName: "brain")
                 .font(.system(size: 44))
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.sage)
                 .staggeredAppear(index: 0)
 
             VStack(spacing: 8) {
                 Text("ИИ-модель")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.serif(22))
+                    .tracking(-0.4)
                     .staggeredAppear(index: 1)
                 Text("Для работы нужна ИИ-модель (~900 МБ).\nОна работает локально и не отправляет данные в интернет")
                     .font(.callout)
@@ -344,13 +348,13 @@ private struct ModelStepView: View {
             VStack(spacing: 12) {
                 switch workerState {
                 case .ready:
-                    OnboardingStatusBadge(text: "Модель готова", icon: "checkmark.circle.fill", color: .oceanMist)
+                    OnboardingStatusBadge(text: "Модель готова", icon: "checkmark.circle.fill", color: .sage)
 
                 case .downloadingModel(let progress):
                     VStack(spacing: 8) {
                         ProgressView(value: Double(progress), total: 100)
                             .progressViewStyle(.linear)
-                            .tint(Color.cottonCandy)
+                            .tint(Color.sage)
                             .frame(width: 240)
                         Text("Качаю модель… \(progress)%")
                             .font(.caption)
@@ -367,7 +371,7 @@ private struct ModelStepView: View {
                 case .loadingModel, .settingUp:
                     VStack(spacing: 8) {
                         ProgressView()
-                            .tint(Color.cottonCandy)
+                            .tint(Color.sage)
                         Text(workerState == .settingUp ? "Подготовка…" : "Загружаю модель…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -444,12 +448,13 @@ private struct SuperModelStepView: View {
         VStack(spacing: 20) {
             Image(systemName: "sparkles")
                 .font(.system(size: 44))
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.sage)
                 .staggeredAppear(index: 0)
 
             VStack(spacing: 8) {
                 Text("Супер-режим")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.serif(22))
+                    .tracking(-0.4)
                     .staggeredAppear(index: 1)
                 Text("ИИ-модель для Супер-режима улучшает качество текста. Полностью офлайн.")
                     .font(.callout)
@@ -464,14 +469,14 @@ private struct SuperModelStepView: View {
                     OnboardingStatusBadge(
                         text: "ИИ-модель для Супер-режима готова",
                         icon: "checkmark.circle.fill",
-                        color: .oceanMist
+                        color: .sage
                     )
 
                 case .downloading(let progress, _, _):
                     VStack(spacing: 8) {
                         ProgressView(value: progress, total: 1.0)
                             .progressViewStyle(.linear)
-                            .tint(Color.cottonCandy)
+                            .tint(Color.sage)
                             .frame(width: 240)
                         Text("Скачиваю… \(Int(progress * 100))%")
                             .font(.caption)
@@ -487,7 +492,7 @@ private struct SuperModelStepView: View {
                 case .verifying, .checkingExisting:
                     VStack(spacing: 8) {
                         ProgressView()
-                            .tint(Color.cottonCandy)
+                            .tint(Color.sage)
                         Text(downloadState == .verifying ? "Проверяю файл…" : "Проверяю…")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -559,12 +564,13 @@ private struct TryItStepView: View {
         VStack(spacing: 20) {
             Image(systemName: isWorkerReady ? "sparkles" : "arrow.down.circle")
                 .font(.system(size: 44))
-                .foregroundStyle(isWorkerReady ? Color.cottonCandy : .orange)
+                .foregroundStyle(isWorkerReady ? Color.sage : .orange)
                 .staggeredAppear(index: 0)
 
             VStack(spacing: 8) {
                 Text(isWorkerReady ? "Всё готово!" : "Почти готово!")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.serif(22))
+                    .tracking(-0.4)
                     .staggeredAppear(index: 1)
 
                 Group {
@@ -597,7 +603,7 @@ private struct OnboardingFeatureRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.body)
-                .foregroundStyle(Color.cottonCandy.opacity(0.8))
+                .foregroundStyle(Color.sage.opacity(0.8))
                 .frame(width: 24, height: 24)
             Text(text)
                 .font(.callout)

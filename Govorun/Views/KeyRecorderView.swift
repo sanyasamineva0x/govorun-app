@@ -105,9 +105,9 @@ struct KeyRecorderView: View {
         HStack(spacing: 12) {
             Text(store.activationKey.displayName)
                 .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.sage)
                 .frame(width: 40, height: 40)
-                .background(Color.cottonCandy.opacity(isHovered ? 0.2 : 0.1))
+                .background(Color.sage.opacity(isHovered ? 0.2 : 0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -127,7 +127,7 @@ struct KeyRecorderView: View {
         .settingsCard()
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.cottonCandy.opacity(isHovered ? 0.3 : 0), lineWidth: 1)
+                .strokeBorder(Color.sage.opacity(isHovered ? 0.3 : 0), lineWidth: 1)
         )
     }
 
@@ -136,16 +136,16 @@ struct KeyRecorderView: View {
             // Анимированная иконка записи
             Image(systemName: "keyboard")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.sage)
                 .frame(width: 40, height: 40)
-                .background(Color.cottonCandy.opacity(0.15))
+                .background(Color.sage.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 if let preview = previewText {
                     Text(preview)
                         .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color.cottonCandy)
+                        .foregroundStyle(Color.sage)
                 } else {
                     Text("Нажмите нужную клавишу…")
                         .font(.body)
@@ -160,7 +160,7 @@ struct KeyRecorderView: View {
         .settingsCard()
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.cottonCandy, lineWidth: 2)
+                .stroke(Color.sage, lineWidth: 2)
         )
     }
 

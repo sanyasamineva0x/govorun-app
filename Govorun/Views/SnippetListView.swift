@@ -82,11 +82,11 @@ private struct SnippetRowView: View {
 
                     Text(snippet.matchMode == .fuzzy ? "нечёткий" : "точный")
                         .font(.caption2)
-                        .foregroundStyle(snippet.matchMode == .fuzzy ? Color.skyAqua : .secondary)
+                        .foregroundStyle(snippet.matchMode == .fuzzy ? Color.sage : .secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
                         .background(
-                            (snippet.matchMode == .fuzzy ? Color.skyAqua : .secondary)
+                            (snippet.matchMode == .fuzzy ? Color.sage : .secondary)
                                 .opacity(0.1)
                         )
                         .clipShape(Capsule())
@@ -109,7 +109,7 @@ private struct SnippetRowView: View {
                     }) {
                         Image(systemName: snippet.isEnabled ? "checkmark.circle.fill" : "circle")
                             .font(.body)
-                            .foregroundStyle(snippet.isEnabled ? Color.oceanMist : .secondary)
+                            .foregroundStyle(snippet.isEnabled ? Color.sage : .secondary)
                     }
                     .buttonStyle(.plain)
                     .help(snippet.isEnabled ? "Выключить" : "Включить")
