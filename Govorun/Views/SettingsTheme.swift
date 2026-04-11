@@ -122,20 +122,6 @@ struct SectionPageHeader: View {
     }
 }
 
-// MARK: - Карточка секции
-
-struct SettingsCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-    }
-}
-
-extension View {
-    func settingsCard() -> some View {
-        modifier(SettingsCardModifier())
-    }
-}
-
 // MARK: - StatusDot
 
 struct StatusDot: View {
@@ -158,7 +144,6 @@ struct StatusDot: View {
 
 struct SectionHeader: View {
     let title: String
-    var icon: String?
 
     var body: some View {
         Text(title)

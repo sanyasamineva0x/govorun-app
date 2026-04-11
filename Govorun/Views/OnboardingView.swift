@@ -182,7 +182,6 @@ private struct WelcomeStepView: View {
                 OnboardingFeatureRow(icon: "waveform", text: "Распознавание прямо на Mac")
                 OnboardingFeatureRow(icon: "lock.shield", text: "Полностью офлайн — данные не покидают компьютер")
             }
-            .settingsCard()
             .staggeredAppear(index: 3)
         }
         .padding(.horizontal, 32)
@@ -413,7 +412,6 @@ private struct ModelStepView: View {
                     }
                 }
             }
-            .settingsCard()
             .staggeredAppear(index: 3)
 
             if workerState != .ready {
@@ -533,7 +531,6 @@ private struct SuperModelStepView: View {
                     }
                 }
             }
-            .settingsCard()
             .staggeredAppear(index: 3)
 
             if downloadState != .completed {

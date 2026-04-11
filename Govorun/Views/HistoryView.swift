@@ -45,7 +45,6 @@ struct HistoryView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             HistoryRowView(item: item)
-                                .settingsCard()
                                 .staggeredAppear(index: index)
                         }
                     }
@@ -69,7 +68,11 @@ struct HistoryView: View {
             }
             modelContext.delete(item)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("Ошибка очистки истории: \(error)")
+        }
     }
 }
 
@@ -175,6 +178,7 @@ private final class AudioPlaybackDelegate: NSObject, ObservableObject, AVAudioPl
             p.play()
             player = p
         } catch {
+            print("Ошибка воспроизведения: \(error)")
             onFinish()
         }
     }

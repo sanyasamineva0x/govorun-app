@@ -260,7 +260,7 @@ private struct GeneralSettingsContent: View {
                 )
                 .padding(.vertical, 6)
             }
-            .staggeredAppear(index: 2)
+            .staggeredAppear(index: 3)
 
             // Сброс
 
@@ -279,7 +279,7 @@ private struct GeneralSettingsContent: View {
                 }
                 .buttonStyle(.plain)
             }
-            .staggeredAppear(index: 3)
+            .staggeredAppear(index: 4)
         }
     }
 }
@@ -525,7 +525,6 @@ private struct ProductModeCard: View {
                 }
             }
         }
-        .settingsCard()
         .onAppear {
             Task {
                 await appState.refreshSuperAssetsReadiness()
@@ -539,29 +538,6 @@ private struct ProductModeCard: View {
             return "\(base). \(appState.effectiveProductMode.title) активен сейчас."
         }
         return base
-    }
-
-    private var runtimeStatusText: String {
-        if appState.effectiveProductMode != selection {
-            return "\(appState.effectiveProductMode.title) активен сейчас. Переключение применится после завершения сессии."
-        }
-
-        if !selection.usesLLM {
-            return "LLM отключён. Используются GigaAM, словарь и deterministic-нормализация."
-        }
-
-        switch appState.llmRuntimeState {
-        case .disabled:
-            return "Super включён, но локальный LLM runtime выключен."
-        case .notStarted:
-            return "Super включён. Локальный LLM runtime ещё не стартовал."
-        case .starting:
-            return "Super включён. Поднимаю локальный LLM runtime."
-        case .ready:
-            return "Super включён. Локальный LLM runtime готов."
-        case .error(let message):
-            return "Super включён, но runtime недоступен: \(message)"
-        }
     }
 }
 

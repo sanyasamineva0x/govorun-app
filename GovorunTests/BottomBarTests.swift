@@ -160,16 +160,6 @@ final class BottomBarStateTests: XCTestCase {
 
 // MARK: - BrandColors тесты
 
-@MainActor
-final class BrandColorsTests: XCTestCase {
-    func test_brand_colors_exist() {
-        XCTAssertNotNil(BrandColors.sage)
-        XCTAssertNotNil(BrandColors.ember)
-        XCTAssertNotNil(BrandColors.ink)
-        XCTAssertNotNil(BrandColors.mist)
-    }
-}
-
 // MARK: - Метрики pill (инварианты)
 
 final class BottomBarMetricsTests: XCTestCase {
