@@ -196,7 +196,12 @@ private struct GeneralSettingsContent: View {
                     .padding(.bottom, 12)
 
                 // Режим работы
-                HStack {
+                HStack(spacing: 12) {
+                    Image(systemName: "rectangle.and.hand.point.up.left")
+                        .font(.body)
+                        .foregroundStyle(Color.sage.opacity(0.7))
+                        .frame(width: 24, height: 24)
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Режим работы")
                             .font(.body)
@@ -213,9 +218,9 @@ private struct GeneralSettingsContent: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 180)
+                    .fixedSize()
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Точка в конце фразы",
