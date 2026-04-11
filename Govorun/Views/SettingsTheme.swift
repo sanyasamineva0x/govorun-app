@@ -1,18 +1,42 @@
 import SwiftUI
 
-// MARK: - Фирменные цвета (SwiftUI)
+// MARK: - Adaptive Color Helper
 
 extension Color {
-    /// Cotton Candy #B36A5E — основной акцент
-    static let cottonCandy = Color(red: 179/255, green: 106/255, blue: 94/255)
-    /// Sky Aqua #0ACDFF — обработка
-    static let skyAqua = Color(red: 10/255, green: 205/255, blue: 255/255)
-    /// Ocean Mist #60AB9A — success
-    static let oceanMist = Color(red: 96/255, green: 171/255, blue: 154/255)
-    /// Petal Frost #FBDCE2 — мягкий фон
-    static let petalFrost = Color(red: 251/255, green: 220/255, blue: 226/255)
-    /// Alabaster Grey #DEDEE0 — нейтральный
-    static let alabasterGrey = Color(red: 222/255, green: 222/255, blue: 224/255)
+    init(light: Color, dark: Color) {
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(dark)
+            }
+            return NSColor(light)
+        })
+    }
+}
+
+// MARK: - Фирменные цвета v2
+
+extension Color {
+    /// Snow — основной фон (адаптивный)
+    static let snow = Color(light: Color(red: 254/255, green: 254/255, blue: 254/255),
+                            dark: Color(red: 27/255, green: 25/255, blue: 23/255))
+    /// Mist — разделители, бордеры (адаптивный)
+    static let mist = Color(light: Color(red: 240/255, green: 238/255, blue: 236/255),
+                            dark: Color.white.opacity(0.08))
+    /// Ink — текст, кнопки (адаптивный)
+    static let ink = Color(light: Color(red: 27/255, green: 25/255, blue: 23/255),
+                           dark: Color(red: 254/255, green: 254/255, blue: 254/255))
+    /// Sage #3D7B6E — waveform, статус
+    static let sage = Color(red: 61/255, green: 123/255, blue: 110/255)
+    /// Ember #C85046 — ошибки
+    static let ember = Color(red: 200/255, green: 80/255, blue: 70/255)
+}
+
+// MARK: - Типографика
+
+extension Font {
+    static func serif(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
+        .system(size: size, weight: weight, design: .serif)
+    }
 }
 
 // MARK: - Секции настроек
@@ -71,26 +95,21 @@ struct SectionPageHeader: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Image(systemName: section.icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.cottonCandy)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.sage.opacity(0.7))
 
                 Text(section.title)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.serif(28))
+                    .tracking(0.2)
             }
 
             Text(section.subtitle)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.ink.opacity(0.38))
 
             // Accent line
             Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.cottonCandy.opacity(0.5), Color.cottonCandy.opacity(0)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .fill(Color.mist)
                 .frame(height: 1)
                 .padding(.top, 4)
         }
@@ -98,58 +117,21 @@ struct SectionPageHeader: View {
     }
 }
 
-// MARK: - Карточка секции
+// MARK: - StatusDot
 
-struct SettingsCardModifier: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
+struct StatusDot: View {
+    let title: String
+    let isActive: Bool
 
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.alabasterGrey.opacity(colorScheme == .dark ? 0.2 : 0.1), lineWidth: 0.5)
-            )
-    }
-}
-
-extension View {
-    func settingsCard() -> some View {
-        modifier(SettingsCardModifier())
-    }
-}
-
-// MARK: - Карточка со статусной полоской
-
-struct StatusCardModifier: ViewModifier {
-    let accentColor: Color
-
-    func body(content: Content) -> some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(accentColor)
-                .frame(width: 3)
-                .padding(.vertical, 12)
-
-            content
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(isActive ? Color.sage : Color.mist)
+                .frame(width: 6, height: 6)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(Color.ink.opacity(0.5))
         }
-        .background(.background.opacity(0.8))
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.alabasterGrey.opacity(0.2), lineWidth: 1)
-        )
-    }
-}
-
-extension View {
-    func statusCard(accent: Color) -> some View {
-        modifier(StatusCardModifier(accentColor: accent))
     }
 }
 
@@ -157,19 +139,12 @@ extension View {
 
 struct SectionHeader: View {
     let title: String
-    var icon: String?
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let icon {
-                Image(systemName: icon)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
+        Text(title)
+            .font(.serif(18, weight: .semibold))
+            .tracking(0.1)
+            .padding(.top, 16)
     }
 }
 
@@ -187,17 +162,17 @@ struct BrandedEmptyState: View {
             Spacer().frame(height: 24)
 
             Image(systemName: icon)
-                .font(.system(size: 30))
-                .foregroundStyle(Color.cottonCandy.opacity(0.8))
+                .font(.system(size: 26))
+                .foregroundStyle(Color.ink.opacity(0.2))
 
             Text(title)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.secondary)
+                .font(.serif(17, weight: .semibold))
+                .tracking(0.1)
 
             if let subtitle {
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.ink.opacity(0.5))
                     .multilineTextAlignment(.center)
             }
 
@@ -205,7 +180,11 @@ struct BrandedEmptyState: View {
                 Button(action: action) {
                     Text(actionTitle)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.cottonCandy)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(Color.ink)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
@@ -233,11 +212,19 @@ struct BrandedButton: View {
         Button(action: action) {
             Text(title)
                 .font(.callout.weight(.medium))
-                .foregroundStyle(style == .primary ? .white : Color.cottonCandy)
+                .foregroundStyle(style == .primary ? .white : Color.ink.opacity(0.5))
                 .padding(.horizontal, 20)
                 .padding(.vertical, 7)
-                .background(style == .primary ? Color.cottonCandy : Color.cottonCandy.opacity(0.1))
-                .clipShape(Capsule())
+                .background(style == .primary ? Color.ink : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    Group {
+                        if style == .secondary {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.mist, lineWidth: 1)
+                        }
+                    }
+                )
         }
         .buttonStyle(.plain)
     }
@@ -250,26 +237,26 @@ struct SettingsSearchBar: View {
     var placeholder: String = "Поиск…"
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
+                .font(.body)
+                .foregroundStyle(Color.ink.opacity(0.3))
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.callout)
+                .font(.body)
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(.callout)
+                        .foregroundStyle(Color.ink.opacity(0.3))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.alabasterGrey.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.mist)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -305,10 +292,10 @@ struct CountBadge: View {
     var body: some View {
         Text("\(count)")
             .font(.caption2.weight(.medium))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.ink.opacity(0.38))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.alabasterGrey.opacity(0.15))
+            .background(Color.mist)
             .clipShape(Capsule())
     }
 }
@@ -324,10 +311,8 @@ struct AddButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "plus.circle.fill")
-                .foregroundStyle(Color.cottonCandy)
+                .foregroundStyle(Color.ink.opacity(isHovered ? 0.8 : 0.5))
                 .font(.title3)
-                .scaleEffect(isHovered ? 1.15 : 1.0)
-                .opacity(isHovered ? 1.0 : 0.85)
         }
         .buttonStyle(.plain)
         .help(help)
@@ -345,7 +330,7 @@ struct SettingsToggleRow: View {
     let title: String
     let description: String
     let icon: String
-    var iconColor: Color = .cottonCandy
+    var iconColor: Color = .sage
     @Binding var isOn: Bool
 
     var body: some View {
@@ -360,7 +345,7 @@ struct SettingsToggleRow: View {
                     .font(.body)
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
@@ -368,6 +353,7 @@ struct SettingsToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(Color.ink)
         }
     }
 }

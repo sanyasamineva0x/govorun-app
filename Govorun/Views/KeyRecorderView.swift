@@ -102,65 +102,71 @@ struct KeyRecorderView: View {
     }
 
     private var normalContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             Text(store.activationKey.displayName)
-                .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.cottonCandy)
-                .frame(width: 40, height: 40)
-                .background(Color.cottonCandy.opacity(isHovered ? 0.2 : 0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color.sage)
+                .frame(width: 52, height: 52)
+                .background(Color.sage.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Зажмите \(store.activationKey.displayName) и говорите")
-                    .font(.body)
-                HStack(spacing: 4) {
-                    Image(systemName: "pencil")
-                        .font(.caption2)
-                    Text("Нажмите, чтобы изменить")
-                        .font(.caption)
-                }
-                .foregroundStyle(isHovered ? .secondary : .tertiary)
+                    .font(.system(size: 16, weight: .medium))
+
+                Text("Отпустите клавишу — текст появится в активном поле")
+                    .font(.caption)
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
+
+            if isHovered {
+                Text("Изменить")
+                    .font(.caption)
+                    .foregroundStyle(Color.ink.opacity(0.4))
+            }
         }
-        .settingsCard()
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(isHovered ? Color.ink.opacity(0.03) : Color.clear)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.cottonCandy.opacity(isHovered ? 0.3 : 0), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.mist, lineWidth: 1)
         )
     }
 
     private var recordingContent: some View {
-        HStack(spacing: 12) {
-            // Анимированная иконка записи
+        HStack(spacing: 16) {
             Image(systemName: "keyboard")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Color.cottonCandy)
-                .frame(width: 40, height: 40)
-                .background(Color.cottonCandy.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(Color.sage)
+                .frame(width: 52, height: 52)
+                .background(Color.sage.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 if let preview = previewText {
                     Text(preview)
-                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color.cottonCandy)
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.sage)
                 } else {
                     Text("Нажмите нужную клавишу…")
-                        .font(.body)
+                        .font(.system(size: 16, weight: .medium))
                 }
                 Text("Esc — отмена")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
         }
-        .settingsCard()
+        .padding(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.cottonCandy, lineWidth: 2)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.sage, lineWidth: 2)
         )
     }
 

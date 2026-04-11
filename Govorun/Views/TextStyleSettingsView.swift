@@ -18,32 +18,44 @@ struct TextStyleSettingsContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Режим стиля — сегментированный переключатель (всегда активен)
-            VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Режим стиля", icon: "textformat")
+        VStack(alignment: .leading, spacing: 16) {
+            // Режим: Авто / Ручной — как dropdown row
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Режим")
+                        .font(.body)
+                    Text("Определяет стиль текста для Супер-режима")
+                        .font(.caption)
+                        .foregroundStyle(Color.ink.opacity(0.5))
+                }
+
+                Spacer()
 
                 Picker("", selection: settingsBinding(\.superStyleMode)) {
                     ForEach(SuperStyleMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
+                .fixedSize()
             }
-            .settingsCard()
             .staggeredAppear(index: 0)
 
-            // Контент с оверлеем при отсутствии модели
+            // Карточки стилей (только в ручном режиме)
             ZStack {
                 Group {
                     if appState.settings.superStyleMode == .auto {
-                        Text("Стиль определяется автоматически по приложению")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .settingsCard()
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(Color.sage)
+                            Text("Стиль определяется автоматически по приложению")
+                                .font(.callout)
+                                .foregroundStyle(Color.ink.opacity(0.5))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
                     } else {
-                        VStack(spacing: 12) {
+                        VStack(spacing: 8) {
                             ForEach(Array(SuperTextStyle.allCases.enumerated()), id: \.element) { index, style in
                                 StyleCard(
                                     style: style,
@@ -82,28 +94,45 @@ private struct StyleCard: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(style.displayName)
-                        .font(.callout.weight(.medium))
+                        .font(.system(size: 14, weight: .medium))
                     Text(style.cardDescription)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.ink.opacity(0.5))
                 }
 
                 Spacer()
 
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.cottonCandy)
-                    .font(.title3)
-                    .opacity(isSelected ? 1 : 0)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.sage)
+                }
             }
-            .settingsCard()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? Color.sage.opacity(0.08) : (isHovered ? Color.ink.opacity(0.03) : Color.clear))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? Color.sage.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
         .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }
@@ -163,7 +192,7 @@ private struct ModelMissingOverlay: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial.opacity(0.8))
+        .background(Color.snow.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }

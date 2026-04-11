@@ -977,7 +977,7 @@ final class AppState: ObservableObject {
                     }
                 }
 
-                if let modelContainer, let appContext = currentAppContext {
+                if settings.saveAudioHistory, let modelContainer, let appContext = currentAppContext {
                     let historyContext = ModelContext(modelContainer)
                     let historyStore = HistoryStore(modelContext: historyContext)
                     do {

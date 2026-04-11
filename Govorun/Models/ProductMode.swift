@@ -22,9 +22,9 @@ enum ProductMode: String, CaseIterable, Codable {
     var subtitle: String {
         switch self {
         case .standard:
-            "Только GigaAM и deterministic-очистка. Быстрее и предсказуемо."
+            "Быстрый голосовой ввод без ИИ-обработки"
         case .superMode:
-            "Добавляет локальную LLM-нормализацию для более чистого текста."
+            "Голосовой ввод с ИИ-усилением"
         }
     }
 }

@@ -13,7 +13,7 @@ struct SettingsView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 32) {
                     SectionPageHeader(section: selectedSection)
 
                     switch selectedSection {
@@ -93,7 +93,7 @@ private struct SettingsSidebar: View {
                         updater.checkForUpdates()
                     }
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(Color.skyAqua)
+                    .foregroundStyle(Color.sage)
                     .buttonStyle(.plain)
                     .disabled(!updater.canCheckForUpdates)
                 }
@@ -105,7 +105,7 @@ private struct SettingsSidebar: View {
             ZStack {
                 Color(.controlBackgroundColor).opacity(0.5)
                 LinearGradient(
-                    colors: [Color.cottonCandy.opacity(0.04), Color.clear],
+                    colors: [Color.sage.opacity(0.04), Color.clear],
                     startPoint: .top,
                     endPoint: .center
                 )
@@ -123,7 +123,7 @@ private struct SidebarItem: View {
     @State private var isHovered = false
 
     private var backgroundColor: Color {
-        if isSelected { return Color.cottonCandy.opacity(0.14) }
+        if isSelected { return Color.ink.opacity(0.06) }
         if isHovered { return Color.primary.opacity(0.06) }
         return Color.clear
     }
@@ -133,14 +133,14 @@ private struct SidebarItem: View {
             HStack(spacing: 0) {
                 // Accent bar
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.cottonCandy)
+                    .fill(Color.ink)
                     .frame(width: 3, height: 16)
                     .opacity(isSelected ? 1 : 0)
                     .padding(.trailing, 8)
 
                 Image(systemName: icon)
                     .font(.system(size: 14))
-                    .foregroundStyle(isSelected ? Color.cottonCandy : .secondary)
+                    .foregroundStyle(isSelected ? Color.ink : .secondary)
                     .frame(width: 22)
                     .padding(.trailing, 8)
 
@@ -181,56 +181,58 @@ private struct GeneralSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Статус модели
-            WorkerStatusCard(workerState: appState.workerState)
+            // Статус worker
+            WorkerStatusLine(workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
-            ProductModeCard(selection: settingsBinding(\.productMode))
+            // Горячая клавиша
+            KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 1)
 
-            // Клавиша активации
-            KeyRecorderView(store: appState.settings)
+            ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 2)
 
+            Divider().foregroundStyle(Color.mist)
+
             // Поведение
-            VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Поведение", icon: "slider.horizontal.3")
+            VStack(alignment: .leading, spacing: 0) {
+                SectionHeader(title: "Поведение")
+                    .padding(.bottom, 12)
 
                 // Режим работы
                 HStack(spacing: 12) {
                     Image(systemName: "rectangle.and.hand.point.up.left")
                         .font(.body)
-                        .foregroundStyle(Color.cottonCandy.opacity(0.7))
+                        .foregroundStyle(Color.sage.opacity(0.7))
                         .frame(width: 24, height: 24)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Режим работы")
                             .font(.body)
-
-                        Picker("", selection: settingsBinding(\.recordingMode)) {
-                            ForEach(RecordingMode.allCases, id: \.self) { mode in
-                                Text(mode.title).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
                         Text(appState.settings.recordingMode.subtitle)
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .animation(.easeInOut, value: appState.settings.recordingMode)
+                            .foregroundStyle(Color.ink.opacity(0.5))
                     }
-                }
 
-                Divider()
+                    Spacer()
+
+                    Picker("", selection: settingsBinding(\.recordingMode)) {
+                        ForEach(RecordingMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Точка в конце фразы",
                     description: "Ставить точку в конце фразы",
-                    icon: "period",
+                    icon: "smallcircle.filled.circle",
                     isOn: settingsBinding(\.terminalPeriodEnabled)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Звуки",
@@ -238,28 +240,26 @@ private struct GeneralSettingsContent: View {
                     icon: "speaker.wave.2",
                     isOn: settingsBinding(\.soundEnabled)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Автозапуск",
                     description: "Запуск Говоруна при включении компьютера",
                     icon: "power",
-                    iconColor: .oceanMist,
+                    iconColor: .sage,
                     isOn: settingsBinding(\.launchAtLogin)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "История записей",
                     description: "Хранить аудио на компьютере",
                     icon: "waveform",
-                    iconColor: .orange,
+                    iconColor: .sage,
                     isOn: settingsBinding(\.saveAudioHistory)
                 )
+                .padding(.vertical, 6)
             }
-            .settingsCard()
             .staggeredAppear(index: 3)
 
             // Сброс
@@ -333,7 +333,7 @@ private struct ProductModeCard: View {
         case .installed:
             Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
                 .font(.caption)
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.sage)
 
         case .error(let msg):
             VStack(alignment: .leading, spacing: 6) {
@@ -410,7 +410,7 @@ private struct ProductModeCard: View {
             case .completed:
                 Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.sage)
 
             case .failed(let error):
                 VStack(alignment: .leading, spacing: 6) {
@@ -487,52 +487,44 @@ private struct ProductModeCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "Режим Говоруна", icon: "switch.2")
+            SectionHeader(title: "Режим Говоруна")
 
-            HStack(spacing: 12) {
-                Image(systemName: selection.usesLLM ? "sparkles" : "waveform")
-                    .font(.body)
-                    .foregroundStyle(Color.cottonCandy.opacity(0.75))
-                    .frame(width: 24, height: 24)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selection.title)
-                        .font(.body)
-
-                    Picker("", selection: $selection) {
-                        ForEach(ProductMode.allCases, id: \.self) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: selection) { _, newValue in
-                        if newValue == .superMode, !superAvailable {
-                            selection = .standard
-                        }
-                    }
-
-                    Text(selection.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
                     if let assetsText = assetsStatusText {
                         Label(assetsText, systemImage: assetsStatusIcon)
                             .font(.caption)
                             .foregroundStyle(.orange)
-                    } else if appState.superAssetsState == .installed || appState.settings.productMode != .superMode {
-                        Text(runtimeStatusText)
+                    } else {
+                        Text(descriptionText)
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Color.ink.opacity(0.5))
                     }
+                }
 
-                    // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
-                    if appState.settings.productMode == .superMode {
-                        downloadStatusView
+                Spacer()
+
+                Picker("", selection: $selection) {
+                    ForEach(ProductMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 180)
+                .onChange(of: selection) { _, newValue in
+                    if newValue == .superMode, !superAvailable {
+                        selection = .standard
                     }
                 }
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
+                if appState.settings.productMode == .superMode {
+                    downloadStatusView
+                }
+            }
         }
-        .settingsCard()
         .onAppear {
             Task {
                 await appState.refreshSuperAssetsReadiness()
@@ -540,63 +532,49 @@ private struct ProductModeCard: View {
         }
     }
 
-    private var runtimeStatusText: String {
+    private var descriptionText: String {
+        let base = selection.subtitle
         if appState.effectiveProductMode != selection {
-            return "\(appState.effectiveProductMode.title) активен сейчас. Переключение применится после завершения сессии."
+            return "\(base). \(appState.effectiveProductMode.title) активен сейчас."
         }
-
-        if !selection.usesLLM {
-            return "LLM отключён. Используются GigaAM, словарь и deterministic-нормализация."
-        }
-
-        switch appState.llmRuntimeState {
-        case .disabled:
-            return "Super включён, но локальный LLM runtime выключен."
-        case .notStarted:
-            return "Super включён. Локальный LLM runtime ещё не стартовал."
-        case .starting:
-            return "Super включён. Поднимаю локальный LLM runtime."
-        case .ready:
-            return "Super включён. Локальный LLM runtime готов."
-        case .error(let message):
-            return "Super включён, но runtime недоступен: \(message)"
-        }
+        return base
     }
 }
 
-// MARK: - Статус модели
+// MARK: - Строка статуса
 
-private struct WorkerStatusCard: View {
+private struct WorkerStatusLine: View {
     @EnvironmentObject private var appState: AppState
     let workerState: WorkerState
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             statusIcon
-                .frame(width: 32, height: 32)
-
-            VStack(alignment: .leading, spacing: 3) {
-                statusTitle
-                statusDetail
-            }
+            statusText
+                .font(.system(size: 13, weight: .medium))
 
             Spacer()
 
             if case .downloadingModel(let progress) = workerState {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ProgressView(value: Double(progress), total: 100)
-                        .progressViewStyle(.linear)
-                        .frame(width: 100)
-                    Button("Отменить") {
-                        appState.cancelWorkerLoading()
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .buttonStyle(.plain)
+                ProgressView(value: Double(progress), total: 100)
+                    .progressViewStyle(.linear)
+                    .frame(width: 120)
+                Button("Отменить") {
+                    appState.cancelWorkerLoading()
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+            }
+
+            if case .error = workerState {
+                Button("Перезапустить") {
+                    appState.retryWorkerLoading()
+                }
+                .font(.caption)
+                .buttonStyle(.plain)
             }
         }
-        .settingsCard()
     }
 
     @ViewBuilder
@@ -604,87 +582,42 @@ private struct WorkerStatusCard: View {
         switch workerState {
         case .ready:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.green)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.accentColor)
-        case .loadingModel:
+                .font(.system(size: 14))
+                .foregroundStyle(Color.sage)
+        case .loadingModel, .settingUp, .notStarted:
             ProgressView()
-                .scaleEffect(0.8)
+                .scaleEffect(0.6)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.red)
-        default:
-            ProgressView()
-                .scaleEffect(0.8)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.ember)
         }
     }
 
-    private var statusTitle: some View {
+    private var statusText: some View {
         switch workerState {
         case .ready:
             Text("Говорун готов к работе")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .downloadingModel(let progress):
             Text("Качаю модель… \(progress)%")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .loadingModel:
             Text("Загружаю модель…")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .error(let msg):
             Text(ErrorMessages.humanReadable(msg))
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ember)
         case .settingUp:
             Text("Готовлюсь…")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .notStarted:
             Text("Запуск…")
-                .font(.system(size: 13, weight: .medium))
-        }
-    }
-
-    @ViewBuilder
-    private var statusDetail: some View {
-        switch workerState {
-        case .ready:
-            let effective = appState.effectiveRecordingMode
-            let selected = appState.settings.recordingMode
-            if effective != selected {
-                Text("\(effective.hint(key: appState.settings.activationKey.displayName)) (режим сменится после завершения сессии)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(effective.hint(key: appState.settings.activationKey.displayName))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        case .downloadingModel:
-            Text("~892 МБ, один раз")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .error:
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Попробую исправить")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    Button("Перезапустить") {
-                        appState.retryWorkerLoading()
-                    }
-                    .font(.caption)
-                    Button("Отменить") {
-                        appState.cancelWorkerLoading()
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        default:
-            EmptyView()
+                .foregroundStyle(Color.ink.opacity(0.5))
         }
     }
 }

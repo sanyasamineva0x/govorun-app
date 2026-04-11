@@ -20,8 +20,8 @@ struct HistoryView: View {
             } else {
                 HStack {
                     Text("\(items.count) из \(HistoryStore.maxItems)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(.body)
+                        .foregroundStyle(Color.ink.opacity(0.5))
 
                     Spacer()
 
@@ -32,10 +32,10 @@ struct HistoryView: View {
                             Text("Очистить")
                                 .font(.callout.weight(.medium))
                         }
-                        .foregroundStyle(Color.cottonCandy)
+                        .foregroundStyle(Color.ink.opacity(0.5))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
-                        .background(Color.cottonCandy.opacity(0.15))
+                        .background(Color.mist)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -45,7 +45,6 @@ struct HistoryView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             HistoryRowView(item: item)
-                                .settingsCard()
                                 .staggeredAppear(index: index)
                         }
                     }
@@ -69,7 +68,11 @@ struct HistoryView: View {
             }
             modelContext.delete(item)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("Ошибка очистки истории: \(error)")
+        }
     }
 }
 
@@ -82,51 +85,41 @@ private struct HistoryRowView: View {
     @StateObject private var playbackDelegate = AudioPlaybackDelegate()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if item.audioFileName != nil {
-                Button(action: togglePlayback) {
-                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(isPlaying ? Color.oceanMist : Color.cottonCandy)
-                }
-                .buttonStyle(.plain)
-                .help(isPlaying ? "Остановить" : "Прослушать")
-            }
-
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.normalizedText)
                     .font(.body)
                     .lineLimit(3)
 
                 HStack(spacing: 8) {
-                    Label(Self.dateFormatter.string(from: item.createdAt), systemImage: "clock")
+                    Text(Self.dateFormatter.string(from: item.createdAt))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.ink.opacity(0.4))
 
-                    if let appName = item.appName {
-                        Label(appName, systemImage: "app")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let styleName = SuperTextStyle(rawValue: item.textMode)?.displayName {
-                        Label(styleName, systemImage: "textformat.alt")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Label("\(item.totalLatencyMs)мс", systemImage: "timer")
+                    Text("\(item.totalLatencyMs)мс")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.ink.opacity(0.25))
                 }
             }
 
             Spacer()
+
+            if item.audioFileName != nil {
+                Button(action: togglePlayback) {
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .help(isPlaying ? "Остановить" : "Прослушать")
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.cottonCandy.opacity(isHovered ? 0.06 : 0))
+                .fill(Color.ink.opacity(isHovered ? 0.04 : 0))
         )
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.15)) {
@@ -185,6 +178,7 @@ private final class AudioPlaybackDelegate: NSObject, ObservableObject, AVAudioPl
             p.play()
             player = p
         } catch {
+            print("Ошибка воспроизведения: \(error)")
             onFinish()
         }
     }

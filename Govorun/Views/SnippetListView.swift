@@ -74,7 +74,7 @@ private struct SnippetRowView: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(snippet.trigger)
@@ -82,13 +82,10 @@ private struct SnippetRowView: View {
 
                     Text(snippet.matchMode == .fuzzy ? "нечёткий" : "точный")
                         .font(.caption2)
-                        .foregroundStyle(snippet.matchMode == .fuzzy ? Color.skyAqua : .secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
-                        .background(
-                            (snippet.matchMode == .fuzzy ? Color.skyAqua : .secondary)
-                                .opacity(0.1)
-                        )
+                        .background(Color.mist)
                         .clipShape(Capsule())
                 }
 
@@ -109,7 +106,7 @@ private struct SnippetRowView: View {
                     }) {
                         Image(systemName: snippet.isEnabled ? "checkmark.circle.fill" : "circle")
                             .font(.body)
-                            .foregroundStyle(snippet.isEnabled ? Color.oceanMist : .secondary)
+                            .foregroundStyle(snippet.isEnabled ? Color.sage : .secondary)
                     }
                     .buttonStyle(.plain)
                     .help(snippet.isEnabled ? "Выключить" : "Включить")
@@ -120,8 +117,8 @@ private struct SnippetRowView: View {
                         NotificationCenter.default.post(name: .snippetsDidChange, object: nil)
                     }) {
                         Image(systemName: "trash")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.body)
+                            .foregroundStyle(Color.ink.opacity(0.4))
                     }
                     .buttonStyle(.plain)
                     .help("Удалить")
