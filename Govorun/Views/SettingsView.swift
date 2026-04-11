@@ -181,12 +181,16 @@ private struct GeneralSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Статус + горячая клавиша
-            KeyRecorderView(store: appState.settings, workerState: appState.workerState)
+            // Статус worker
+            WorkerStatusLine(workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
-            ProductModeCard(selection: settingsBinding(\.productMode))
+            // Горячая клавиша
+            KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 1)
+
+            ProductModeCard(selection: settingsBinding(\.productMode))
+                .staggeredAppear(index: 2)
 
             Divider().foregroundStyle(Color.mist)
 
@@ -561,39 +565,40 @@ private struct ProductModeCard: View {
     }
 }
 
-// MARK: - Статус модели
+// MARK: - Строка статуса
 
-private struct WorkerStatusCard: View {
+private struct WorkerStatusLine: View {
     @EnvironmentObject private var appState: AppState
     let workerState: WorkerState
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             statusIcon
-                .frame(width: 32, height: 32)
-
-            VStack(alignment: .leading, spacing: 3) {
-                statusTitle
-                statusDetail
-            }
+            statusText
+                .font(.system(size: 13, weight: .medium))
 
             Spacer()
 
             if case .downloadingModel(let progress) = workerState {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ProgressView(value: Double(progress), total: 100)
-                        .progressViewStyle(.linear)
-                        .frame(width: 100)
-                    Button("Отменить") {
-                        appState.cancelWorkerLoading()
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .buttonStyle(.plain)
+                ProgressView(value: Double(progress), total: 100)
+                    .progressViewStyle(.linear)
+                    .frame(width: 120)
+                Button("Отменить") {
+                    appState.cancelWorkerLoading()
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+            }
+
+            if case .error = workerState {
+                Button("Перезапустить") {
+                    appState.retryWorkerLoading()
+                }
+                .font(.caption)
+                .buttonStyle(.plain)
             }
         }
-        .settingsCard()
     }
 
     @ViewBuilder
@@ -601,87 +606,42 @@ private struct WorkerStatusCard: View {
         switch workerState {
         case .ready:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16))
+                .font(.system(size: 14))
                 .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.accentColor)
-        case .loadingModel:
+                .font(.system(size: 14))
+                .foregroundStyle(Color.sage)
+        case .loadingModel, .settingUp, .notStarted:
             ProgressView()
-                .scaleEffect(0.8)
+                .scaleEffect(0.6)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.red)
-        default:
-            ProgressView()
-                .scaleEffect(0.8)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.ember)
         }
     }
 
-    private var statusTitle: some View {
+    private var statusText: some View {
         switch workerState {
         case .ready:
             Text("Говорун готов к работе")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .downloadingModel(let progress):
             Text("Качаю модель… \(progress)%")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .loadingModel:
             Text("Загружаю модель…")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .error(let msg):
             Text(ErrorMessages.humanReadable(msg))
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ember)
         case .settingUp:
             Text("Готовлюсь…")
-                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink.opacity(0.5))
         case .notStarted:
             Text("Запуск…")
-                .font(.system(size: 13, weight: .medium))
-        }
-    }
-
-    @ViewBuilder
-    private var statusDetail: some View {
-        switch workerState {
-        case .ready:
-            let effective = appState.effectiveRecordingMode
-            let selected = appState.settings.recordingMode
-            if effective != selected {
-                Text("\(effective.hint(key: appState.settings.activationKey.displayName)) (режим сменится после завершения сессии)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(effective.hint(key: appState.settings.activationKey.displayName))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        case .downloadingModel:
-            Text("~892 МБ, один раз")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .error:
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Попробую исправить")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    Button("Перезапустить") {
-                        appState.retryWorkerLoading()
-                    }
-                    .font(.caption)
-                    Button("Отменить") {
-                        appState.cancelWorkerLoading()
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        default:
-            EmptyView()
+                .foregroundStyle(Color.ink.opacity(0.5))
         }
     }
 }

@@ -66,7 +66,6 @@ enum KeyRecorderLogic {
 /// Карточка настроек, которая позволяет пользователю записать новую клавишу активации
 struct KeyRecorderView: View {
     @ObservedObject var store: SettingsStore
-    var workerState: WorkerState = .ready
 
     @State private var isRecording = false
     @State private var isHovered = false
@@ -104,7 +103,9 @@ struct KeyRecorderView: View {
 
     private var normalContent: some View {
         HStack(spacing: 16) {
-            statusIcon
+            Text(store.activationKey.displayName)
+                .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color.sage)
                 .frame(width: 52, height: 52)
                 .background(Color.sage.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -113,7 +114,7 @@ struct KeyRecorderView: View {
                 Text("Зажмите \(store.activationKey.displayName) и говорите")
                     .font(.system(size: 16, weight: .medium))
 
-                statusSubtitle
+                Text("Отпустите клавишу — текст появится в активном поле")
                     .font(.caption)
                     .foregroundStyle(Color.ink.opacity(0.5))
             }
@@ -135,48 +136,6 @@ struct KeyRecorderView: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(Color.mist, lineWidth: 1)
         )
-    }
-
-    @ViewBuilder
-    private var statusIcon: some View {
-        switch workerState {
-        case .ready:
-            Text(store.activationKey.displayName)
-                .font(.system(size: 20, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.sage)
-        case .downloadingModel:
-            Image(systemName: "arrow.down.circle")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.sage)
-        case .loadingModel:
-            ProgressView()
-                .scaleEffect(0.8)
-        case .error:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.ember)
-        default:
-            ProgressView()
-                .scaleEffect(0.8)
-        }
-    }
-
-    @ViewBuilder
-    private var statusSubtitle: some View {
-        switch workerState {
-        case .ready:
-            Text("Отпустите клавишу — текст появится в активном поле")
-        case .downloadingModel(let progress):
-            Text("Качаю модель… \(progress)%")
-        case .loadingModel:
-            Text("Загружаю модель…")
-        case .error(let msg):
-            Text(ErrorMessages.humanReadable(msg))
-        case .settingUp:
-            Text("Готовлюсь…")
-        case .notStarted:
-            Text("Запуск…")
-        }
     }
 
     private var recordingContent: some View {
