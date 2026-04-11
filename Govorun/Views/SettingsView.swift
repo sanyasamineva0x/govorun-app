@@ -181,13 +181,13 @@ private struct GeneralSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            ProductModeCard(selection: settingsBinding(\.productMode))
+            // Статус + горячая клавиша (первый блок)
+            KeyRecorderView(store: appState.settings, workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
             Divider().foregroundStyle(Color.mist)
 
-            // Клавиша активации + статус
-            KeyRecorderView(store: appState.settings, workerState: appState.workerState)
+            ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 1)
 
             Divider().foregroundStyle(Color.mist)
@@ -219,7 +219,7 @@ private struct GeneralSettingsContent: View {
                 SettingsToggleRow(
                     title: "Точка в конце фразы",
                     description: "Ставить точку в конце фразы",
-                    icon: "period.circle",
+                    icon: "smallcircle.filled.circle",
                     isOn: settingsBinding(\.terminalPeriodEnabled)
                 )
 
@@ -248,7 +248,7 @@ private struct GeneralSettingsContent: View {
                     title: "История записей",
                     description: "Хранить аудио на компьютере",
                     icon: "waveform",
-                    iconColor: .orange,
+                    iconColor: .sage,
                     isOn: settingsBinding(\.saveAudioHistory)
                 )
             }

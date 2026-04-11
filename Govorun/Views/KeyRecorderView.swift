@@ -103,32 +103,36 @@ struct KeyRecorderView: View {
     }
 
     private var normalContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             statusIcon
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .background(Color.mist)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 statusTitle
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
 
                 HStack(spacing: 4) {
                     Text("Горячая клавиша:")
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(Color.ink.opacity(0.5))
                     Text(store.activationKey.displayName)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.sage)
                     Text("· нажмите, чтобы изменить")
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(isHovered ? Color.ink.opacity(0.5) : Color.ink.opacity(0.3))
                 }
             }
 
             Spacer()
         }
-        .settingsCard()
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isHovered ? Color.ink.opacity(0.04) : Color.clear)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.mist, lineWidth: isHovered ? 1 : 0)
@@ -140,18 +144,18 @@ struct KeyRecorderView: View {
         switch workerState {
         case .ready:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 18))
+                .font(.system(size: 20))
                 .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 18))
+                .font(.system(size: 20))
                 .foregroundStyle(Color.accentColor)
         case .loadingModel:
             ProgressView()
                 .scaleEffect(0.7)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 18))
+                .font(.system(size: 20))
                 .foregroundStyle(Color.ember)
         default:
             ProgressView()
