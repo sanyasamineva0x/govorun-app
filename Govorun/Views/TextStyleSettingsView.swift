@@ -21,7 +21,7 @@ struct TextStyleSettingsContent: View {
         VStack(alignment: .leading, spacing: 20) {
             // Режим стиля — сегментированный переключатель (всегда активен)
             VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Режим стиля", icon: "textformat")
+                SectionHeader(title: "Режим стиля")
 
                 Picker("", selection: settingsBinding(\.superStyleMode)) {
                     ForEach(SuperStyleMode.allCases, id: \.self) { mode in
@@ -43,7 +43,7 @@ struct TextStyleSettingsContent: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .settingsCard()
                     } else {
-                        VStack(spacing: 12) {
+                        VStack(spacing: 0) {
                             ForEach(Array(SuperTextStyle.allCases.enumerated()), id: \.element) { index, style in
                                 StyleCard(
                                     style: style,
@@ -51,6 +51,10 @@ struct TextStyleSettingsContent: View {
                                     action: { appState.settings.manualSuperStyle = style }
                                 )
                                 .staggeredAppear(index: index + 1)
+
+                                if style != SuperTextStyle.allCases.last {
+                                    Divider().foregroundStyle(Color.mist).padding(.vertical, 8)
+                                }
                             }
                         }
                     }

@@ -82,13 +82,10 @@ private struct SnippetRowView: View {
 
                     Text(snippet.matchMode == .fuzzy ? "нечёткий" : "точный")
                         .font(.caption2)
-                        .foregroundStyle(snippet.matchMode == .fuzzy ? Color.sage : .secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
-                        .background(
-                            (snippet.matchMode == .fuzzy ? Color.sage : .secondary)
-                                .opacity(0.1)
-                        )
+                        .background(Color.mist)
                         .clipShape(Capsule())
                 }
 

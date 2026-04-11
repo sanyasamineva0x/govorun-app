@@ -107,7 +107,7 @@ struct KeyRecorderView: View {
                 .font(.system(size: 18, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color.sage)
                 .frame(width: 40, height: 40)
-                .background(Color.sage.opacity(isHovered ? 0.2 : 0.1))
+                .background(Color.mist)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -127,7 +127,7 @@ struct KeyRecorderView: View {
         .settingsCard()
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.sage.opacity(isHovered ? 0.3 : 0), lineWidth: 1)
+                .strokeBorder(Color.mist, lineWidth: isHovered ? 1 : 0)
         )
     }
 
@@ -138,7 +138,7 @@ struct KeyRecorderView: View {
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(Color.sage)
                 .frame(width: 40, height: 40)
-                .background(Color.sage.opacity(0.15))
+                .background(Color.mist)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -160,7 +160,7 @@ struct KeyRecorderView: View {
         .settingsCard()
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.sage, lineWidth: 2)
+                .stroke(Color.ink.opacity(0.3), lineWidth: 1)
         )
     }
 

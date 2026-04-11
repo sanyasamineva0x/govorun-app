@@ -86,7 +86,7 @@ private struct HistoryRowView: View {
             if item.audioFileName != nil {
                 Button(action: togglePlayback) {
                     Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 28))
+                        .font(.system(size: 20))
                         .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.38))
                 }
                 .buttonStyle(.plain)
@@ -117,7 +117,7 @@ private struct HistoryRowView: View {
 
                     Label("\(item.totalLatencyMs)мс", systemImage: "timer")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.ink.opacity(0.25))
                 }
             }
 

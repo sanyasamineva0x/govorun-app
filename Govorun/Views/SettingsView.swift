@@ -13,7 +13,7 @@ struct SettingsView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 32) {
                     SectionPageHeader(section: selectedSection)
 
                     switch selectedSection {
@@ -180,21 +180,27 @@ private struct GeneralSettingsContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 28) {
             // Статус модели
             WorkerStatusCard(workerState: appState.workerState)
                 .staggeredAppear(index: 0)
 
+            Divider().foregroundStyle(Color.mist)
+
             ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 1)
+
+            Divider().foregroundStyle(Color.mist)
 
             // Клавиша активации
             KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 2)
 
+            Divider().foregroundStyle(Color.mist)
+
             // Поведение
             VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Поведение", icon: "slider.horizontal.3")
+                SectionHeader(title: "Поведение")
 
                 // Режим работы
                 HStack(spacing: 12) {
@@ -487,7 +493,7 @@ private struct ProductModeCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "Режим Говоруна", icon: "switch.2")
+            SectionHeader(title: "Режим Говоруна")
 
             HStack(spacing: 12) {
                 Image(systemName: selection.usesLLM ? "sparkles" : "waveform")
@@ -604,18 +610,18 @@ private struct WorkerStatusCard: View {
         switch workerState {
         case .ready:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 22))
+                .font(.system(size: 16))
                 .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 22))
+                .font(.system(size: 16))
                 .foregroundStyle(Color.accentColor)
         case .loadingModel:
             ProgressView()
                 .scaleEffect(0.8)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 22))
+                .font(.system(size: 16))
                 .foregroundStyle(Color.red)
         default:
             ProgressView()

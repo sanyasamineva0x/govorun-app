@@ -125,7 +125,6 @@ struct SectionPageHeader: View {
 struct SettingsCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(.vertical, 8)
     }
 }
 
@@ -160,16 +159,10 @@ struct SectionHeader: View {
     var icon: String?
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let icon {
-                Image(systemName: icon)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
+        Text(title)
+            .font(.serif(18, weight: .semibold))
+            .tracking(-0.2)
+            .padding(.top, 16)
     }
 }
 
