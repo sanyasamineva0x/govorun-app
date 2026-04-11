@@ -167,8 +167,46 @@ Accent line (progress bar): Sage gradient вместо Cotton Candy gradient.
 - Layout sidebar + content — структура та же
 - Все протоколы и Core/Services слои — только Views/App
 
+## Визуальная иерархия (уточнения после итераций)
+
+### Принципы layout
+
+- **Никаких карточек с бордерами** внутри секций. `.settingsCard()` = no-op.
+- **Разделители (Divider)** только между крупными секциями, не внутри смысловых блоков.
+- **Spacing 16pt** между блоками в content area.
+- **Toggle rows без dividers** — vertical padding 6pt между рядами, единообразный формат: icon + text + Spacer + control.
+
+### Hero-блок (KeyRecorderView + статус)
+
+- Объединяет статус worker и горячую клавишу в одном блоке.
+- Иконка 52×52, Sage фон (`sage.opacity(0.12)`), cornerRadius 12.
+- Иконка **динамическая** — показывает `activationKey.displayName` (Text, monospaced 20pt), не хардкод.
+- Заголовок: "Зажмите {клавиша} и говорите" — 16pt medium.
+- Subtitle: контекстный статус (готов / качаю модель / ошибка) — caption, Ink 0.5.
+- Hover: фоновая заливка `ink.opacity(0.03)` + "Изменить" справа.
+- Карточка: Mist border 1px, cornerRadius 14.
+- **Recording state** сохраняет размер hero (52px иконка, 16pt текст, sage border 2px).
+
+### Dropdown вместо Segmented Picker
+
+- "Режим Говоруна" и "Режим работы" используют `.pickerStyle(.menu)` вместо `.segmented`.
+- Формат как toggle row: icon + label/description слева, picker `.fixedSize()` справа.
+- Описание режима на второй строке (caption, Ink 0.5).
+
+### Section Headers
+
+- `SectionHeader` — Source Serif 4, 18pt semibold, tracking -0.2.
+- Иконки убраны из section headers — serif шрифт создаёт иерархию.
+- `padding(.top, 16)` для отступа от предыдущего контента.
+
+### Описания (вторичный текст)
+
+- Opacity 0.5 (было 0.35) — читабельнее.
+- Максимум две иерархии текста: title + description. Третья убрана.
+
 ## Ограничения
 
 - Source Serif 4 добавляет ~200 КБ к бандлу
 - Dark mode: Ink и Snow инвертируются (Snow → #1B1917, Ink → #FEFEFE, Mist → rgba(255,255,255,0.08), Sage и Ember без изменений)
 - Liquid Glass на macOS 26+ — Sage tint вместо Cotton Candy tint
+- Segmented Picker tint нельзя поменять на macOS — остаётся системный accent
