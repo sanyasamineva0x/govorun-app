@@ -16,13 +16,15 @@ extension Color {
 // MARK: - Фирменные цвета v2
 
 extension Color {
-    /// Snow #FEFEFE — основной фон
-    static let snow = Color(red: 254/255, green: 254/255, blue: 254/255)
+    /// Snow — основной фон (адаптивный)
+    static let snow = Color(light: Color(red: 254/255, green: 254/255, blue: 254/255),
+                            dark: Color(red: 27/255, green: 25/255, blue: 23/255))
     /// Mist — разделители, бордеры (адаптивный)
     static let mist = Color(light: Color(red: 240/255, green: 238/255, blue: 236/255),
                             dark: Color.white.opacity(0.08))
-    /// Ink #1B1917 — текст, кнопки
-    static let ink = Color(red: 27/255, green: 25/255, blue: 23/255)
+    /// Ink — текст, кнопки (адаптивный)
+    static let ink = Color(light: Color(red: 27/255, green: 25/255, blue: 23/255),
+                           dark: Color(red: 254/255, green: 254/255, blue: 254/255))
     /// Sage #3D7B6E — waveform, статус
     static let sage = Color(red: 61/255, green: 123/255, blue: 110/255)
     /// Ember #C85046 — ошибки
