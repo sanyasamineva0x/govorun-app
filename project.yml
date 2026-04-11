@@ -66,6 +66,11 @@ targets:
           - path: worker/VERSION
           - path: worker/wheels
             type: folder
+      - destination: resources
+        subpath: Fonts
+        buildPhase: resourcesBuildPhase
+        files:
+          - path: Govorun/Fonts/SourceSerif4-Variable.ttf
       - destination: frameworks
         buildPhase: frameworksBuildPhase
         files:
