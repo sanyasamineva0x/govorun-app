@@ -105,7 +105,7 @@ struct SectionPageHeader: View {
 
                 Text(section.title)
                     .font(.serif(28))
-                    .tracking(-0.8)
+                    .tracking(0.2)
             }
 
             Text(section.subtitle)
@@ -148,7 +148,7 @@ struct SectionHeader: View {
     var body: some View {
         Text(title)
             .font(.serif(18, weight: .semibold))
-            .tracking(-0.2)
+            .tracking(0.1)
             .padding(.top, 16)
     }
 }
@@ -172,7 +172,7 @@ struct BrandedEmptyState: View {
 
             Text(title)
                 .font(.serif(17, weight: .semibold))
-                .tracking(-0.2)
+                .tracking(0.1)
 
             if let subtitle {
                 Text(subtitle)

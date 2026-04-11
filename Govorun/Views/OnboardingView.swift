@@ -169,7 +169,7 @@ private struct WelcomeStepView: View {
             VStack(spacing: 8) {
                 Text("Привет, это Говорун!")
                     .font(.serif(28))
-                    .tracking(-0.8)
+                    .tracking(0.2)
                     .staggeredAppear(index: 1)
                 Text("Голосовой ввод на русском")
                     .font(.title3)
@@ -204,7 +204,7 @@ private struct MicrophoneStepView: View {
             VStack(spacing: 8) {
                 Text("Доступ к микрофону")
                     .font(.serif(22))
-                    .tracking(-0.4)
+                    .tracking(0.1)
                     .staggeredAppear(index: 1)
                 Text("Я превращаю ваш голос в готовый текст")
                     .font(.callout)
@@ -273,7 +273,7 @@ private struct AccessibilityStepView: View {
             VStack(spacing: 8) {
                 Text("Вставка текста")
                     .font(.serif(22))
-                    .tracking(-0.4)
+                    .tracking(0.1)
                     .staggeredAppear(index: 1)
                 Text("Я вставлю текст прямо в поле ввода.\nБез этого разрешения придётся использовать буфер обмена.")
                     .font(.callout)
@@ -335,7 +335,7 @@ private struct ModelStepView: View {
             VStack(spacing: 8) {
                 Text("ИИ-модель")
                     .font(.serif(22))
-                    .tracking(-0.4)
+                    .tracking(0.1)
                     .staggeredAppear(index: 1)
                 Text("Для работы нужна ИИ-модель (~900 МБ).\nОна работает локально и не отправляет данные в интернет")
                     .font(.callout)
@@ -452,7 +452,7 @@ private struct SuperModelStepView: View {
             VStack(spacing: 8) {
                 Text("Супер-режим")
                     .font(.serif(22))
-                    .tracking(-0.4)
+                    .tracking(0.1)
                     .staggeredAppear(index: 1)
                 Text("ИИ-модель для Супер-режима улучшает качество текста. Полностью офлайн.")
                     .font(.callout)
@@ -567,7 +567,7 @@ private struct TryItStepView: View {
             VStack(spacing: 8) {
                 Text(isWorkerReady ? "Всё готово!" : "Почти готово!")
                     .font(.serif(22))
-                    .tracking(-0.4)
+                    .tracking(0.1)
                     .staggeredAppear(index: 1)
 
                 Group {
