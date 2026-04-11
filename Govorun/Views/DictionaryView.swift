@@ -73,7 +73,7 @@ private struct DictionaryRowView: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(entry.word)
                     .font(.body.weight(.medium))
@@ -89,8 +89,8 @@ private struct DictionaryRowView: View {
             if isHovered {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.body)
+                        .foregroundStyle(Color.ink.opacity(0.4))
                 }
                 .buttonStyle(.plain)
                 .help("Удалить")
