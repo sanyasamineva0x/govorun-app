@@ -74,12 +74,6 @@ private struct DictionaryRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "textformat.abc")
-                .font(.callout)
-                .foregroundStyle(Color.sage.opacity(0.5))
-                .frame(width: 20)
-                .padding(.top, 2)
-
             VStack(alignment: .leading, spacing: 3) {
                 Text(entry.word)
                     .font(.body.weight(.medium))

@@ -181,17 +181,16 @@ struct BrandedEmptyState: View {
 
             Image(systemName: icon)
                 .font(.system(size: 26))
-                .foregroundStyle(Color.ink.opacity(0.12))
+                .foregroundStyle(Color.ink.opacity(0.2))
 
             Text(title)
                 .font(.serif(17, weight: .semibold))
                 .tracking(-0.2)
-                .foregroundStyle(.secondary)
 
             if let subtitle {
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(Color.ink.opacity(0.38))
+                    .foregroundStyle(Color.ink.opacity(0.5))
                     .multilineTextAlignment(.center)
             }
 
@@ -256,26 +255,26 @@ struct SettingsSearchBar: View {
     var placeholder: String = "Поиск…"
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.callout)
-                .foregroundStyle(Color.ink.opacity(0.25))
+                .font(.body)
+                .foregroundStyle(Color.ink.opacity(0.3))
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.callout)
+                .font(.body)
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(Color.ink.opacity(0.25))
+                        .font(.callout)
+                        .foregroundStyle(Color.ink.opacity(0.3))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(Color.mist)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
