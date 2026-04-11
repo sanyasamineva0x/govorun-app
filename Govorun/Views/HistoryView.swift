@@ -83,16 +83,6 @@ private struct HistoryRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            if item.audioFileName != nil {
-                Button(action: togglePlayback) {
-                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.6))
-                }
-                .buttonStyle(.plain)
-                .help(isPlaying ? "Остановить" : "Прослушать")
-            }
-
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.normalizedText)
                     .font(.body)
@@ -110,6 +100,16 @@ private struct HistoryRowView: View {
             }
 
             Spacer()
+
+            if item.audioFileName != nil {
+                Button(action: togglePlayback) {
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .help(isPlaying ? "Остановить" : "Прослушать")
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
