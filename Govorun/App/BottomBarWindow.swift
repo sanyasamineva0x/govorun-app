@@ -22,16 +22,10 @@ enum BottomBarState: Equatable {
 
 @MainActor
 enum BrandColors {
-    /// Cotton Candy #B36A5E — recording waveform
-    static let cottonCandy = NSColor(red: 179/255, green: 106/255, blue: 94/255, alpha: 1)
-    /// Sky Aqua #0acdff — processing индикатор
-    static let skyAqua = NSColor(red: 10/255, green: 205/255, blue: 255/255, alpha: 1)
-    /// Ocean Mist #60ab9a — success
-    static let oceanMist = NSColor(red: 96/255, green: 171/255, blue: 154/255, alpha: 1)
-    /// Petal Frost #fbdce2 — мягкий фон
-    static let petalFrost = NSColor(red: 251/255, green: 220/255, blue: 226/255, alpha: 1)
-    /// Alabaster Grey #dedee0 — нейтральный фон
-    static let alabasterGrey = NSColor(red: 222/255, green: 222/255, blue: 224/255, alpha: 1)
+    static let sage = NSColor(red: 61/255, green: 123/255, blue: 110/255, alpha: 1)
+    static let ember = NSColor(red: 200/255, green: 80/255, blue: 70/255, alpha: 1)
+    static let ink = NSColor(red: 27/255, green: 25/255, blue: 23/255, alpha: 1)
+    static let mist = NSColor(red: 240/255, green: 238/255, blue: 236/255, alpha: 1)
 }
 
 // MARK: - Размеры pill

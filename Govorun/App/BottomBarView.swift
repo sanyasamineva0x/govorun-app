@@ -28,7 +28,7 @@ enum PillMotion {
 
     // Glow — сдержанный
     static let glowOpacityScale: Double = 0.3
-    static let glowRadiusScale: CGFloat = 2.5
+    static let glowRadiusScale: CGFloat = 5.0
 }
 
 // MARK: - BottomBarView
@@ -163,15 +163,15 @@ struct BottomBarView: View {
         case .hidden:
             Color.clear
         case .recording:
-            Color(nsColor: BrandColors.cottonCandy).opacity(0.06)
+            Color(nsColor: BrandColors.sage).opacity(0.12)
         case .processing:
-            Color(nsColor: BrandColors.skyAqua).opacity(0.04)
+            Color(nsColor: BrandColors.sage).opacity(0.07)
         case .modelLoading, .modelDownloading:
-            Color(nsColor: BrandColors.skyAqua).opacity(0.04)
+            Color(nsColor: BrandColors.sage).opacity(0.07)
         case .accessibilityHint:
-            Color(nsColor: BrandColors.oceanMist).opacity(0.06)
+            Color(nsColor: BrandColors.sage).opacity(0.08)
         case .error:
-            Color(nsColor: BrandColors.cottonCandy).opacity(0.08)
+            Color(nsColor: BrandColors.ember).opacity(0.12)
         }
     }
 }
@@ -220,10 +220,10 @@ struct WaveformBar: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: BottomBarMetrics.barWidth/2)
-            .fill(Color(nsColor: BrandColors.cottonCandy))
+            .fill(Color(nsColor: BrandColors.sage))
             .frame(width: BottomBarMetrics.barWidth, height: barHeight)
             .shadow(
-                color: Color(nsColor: BrandColors.cottonCandy)
+                color: Color(nsColor: BrandColors.sage)
                     .opacity(glowOpacity),
                 radius: glowRadius
             )
@@ -266,11 +266,11 @@ struct ProcessingView: View {
         HStack(spacing: 3) {
             ForEach(0..<barCount, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(Color(nsColor: BrandColors.skyAqua))
+                    .fill(Color(nsColor: BrandColors.sage))
                     .frame(width: 2.5, height: barHeight(for: index))
                     .opacity(barOpacity(for: index))
                     .shadow(
-                        color: Color(nsColor: BrandColors.skyAqua)
+                        color: Color(nsColor: BrandColors.sage)
                             .opacity(index == activeIndex ? 0.3 : 0),
                         radius: 2
                     )
@@ -322,7 +322,7 @@ struct ModelLoadingView: View {
         HStack(spacing: 7) {
             ProgressView()
                 .scaleEffect(0.65)
-                .tint(Color(nsColor: BrandColors.skyAqua))
+                .tint(Color(nsColor: BrandColors.sage))
             Text("Загружаю модель…")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -341,7 +341,7 @@ struct ModelDownloadingView: View {
         HStack(spacing: 7) {
             ProgressView()
                 .scaleEffect(0.65)
-                .tint(Color(nsColor: BrandColors.skyAqua))
+                .tint(Color(nsColor: BrandColors.sage))
             Text("Качаю модель… \(progress)%")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -357,7 +357,7 @@ struct AccessibilityHintView: View {
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: "hand.raised.fill")
-                .foregroundStyle(Color(nsColor: BrandColors.oceanMist))
+                .foregroundStyle(Color(nsColor: BrandColors.sage))
                 .font(.system(size: 12, weight: .medium))
             Text("Включите Accessibility для точной вставки")
                 .font(.system(size: 11.5, weight: .medium))
@@ -376,7 +376,7 @@ struct ErrorView: View {
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(Color(nsColor: BrandColors.cottonCandy))
+                .foregroundStyle(Color(nsColor: BrandColors.ember))
                 .font(.system(size: 12, weight: .medium))
             Text(message)
                 .font(.system(size: 12, weight: .medium))
