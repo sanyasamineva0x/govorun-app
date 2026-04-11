@@ -142,23 +142,22 @@ final class ErrorMessagesTests: XCTestCase {
 
 @MainActor
 final class BrandColorsExtendedTests: XCTestCase {
-    func test_alabasterGrey_isDefined() {
-        let color = BrandColors.alabasterGrey
+    func test_mist_isDefined() {
+        let color = BrandColors.mist
         XCTAssertNotNil(color)
-        // #dedee0 → 222/255, 222/255, 224/255
+        // #F0EEEC → 240/255, 238/255, 236/255
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        XCTAssertEqual(r, 222/255, accuracy: 0.01)
-        XCTAssertEqual(g, 222/255, accuracy: 0.01)
-        XCTAssertEqual(b, 224/255, accuracy: 0.01)
+        XCTAssertEqual(r, 240/255, accuracy: 0.01)
+        XCTAssertEqual(g, 238/255, accuracy: 0.01)
+        XCTAssertEqual(b, 236/255, accuracy: 0.01)
         XCTAssertEqual(a, 1.0, accuracy: 0.01)
     }
 
-    func test_allFiveBrandColors_exist() {
-        XCTAssertNotNil(BrandColors.cottonCandy)
-        XCTAssertNotNil(BrandColors.skyAqua)
-        XCTAssertNotNil(BrandColors.oceanMist)
-        XCTAssertNotNil(BrandColors.petalFrost)
-        XCTAssertNotNil(BrandColors.alabasterGrey)
+    func test_allBrandColors_exist() {
+        XCTAssertNotNil(BrandColors.sage)
+        XCTAssertNotNil(BrandColors.ember)
+        XCTAssertNotNil(BrandColors.ink)
+        XCTAssertNotNil(BrandColors.mist)
     }
 }
