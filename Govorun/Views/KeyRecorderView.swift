@@ -141,8 +141,8 @@ struct KeyRecorderView: View {
     private var statusIcon: some View {
         switch workerState {
         case .ready:
-            Image(systemName: "option")
-                .font(.system(size: 22, weight: .medium))
+            Text(store.activationKey.displayName)
+                .font(.system(size: 20, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
@@ -180,35 +180,34 @@ struct KeyRecorderView: View {
     }
 
     private var recordingContent: some View {
-        HStack(spacing: 12) {
-            // Анимированная иконка записи
+        HStack(spacing: 16) {
             Image(systemName: "keyboard")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(Color.sage)
-                .frame(width: 40, height: 40)
-                .background(Color.mist)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 52, height: 52)
+                .background(Color.sage.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 if let preview = previewText {
                     Text(preview)
-                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.sage)
                 } else {
                     Text("Нажмите нужную клавишу…")
-                        .font(.body)
+                        .font(.system(size: 16, weight: .medium))
                 }
                 Text("Esc — отмена")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
         }
-        .settingsCard()
+        .padding(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.ink.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.sage, lineWidth: 2)
         )
     }
 

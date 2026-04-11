@@ -181,11 +181,9 @@ private struct GeneralSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Статус + горячая клавиша (первый блок)
+            // Статус + горячая клавиша
             KeyRecorderView(store: appState.settings, workerState: appState.workerState)
                 .staggeredAppear(index: 0)
-
-            Divider().foregroundStyle(Color.mist)
 
             ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 1)
@@ -193,8 +191,9 @@ private struct GeneralSettingsContent: View {
             Divider().foregroundStyle(Color.mist)
 
             // Поведение
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
                 SectionHeader(title: "Поведение")
+                    .padding(.bottom, 12)
 
                 // Режим работы
                 HStack {
@@ -214,10 +213,9 @@ private struct GeneralSettingsContent: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 160)
+                    .frame(width: 180)
                 }
-
-                Divider()
+                .padding(.vertical, 10)
 
                 SettingsToggleRow(
                     title: "Точка в конце фразы",
@@ -225,8 +223,7 @@ private struct GeneralSettingsContent: View {
                     icon: "smallcircle.filled.circle",
                     isOn: settingsBinding(\.terminalPeriodEnabled)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Звуки",
@@ -234,8 +231,7 @@ private struct GeneralSettingsContent: View {
                     icon: "speaker.wave.2",
                     isOn: settingsBinding(\.soundEnabled)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "Автозапуск",
@@ -244,8 +240,7 @@ private struct GeneralSettingsContent: View {
                     iconColor: .sage,
                     isOn: settingsBinding(\.launchAtLogin)
                 )
-
-                Divider()
+                .padding(.vertical, 6)
 
                 SettingsToggleRow(
                     title: "История записей",
@@ -254,8 +249,8 @@ private struct GeneralSettingsContent: View {
                     iconColor: .sage,
                     isOn: settingsBinding(\.saveAudioHistory)
                 )
+                .padding(.vertical, 6)
             }
-            .settingsCard()
             .staggeredAppear(index: 2)
 
             // Сброс
