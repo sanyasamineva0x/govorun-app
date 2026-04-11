@@ -87,7 +87,7 @@ private struct HistoryRowView: View {
                 Button(action: togglePlayback) {
                     Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.3))
+                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.6))
                 }
                 .buttonStyle(.plain)
                 .help(isPlaying ? "Остановить" : "Прослушать")
@@ -111,7 +111,9 @@ private struct HistoryRowView: View {
 
             Spacer()
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color.ink.opacity(isHovered ? 0.04 : 0))
