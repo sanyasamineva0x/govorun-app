@@ -35,12 +35,7 @@ extension Color {
 
 extension Font {
     static func serif(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        switch weight {
-        case .semibold:
-            .custom("SourceSerif4Variable-Roman", size: size).weight(.semibold)
-        default:
-            .custom("SourceSerif4Variable-Roman", size: size).weight(.bold)
-        }
+        .system(size: size, weight: weight, design: .serif)
     }
 }
 

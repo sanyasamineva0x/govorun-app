@@ -1,0 +1,294 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+      - navigation "Main" [ref=e13]:
+        - list [ref=e15]:
+          - listitem [ref=e16]:
+            - link "Pricing" [ref=e17] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e18]:
+            - button "Solutions" [ref=e19] [cursor=pointer]
+          - listitem [ref=e20]:
+            - button "Products" [ref=e21] [cursor=pointer]
+          - listitem [ref=e22]:
+            - link "Inspiration" [ref=e23] [cursor=pointer]:
+              - /url: https://www.pampam.city/explore-q3lldmKbBaAR63C6nT4c
+    - generic [ref=e27]:
+      - heading "Put your world on the map." [level=1] [ref=e28]
+      - heading "PamPam is an AI map maker to make your own custom maps, travel maps and map animations." [level=2] [ref=e29]
+      - generic [ref=e30]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - textbox [active] [ref=e34]
+            - generic:
+              - generic:
+                - generic: Kid friendly trip to Tokyo
+          - generic [ref=e36] [cursor=pointer]:
+            - img [ref=e37]
+            - generic: Make map
+        - generic [ref=e39] [cursor=pointer]:
+          - img "csv" [ref=e41]
+          - heading "Start from scratch" [level=3] [ref=e43]
+        - generic [ref=e44] [cursor=pointer]:
+          - img "notion" [ref=e46]
+          - heading "Start from Notion" [level=3] [ref=e48]
+        - generic [ref=e49] [cursor=pointer]:
+          - img "sheets" [ref=e51]
+          - heading "Start from Sheets" [level=3] [ref=e53]
+    - generic [ref=e56]:
+      - heading "As seen on the internet." [level=2] [ref=e57]
+      - generic [ref=e59]:
+        - link "Fast Company logo" [ref=e60] [cursor=pointer]:
+          - /url: https://www.fastcompany.com/91044304/how-to-use-pampam-felt-and-proxi-to-make-online-maps
+          - img "Fast Company logo" [ref=e61]
+        - link "Wondertools logo" [ref=e62] [cursor=pointer]:
+          - /url: https://www.businessinsider.com/ex-google-employees-building-maps-app-pampam-ai-creators-social-2024-8
+          - img "Wondertools logo" [ref=e63]
+        - link "Forbes logo" [ref=e64] [cursor=pointer]:
+          - /url: https://www.forbes.com/sites/jamiecartereurope/2024/03/10/11-top-secret-places-to-see-the-total-solar-eclipse-in-indiana-according-to-an-expert/?sh=2a1ba6ce7f6e
+          - img "Forbes logo" [ref=e65]
+        - link [ref=e66] [cursor=pointer]:
+          - /url: https://www.densediscovery.com/issues/267
+          - img [ref=e67]
+    - generic [ref=e70]:
+      - img "PamPam AI map maker mobile view — showing interactive custom map of US national parks" [ref=e72]
+      - generic [ref=e73]:
+        - generic [ref=e74] [cursor=pointer]: For business
+        - heading "Make your own custom maps." [level=2] [ref=e75]
+        - heading "PamPam's AI map maker lets you create custom maps and travel maps without any code. You can share PamPam maps with a link, or embed them on your website." [level=3] [ref=e76]
+        - generic [ref=e77] [cursor=pointer]: Explore our map maker
+    - generic [ref=e81]:
+      - link "Explore PamPam's map maker →" [ref=e83] [cursor=pointer]:
+        - /url: /map-maker
+        - heading "Explore PamPam's map maker →" [level=4] [ref=e84]
+      - generic [ref=e85]:
+        - link "Map Maker icon Event Maps Create interactive event maps with your data. →" [ref=e86] [cursor=pointer]:
+          - /url: /event-maps
+          - img "Map Maker icon" [ref=e88]
+          - generic [ref=e89]:
+            - generic [ref=e90]: Event Maps
+            - generic [ref=e91]: Create interactive event maps with your data.
+          - generic [ref=e92]: →
+        - link "date icon America 250 Maps Celebrate America's 250th birthday. →" [ref=e93] [cursor=pointer]:
+          - /url: /event-map-america250
+          - img "date icon" [ref=e95]
+          - generic [ref=e96]:
+            - generic [ref=e97]: America 250 Maps
+            - generic [ref=e98]: Celebrate America's 250th birthday.
+          - generic [ref=e99]: →
+        - link "date icon World Cup Maps Prepare for the World Cup 2026. →" [ref=e100] [cursor=pointer]:
+          - /url: /world-cup-2026-maps
+          - img "date icon" [ref=e102]
+          - generic [ref=e103]:
+            - generic [ref=e104]: World Cup Maps
+            - generic [ref=e105]: Prepare for the World Cup 2026.
+          - generic [ref=e106]: →
+        - link "Embed icon Custom Maps Embed branded maps on your site. →" [ref=e107] [cursor=pointer]:
+          - /url: /custom-maps
+          - img "Embed icon" [ref=e109]
+          - generic [ref=e110]:
+            - generic [ref=e111]: Custom Maps
+            - generic [ref=e112]: Embed branded maps on your site.
+          - generic [ref=e113]: →
+    - generic [ref=e116]:
+      - generic [ref=e117]:
+        - generic [ref=e118] [cursor=pointer]: For explorers
+        - heading "Make travel & trip maps" [level=2] [ref=e119]
+        - heading "With PamPam, you can make custom travel maps and trip maps with pins. Share your travels on a map with guides and itineraries. Or plan your trip with our AI trip planner and custom map maker." [level=3] [ref=e120]
+        - generic [ref=e121] [cursor=pointer]: Make travel maps
+      - img "Screenshot of an AI trip planner" [ref=e123]
+    - generic [ref=e127]:
+      - generic [ref=e128]:
+        - heading "Make your own map in minutes." [level=2] [ref=e129]
+        - heading "PamPam's AI map maker creates beautiful maps for points of interest, not data visualization. Start with one of our map templates." [level=2] [ref=e130]
+      - generic [ref=e131]:
+        - link "View Startup Directory template for custom maps" [ref=e132] [cursor=pointer]:
+          - /url: /templates/startup-ecosystem-map
+          - generic [ref=e133]:
+            - img "Preview of Startup Directory – an AI map maker template for Show startups on a map." [ref=e135]
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: Startup Directory
+              - paragraph [ref=e138]: Show startups on a map.
+        - link "View Business directory map template for custom maps" [ref=e139] [cursor=pointer]:
+          - /url: /templates/business-directory
+          - generic [ref=e140]:
+            - img "Preview of Business directory map – an AI map maker template for Directory for local businesses" [ref=e142]
+            - generic [ref=e143]:
+              - paragraph [ref=e144]: Business directory map
+              - paragraph [ref=e145]: Directory for local businesses
+        - link "View Member directory map template for custom maps" [ref=e146] [cursor=pointer]:
+          - /url: /templates/people-directory
+          - generic [ref=e147]:
+            - img "Preview of Member directory map – an AI map maker template for Share members, businesses, profiles" [ref=e149]
+            - generic [ref=e150]:
+              - paragraph [ref=e151]: Member directory map
+              - paragraph [ref=e152]: Share members, businesses, profiles
+      - generic [ref=e153]:
+        - link "View Shop local guide map template for custom maps" [ref=e154] [cursor=pointer]:
+          - /url: /templates/shop-local-map
+          - generic [ref=e155]:
+            - img "Preview of Shop local guide map – an AI map maker template for Guide for shopping local" [ref=e157]
+            - generic [ref=e158]:
+              - paragraph [ref=e159]: Shop local guide map
+              - paragraph [ref=e160]: Guide for shopping local
+        - link "View City Guide template for custom maps" [ref=e161] [cursor=pointer]:
+          - /url: /templates/city-guide
+          - generic [ref=e162]:
+            - img "Preview of City Guide – an AI map maker template for Guide for your trip or city" [ref=e164]
+            - generic [ref=e165]:
+              - paragraph [ref=e166]: City Guide
+              - paragraph [ref=e167]: Guide for your trip or city
+        - link "View Countries visited map template for custom maps" [ref=e168] [cursor=pointer]:
+          - /url: /templates/countries-visited-map
+          - generic [ref=e169]:
+            - img "Preview of Countries visited map – an AI map maker template for Map of countries visited." [ref=e171]
+            - generic [ref=e172]:
+              - paragraph [ref=e173]: Countries visited map
+              - paragraph [ref=e174]: Map of countries visited.
+    - generic [ref=e178]:
+      - generic [ref=e179]:
+        - heading "PamPam Map Maker" [level=2] [ref=e180]
+        - paragraph [ref=e181]: In the map maker, you can add places, choose color themes and customize your map - without ever touching code.
+      - img "Screenshot of the PamPam map maker in edit mode showing a map titled 'A designers guide to San Francisco'" [ref=e182]
+    - generic [ref=e184]:
+      - generic [ref=e189]:
+        - heading "Custom maps for everyone." [level=2] [ref=e190]
+        - heading "With PamPam, make a custom map, travel maps or map animations in minutes, and embed it on your website or share it with a link - no code needed." [level=2] [ref=e191]
+      - generic [ref=e192]:
+        - link "View Communities & Creators travel map template" [ref=e194] [cursor=pointer]:
+          - /url: /community-maps
+          - generic [ref=e195]:
+            - img "Image of two people in a garden" [ref=e196]
+            - heading "Communities & Creators" [level=4] [ref=e198]:
+              - generic [ref=e199]: Communities & Creators
+              - img [ref=e200]
+        - link "View Media Teams travel map template" [ref=e203] [cursor=pointer]:
+          - /url: /maps-for-media
+          - generic [ref=e204]:
+            - img "Image of a wave" [ref=e205]
+            - heading "Media Teams" [level=4] [ref=e207]:
+              - generic [ref=e208]: Media Teams
+              - img [ref=e209]
+        - link "View Real Estate travel map template" [ref=e212] [cursor=pointer]:
+          - /url: /real-estate-maps
+          - generic [ref=e213]:
+            - img "Image of a building in a city" [ref=e214]
+            - heading "Real Estate" [level=4] [ref=e216]:
+              - generic [ref=e217]: Real Estate
+              - img [ref=e218]
+        - link "View Travel Industry travel map template" [ref=e221] [cursor=pointer]:
+          - /url: /tourism-maps
+          - generic [ref=e222]:
+            - img "Image of a landscape" [ref=e223]
+            - heading "Travel Industry" [level=4] [ref=e225]:
+              - generic [ref=e226]: Travel Industry
+              - img [ref=e227]
+    - generic [ref=e230]:
+      - heading "Questions" [level=2] [ref=e236]
+      - generic [ref=e237]:
+        - generic [ref=e239] [cursor=pointer]:
+          - heading "How do I make my own custom map?" [level=2] [ref=e241]
+          - generic [ref=e242]: +
+        - generic [ref=e244] [cursor=pointer]:
+          - heading "How much does it cost to make a map?" [level=2] [ref=e246]
+          - generic [ref=e247]: +
+        - generic [ref=e249] [cursor=pointer]:
+          - heading "Can I use AI to make a map?" [level=2] [ref=e251]
+          - generic [ref=e252]: +
+        - generic [ref=e254] [cursor=pointer]:
+          - heading "How can I make a travel map with PamPam?" [level=2] [ref=e256]
+          - generic [ref=e257]: +
+        - generic [ref=e259] [cursor=pointer]:
+          - heading "Can I embed or share my custom map?" [level=2] [ref=e261]
+          - generic [ref=e262]: +
+    - generic [ref=e266]:
+      - generic [ref=e267]:
+        - heading "Put your world on the map." [level=2] [ref=e268]
+        - heading "PamPam is an AI map maker that helps you make your own custom maps. Make interactive maps, travel maps, and simple map animations in minutes." [level=2] [ref=e269]
+      - generic [ref=e270]:
+        - link "Try it for free" [ref=e271] [cursor=pointer]:
+          - /url: /login
+          - generic [ref=e272]: Try it for free
+        - link "Explore our map maker" [ref=e273] [cursor=pointer]:
+          - /url: /map-maker
+          - generic [ref=e274]: Explore our map maker
+    - generic [ref=e277]:
+      - img [ref=e279]
+      - generic [ref=e286]:
+        - heading "Tools" [level=6] [ref=e287]
+        - link "Map Maker" [ref=e288] [cursor=pointer]:
+          - /url: /map-maker
+        - link "AI Map Maker" [ref=e289] [cursor=pointer]:
+          - /url: /ai-map-maker
+        - link "Travel Map Maker" [ref=e290] [cursor=pointer]:
+          - /url: /travel-map
+        - link "Map Templates" [ref=e291] [cursor=pointer]:
+          - /url: /templates
+        - link "Custom Map Templates" [ref=e292] [cursor=pointer]:
+          - /url: /custom-map-templates
+        - link "Animated Maps" [ref=e293] [cursor=pointer]:
+          - /url: /map-animation
+        - link "Printable Maps" [ref=e294] [cursor=pointer]:
+          - /url: /printable-maps
+        - link "Maps for Notion" [ref=e295] [cursor=pointer]:
+          - /url: /notion-maps
+        - link "Vicinity Map Maker" [ref=e296] [cursor=pointer]:
+          - /url: /vicinity-map-maker
+        - link "Event maps" [ref=e297] [cursor=pointer]:
+          - /url: /event-maps
+        - link "Travel Recap 2025" [ref=e298] [cursor=pointer]:
+          - /url: /travel-recap
+      - generic [ref=e299]:
+        - heading "Use Cases" [level=6] [ref=e300]
+        - link "Communities" [ref=e301] [cursor=pointer]:
+          - /url: /community-maps
+        - link "Tourism" [ref=e302] [cursor=pointer]:
+          - /url: /tourism-maps
+        - link "Real Estate" [ref=e303] [cursor=pointer]:
+          - /url: /real-estate-maps
+        - link "Media Teams" [ref=e304] [cursor=pointer]:
+          - /url: /maps-for-media
+        - link "Nonprofits" [ref=e305] [cursor=pointer]:
+          - /url: /maps-for-nonprofits
+        - link "Startups & Ecosystems" [ref=e306] [cursor=pointer]:
+          - /url: /startup-maps
+        - link "Weddings" [ref=e307] [cursor=pointer]:
+          - /url: /wedding-maps
+        - link "Store Locator" [ref=e308] [cursor=pointer]:
+          - /url: /store-locator
+      - generic [ref=e309]:
+        - heading "Company" [level=6] [ref=e310]
+        - link "About" [ref=e311] [cursor=pointer]:
+          - /url: /about
+        - link "Pricing" [ref=e312] [cursor=pointer]:
+          - /url: /pricing
+        - link "Whats new" [ref=e313] [cursor=pointer]:
+          - /url: /releases
+        - link "Help & Docs" [ref=e314] [cursor=pointer]:
+          - /url: https://intercom.help/pampam/en
+        - link "Terms & Privacy" [ref=e315] [cursor=pointer]:
+          - /url: https://pampamcity.notion.site/PamPam-1963f6d80ae280c79c88c6e787bb0e2c
+        - link "Features" [ref=e316] [cursor=pointer]:
+          - /url: /features
+        - link "Blog" [ref=e317] [cursor=pointer]:
+          - /url: /blog
+      - generic [ref=e318]:
+        - heading "Community" [level=6] [ref=e319]
+        - link "Feature requests" [ref=e320] [cursor=pointer]:
+          - /url: https://pampam.canny.io/feedback
+        - link "On a Walk" [ref=e321] [cursor=pointer]:
+          - /url: /on-a-walk
+        - link "Ambassador Program" [ref=e322] [cursor=pointer]:
+          - /url: https://pampamcity.notion.site/Become-a-Pam-Pal-15e3f6d80ae280a59988e822f5b52c7d?pvs=74p
+        - link "Affiliate Program" [ref=e323] [cursor=pointer]:
+          - /url: https://pampamcity.notion.site/Become-a-PamPam-Affiliate-2e33f6d80ae280fc98b7ec40145a0767
+        - link "Instagram" [ref=e324] [cursor=pointer]:
+          - /url: https://instagram.com/pampam_city
+        - link "YouTube" [ref=e325] [cursor=pointer]:
+          - /url: https://www.youtube.com/@PamPam_City/videos
+        - link "Gift Shop" [ref=e326] [cursor=pointer]:
+          - /url: /gift-shop
+  - alert [ref=e327]
