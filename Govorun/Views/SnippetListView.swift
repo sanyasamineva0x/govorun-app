@@ -74,7 +74,7 @@ private struct SnippetRowView: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(snippet.trigger)
@@ -117,8 +117,8 @@ private struct SnippetRowView: View {
                         NotificationCenter.default.post(name: .snippetsDidChange, object: nil)
                     }) {
                         Image(systemName: "trash")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.body)
+                            .foregroundStyle(Color.ink.opacity(0.4))
                     }
                     .buttonStyle(.plain)
                     .help("Удалить")
