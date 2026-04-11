@@ -293,5 +293,21 @@
                    sparkle:edSignature="wwLymdX8sETLfpG67Du/YJAaiZEOqljAHtvp3wyBIFGCWhYeAZepkurFMJLLAcULw2jUG5U0ZzsAqVhIx5gJCA=="
                    length="165037001" />
       </item>
+<item>
+        <title>Version 0.2.5</title>
+        <pubDate>Sat, 11 Apr 2026 15:34:16 +0000</pubDate>
+        <sparkle:version>19</sparkle:version>
+        <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[## What's Changed
+* feat: дизайн-система v2 — палитра, типографика, визуальная иерархия by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/23
+
+
+**Full Changelog**: https://github.com/sanyasamineva0x/govorun-app/compare/v0.2.4...v0.2.5]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.5/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="2jYyD8XljwGtFea7c8e07fAlIzTYQ97BX71oP9W0zF0LgPNFM8YskAX5FOH83dSMsarkw//RYiFJpyMMFiYuCA=="
+                   length="166237687" />
+      </item>
   </channel>
 </rss>
