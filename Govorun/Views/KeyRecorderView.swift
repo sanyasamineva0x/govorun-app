@@ -103,36 +103,37 @@ struct KeyRecorderView: View {
     }
 
     private var normalContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             statusIcon
-                .frame(width: 36, height: 36)
-                .background(Color.mist)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: 52, height: 52)
+                .background(Color.sage.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            VStack(alignment: .leading, spacing: 2) {
-                statusTitle
-                    .font(.system(size: 14, weight: .medium))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Зажмите \(store.activationKey.displayName) и говорите")
+                    .font(.system(size: 16, weight: .medium))
 
-                HStack(spacing: 4) {
-                    Text("Горячая клавиша:")
-                        .font(.caption)
-                        .foregroundStyle(Color.ink.opacity(0.5))
-                    Text(store.activationKey.displayName)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color.sage)
-                    Text("· нажмите, чтобы изменить")
-                        .font(.caption)
-                        .foregroundStyle(isHovered ? Color.ink.opacity(0.5) : Color.ink.opacity(0.3))
-                }
+                statusSubtitle
+                    .font(.caption)
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
+
+            if isHovered {
+                Text("Изменить")
+                    .font(.caption)
+                    .foregroundStyle(Color.ink.opacity(0.4))
+            }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isHovered ? Color.ink.opacity(0.04) : Color.clear)
+            RoundedRectangle(cornerRadius: 14)
+                .fill(isHovered ? Color.ink.opacity(0.03) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.mist, lineWidth: 1)
         )
     }
 
@@ -140,30 +141,31 @@ struct KeyRecorderView: View {
     private var statusIcon: some View {
         switch workerState {
         case .ready:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
+            Image(systemName: "option")
+                .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 20))
-                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 22))
+                .foregroundStyle(Color.sage)
         case .loadingModel:
             ProgressView()
-                .scaleEffect(0.7)
+                .scaleEffect(0.8)
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 20))
+                .font(.system(size: 22))
                 .foregroundStyle(Color.ember)
         default:
             ProgressView()
-                .scaleEffect(0.7)
+                .scaleEffect(0.8)
         }
     }
 
-    private var statusTitle: some View {
+    @ViewBuilder
+    private var statusSubtitle: some View {
         switch workerState {
         case .ready:
-            Text("Говорун готов к работе")
+            Text("Отпустите клавишу — текст появится в активном поле")
         case .downloadingModel(let progress):
             Text("Качаю модель… \(progress)%")
         case .loadingModel:
