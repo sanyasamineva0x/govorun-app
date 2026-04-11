@@ -180,7 +180,7 @@ private struct GeneralSettingsContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
+        VStack(alignment: .leading, spacing: 16) {
             // Статус + горячая клавиша (первый блок)
             KeyRecorderView(store: appState.settings, workerState: appState.workerState)
                 .staggeredAppear(index: 0)
@@ -197,21 +197,24 @@ private struct GeneralSettingsContent: View {
                 SectionHeader(title: "Поведение")
 
                 // Режим работы
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Режим работы")
-                        .font(.body)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Режим работы")
+                            .font(.body)
+                        Text(appState.settings.recordingMode.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(Color.ink.opacity(0.5))
+                    }
+
+                    Spacer()
 
                     Picker("", selection: settingsBinding(\.recordingMode)) {
                         ForEach(RecordingMode.allCases, id: \.self) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
-                    .pickerStyle(.segmented)
-
-                    Text(appState.settings.recordingMode.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(Color.ink.opacity(0.5))
-                        .animation(.easeInOut, value: appState.settings.recordingMode)
+                    .pickerStyle(.menu)
+                    .frame(width: 160)
                 }
 
                 Divider()
@@ -482,32 +485,36 @@ private struct ProductModeCard: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "Режим Говоруна")
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(selection.title)
-                    .font(.body)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let assetsText = assetsStatusText {
+                        Label(assetsText, systemImage: assetsStatusIcon)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(descriptionText)
+                            .font(.caption)
+                            .foregroundStyle(Color.ink.opacity(0.5))
+                    }
+                }
+
+                Spacer()
 
                 Picker("", selection: $selection) {
                     ForEach(ProductMode.allCases, id: \.self) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
+                .frame(width: 180)
                 .onChange(of: selection) { _, newValue in
                     if newValue == .superMode, !superAvailable {
                         selection = .standard
                     }
                 }
+            }
 
-                if let assetsText = assetsStatusText {
-                    Label(assetsText, systemImage: assetsStatusIcon)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                } else {
-                    Text(descriptionText)
-                        .font(.caption)
-                        .foregroundStyle(Color.ink.opacity(0.5))
-                }
-
+            VStack(alignment: .leading, spacing: 6) {
                 // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
                 if appState.settings.productMode == .superMode {
                     downloadStatusView

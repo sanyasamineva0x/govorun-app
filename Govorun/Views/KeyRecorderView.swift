@@ -103,39 +103,36 @@ struct KeyRecorderView: View {
     }
 
     private var normalContent: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             statusIcon
-                .frame(width: 44, height: 44)
+                .frame(width: 36, height: 36)
                 .background(Color.mist)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 statusTitle
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
 
                 HStack(spacing: 4) {
                     Text("Горячая клавиша:")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color.ink.opacity(0.5))
                     Text(store.activationKey.displayName)
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.sage)
                     Text("· нажмите, чтобы изменить")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(isHovered ? Color.ink.opacity(0.5) : Color.ink.opacity(0.3))
                 }
             }
 
             Spacer()
         }
-        .padding(16)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(isHovered ? Color.ink.opacity(0.04) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.mist, lineWidth: isHovered ? 1 : 0)
         )
     }
 
