@@ -66,6 +66,7 @@ enum KeyRecorderLogic {
 /// Карточка настроек, которая позволяет пользователю записать новую клавишу активации
 struct KeyRecorderView: View {
     @ObservedObject var store: SettingsStore
+    var workerState: WorkerState = .ready
 
     @State private var isRecording = false
     @State private var isHovered = false
@@ -103,23 +104,26 @@ struct KeyRecorderView: View {
 
     private var normalContent: some View {
         HStack(spacing: 12) {
-            Text(store.activationKey.displayName)
-                .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.sage)
+            statusIcon
                 .frame(width: 40, height: 40)
                 .background(Color.mist)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Зажмите \(store.activationKey.displayName) и говорите")
-                    .font(.body)
+            VStack(alignment: .leading, spacing: 3) {
+                statusTitle
+                    .font(.system(size: 14, weight: .medium))
+
                 HStack(spacing: 4) {
-                    Image(systemName: "pencil")
-                        .font(.caption2)
-                    Text("Нажмите, чтобы изменить")
+                    Text("Горячая клавиша:")
                         .font(.caption)
+                        .foregroundStyle(Color.ink.opacity(0.5))
+                    Text(store.activationKey.displayName)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.sage)
+                    Text("· нажмите, чтобы изменить")
+                        .font(.caption)
+                        .foregroundStyle(isHovered ? Color.ink.opacity(0.5) : Color.ink.opacity(0.3))
                 }
-                .foregroundStyle(isHovered ? .secondary : .tertiary)
             }
 
             Spacer()
@@ -129,6 +133,47 @@ struct KeyRecorderView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.mist, lineWidth: isHovered ? 1 : 0)
         )
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch workerState {
+        case .ready:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.sage)
+        case .downloadingModel:
+            Image(systemName: "arrow.down.circle")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accentColor)
+        case .loadingModel:
+            ProgressView()
+                .scaleEffect(0.7)
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.ember)
+        default:
+            ProgressView()
+                .scaleEffect(0.7)
+        }
+    }
+
+    private var statusTitle: some View {
+        switch workerState {
+        case .ready:
+            Text("Говорун готов к работе")
+        case .downloadingModel(let progress):
+            Text("Качаю модель… \(progress)%")
+        case .loadingModel:
+            Text("Загружаю модель…")
+        case .error(let msg):
+            Text(ErrorMessages.humanReadable(msg))
+        case .settingUp:
+            Text("Готовлюсь…")
+        case .notStarted:
+            Text("Запуск…")
+        }
     }
 
     private var recordingContent: some View {

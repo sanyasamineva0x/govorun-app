@@ -181,20 +181,14 @@ private struct GeneralSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            // Статус модели
-            WorkerStatusCard(workerState: appState.workerState)
+            ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 0)
 
             Divider().foregroundStyle(Color.mist)
 
-            ProductModeCard(selection: settingsBinding(\.productMode))
+            // Клавиша активации + статус
+            KeyRecorderView(store: appState.settings, workerState: appState.workerState)
                 .staggeredAppear(index: 1)
-
-            Divider().foregroundStyle(Color.mist)
-
-            // Клавиша активации
-            KeyRecorderView(store: appState.settings)
-                .staggeredAppear(index: 2)
 
             Divider().foregroundStyle(Color.mist)
 
@@ -203,28 +197,21 @@ private struct GeneralSettingsContent: View {
                 SectionHeader(title: "Поведение")
 
                 // Режим работы
-                HStack(spacing: 12) {
-                    Image(systemName: "rectangle.and.hand.point.up.left")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Режим работы")
                         .font(.body)
-                        .foregroundStyle(Color.sage.opacity(0.7))
-                        .frame(width: 24, height: 24)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Режим работы")
-                            .font(.body)
-
-                        Picker("", selection: settingsBinding(\.recordingMode)) {
-                            ForEach(RecordingMode.allCases, id: \.self) { mode in
-                                Text(mode.title).tag(mode)
-                            }
+                    Picker("", selection: settingsBinding(\.recordingMode)) {
+                        ForEach(RecordingMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
                         }
-                        .pickerStyle(.segmented)
-
-                        Text(appState.settings.recordingMode.subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .animation(.easeInOut, value: appState.settings.recordingMode)
                     }
+                    .pickerStyle(.segmented)
+
+                    Text(appState.settings.recordingMode.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(Color.ink.opacity(0.5))
+                        .animation(.easeInOut, value: appState.settings.recordingMode)
                 }
 
                 Divider()
@@ -232,7 +219,7 @@ private struct GeneralSettingsContent: View {
                 SettingsToggleRow(
                     title: "Точка в конце фразы",
                     description: "Ставить точку в конце фразы",
-                    icon: "period",
+                    icon: "period.circle",
                     isOn: settingsBinding(\.terminalPeriodEnabled)
                 )
 
@@ -266,7 +253,7 @@ private struct GeneralSettingsContent: View {
                 )
             }
             .settingsCard()
-            .staggeredAppear(index: 3)
+            .staggeredAppear(index: 2)
 
             // Сброс
 
@@ -285,7 +272,7 @@ private struct GeneralSettingsContent: View {
                 }
                 .buttonStyle(.plain)
             }
-            .staggeredAppear(index: 4)
+            .staggeredAppear(index: 3)
         }
     }
 }
@@ -495,46 +482,35 @@ private struct ProductModeCard: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "Режим Говоруна")
 
-            HStack(spacing: 12) {
-                Image(systemName: selection.usesLLM ? "sparkles" : "waveform")
+            VStack(alignment: .leading, spacing: 6) {
+                Text(selection.title)
                     .font(.body)
-                    .foregroundStyle(Color.sage.opacity(0.75))
-                    .frame(width: 24, height: 24)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selection.title)
-                        .font(.body)
-
-                    Picker("", selection: $selection) {
-                        ForEach(ProductMode.allCases, id: \.self) { mode in
-                            Text(mode.title).tag(mode)
-                        }
+                Picker("", selection: $selection) {
+                    ForEach(ProductMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
                     }
-                    .pickerStyle(.segmented)
-                    .onChange(of: selection) { _, newValue in
-                        if newValue == .superMode, !superAvailable {
-                            selection = .standard
-                        }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: selection) { _, newValue in
+                    if newValue == .superMode, !superAvailable {
+                        selection = .standard
                     }
+                }
 
-                    Text(selection.subtitle)
+                if let assetsText = assetsStatusText {
+                    Label(assetsText, systemImage: assetsStatusIcon)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text(descriptionText)
+                        .font(.caption)
+                        .foregroundStyle(Color.ink.opacity(0.5))
+                }
 
-                    if let assetsText = assetsStatusText {
-                        Label(assetsText, systemImage: assetsStatusIcon)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    } else if appState.superAssetsState == .installed || appState.settings.productMode != .superMode {
-                        Text(runtimeStatusText)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-
-                    // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
-                    if appState.settings.productMode == .superMode {
-                        downloadStatusView
-                    }
+                // ВАЖНО: settings.productMode (выбранный в picker), НЕ effectiveProductMode
+                if appState.settings.productMode == .superMode {
+                    downloadStatusView
                 }
             }
         }
@@ -544,6 +520,14 @@ private struct ProductModeCard: View {
                 await appState.refreshSuperAssetsReadiness()
             }
         }
+    }
+
+    private var descriptionText: String {
+        let base = selection.subtitle
+        if appState.effectiveProductMode != selection {
+            return "\(base). \(appState.effectiveProductMode.title) активен сейчас."
+        }
+        return base
     }
 
     private var runtimeStatusText: String {

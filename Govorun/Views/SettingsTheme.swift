@@ -364,7 +364,7 @@ struct SettingsToggleRow: View {
                     .font(.body)
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(Color.ink.opacity(0.35))
+                    .foregroundStyle(Color.ink.opacity(0.5))
             }
 
             Spacer()
