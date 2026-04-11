@@ -1,12 +1,26 @@
 import SwiftUI
 
+// MARK: - Adaptive Color Helper
+
+extension Color {
+    init(light: Color, dark: Color) {
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                return NSColor(dark)
+            }
+            return NSColor(light)
+        })
+    }
+}
+
 // MARK: - Фирменные цвета v2
 
 extension Color {
     /// Snow #FEFEFE — основной фон
     static let snow = Color(red: 254/255, green: 254/255, blue: 254/255)
-    /// Mist #F0EEEC — разделители, бордеры
-    static let mist = Color(red: 240/255, green: 238/255, blue: 236/255)
+    /// Mist — разделители, бордеры (адаптивный)
+    static let mist = Color(light: Color(red: 240/255, green: 238/255, blue: 236/255),
+                            dark: Color.white.opacity(0.08))
     /// Ink #1B1917 — текст, кнопки
     static let ink = Color(red: 27/255, green: 25/255, blue: 23/255)
     /// Sage #3D7B6E — waveform, статус
@@ -84,12 +98,12 @@ struct SectionPageHeader: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Image(systemName: section.icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(Color.sage.opacity(0.7))
 
                 Text(section.title)
-                    .font(.serif(22))
-                    .tracking(-0.4)
+                    .font(.serif(28))
+                    .tracking(-0.8)
             }
 
             Text(section.subtitle)
@@ -111,12 +125,7 @@ struct SectionPageHeader: View {
 struct SettingsCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(24)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.mist, lineWidth: 1)
-            )
+            .padding(.vertical, 8)
     }
 }
 

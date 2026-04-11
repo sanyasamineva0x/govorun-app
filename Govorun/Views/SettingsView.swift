@@ -333,7 +333,7 @@ private struct ProductModeCard: View {
         case .installed:
             Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
                 .font(.caption)
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.sage)
 
         case .error(let msg):
             VStack(alignment: .leading, spacing: 6) {
@@ -410,7 +410,7 @@ private struct ProductModeCard: View {
             case .completed:
                 Label("Я готов к работе в Супер-режиме", systemImage: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.sage)
 
             case .failed(let error):
                 VStack(alignment: .leading, spacing: 6) {
@@ -605,7 +605,7 @@ private struct WorkerStatusCard: View {
         case .ready:
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 22))
-                .foregroundStyle(Color.green)
+                .foregroundStyle(Color.sage)
         case .downloadingModel:
             Image(systemName: "arrow.down.circle")
                 .font(.system(size: 22))
