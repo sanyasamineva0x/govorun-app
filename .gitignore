@@ -31,6 +31,7 @@ build/
 
 # AI agent configs
 .claude/
+.omx/
 AGENTS.md
 
 # Superpowers brainstorming mockups
@@ -63,3 +64,9 @@ worker/wheels/
 
 # Internal strategy docs (не для публичного репо)
 docs/llm-normalization-roadmap.md
+
+# Superpowers specs, plans, design docs
+docs/superpowers/
+
+# Reference screenshots
+pampam-*.png
