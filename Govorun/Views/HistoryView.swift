@@ -20,8 +20,8 @@ struct HistoryView: View {
             } else {
                 HStack {
                     Text("\(items.count) из \(HistoryStore.maxItems)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(.body)
+                        .foregroundStyle(Color.ink.opacity(0.5))
 
                     Spacer()
 
@@ -82,12 +82,12 @@ private struct HistoryRowView: View {
     @StateObject private var playbackDelegate = AudioPlaybackDelegate()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             if item.audioFileName != nil {
                 Button(action: togglePlayback) {
                     Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.38))
+                        .font(.system(size: 24))
+                        .foregroundStyle(isPlaying ? Color.sage : Color.ink.opacity(0.3))
                 }
                 .buttonStyle(.plain)
                 .help(isPlaying ? "Остановить" : "Прослушать")
@@ -99,23 +99,11 @@ private struct HistoryRowView: View {
                     .lineLimit(3)
 
                 HStack(spacing: 8) {
-                    Label(Self.dateFormatter.string(from: item.createdAt), systemImage: "clock")
+                    Text(Self.dateFormatter.string(from: item.createdAt))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.ink.opacity(0.4))
 
-                    if let appName = item.appName {
-                        Label(appName, systemImage: "app")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let styleName = SuperTextStyle(rawValue: item.textMode)?.displayName {
-                        Label(styleName, systemImage: "textformat.alt")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Label("\(item.totalLatencyMs)мс", systemImage: "timer")
+                    Text("\(item.totalLatencyMs)мс")
                         .font(.caption)
                         .foregroundStyle(Color.ink.opacity(0.25))
                 }
