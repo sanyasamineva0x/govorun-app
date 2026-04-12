@@ -1,6 +1,12 @@
 import Foundation
 import OSLog
 
+// MARK: - Протокол Cloud Audio
+
+protocol CloudAudioProcessing: Sendable {
+    func processAudio(audioData: Data, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String
+}
+
 // MARK: - Ошибки Pipeline
 
 enum PipelineError: Error, Equatable {
@@ -49,6 +55,8 @@ struct PipelineResult {
         case llm
         case llmRejected // LLM ответил, но gate отклонил → deterministicText fallback
         case llmFailed // LLM упал → deterministicText fallback
+        case cloud // аудио через CloudLLMClient.processAudio
+        case cloudFailed // cloud API упал, нет fallback
     }
 
     enum SnippetFallbackReason: String {
@@ -240,6 +248,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _isCancelled = false
     private var _isRecording = false
     private var _llmClient: LLMClient
+    private var _cloudClient: CloudAudioProcessing?
 
     private var _productMode: ProductMode = .standard
     private var _superStyle: SuperTextStyle?
@@ -299,6 +308,12 @@ final class PipelineEngine: @unchecked Sendable {
         _llmClient = llmClient
     }
 
+    func updateCloudClient(_ client: CloudAudioProcessing?) {
+        lock.lock()
+        defer { lock.unlock() }
+        _cloudClient = client
+    }
+
     func startRecording(sessionId: UUID) throws {
         lock.lock()
         _sessionId = sessionId
@@ -317,7 +332,7 @@ final class PipelineEngine: @unchecked Sendable {
         let sessionId = snapshotSessionId()
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
-        let (currentProductMode, currentSuperStyle, currentHints, currentLLMClient) = snapshotConfig()
+        let (currentProductMode, currentSuperStyle, currentHints, currentLLMClient, currentCloudClient) = snapshotConfig()
         let effectiveTerminalPeriod = currentSuperStyle?.terminalPeriod ?? terminalPeriodEnabled
 
         func applyPostProcessing(_ text: String) -> String {
@@ -326,6 +341,18 @@ final class PipelineEngine: @unchecked Sendable {
                 : DeterministicNormalizer.stripTrailingPeriods(text)
             let styledText = currentSuperStyle?.applyDeterministic(periodText) ?? periodText
             return ListFormatter.format(styledText, style: currentSuperStyle)
+        }
+
+        // Cloud fork -- аудио напрямую в облако, минуя STT
+        if currentProductMode.isCloud {
+            return try await processCloudPath(
+                stopTime: stopTime,
+                sessionId: sessionId,
+                superStyle: currentSuperStyle,
+                hints: currentHints,
+                cloudClient: currentCloudClient,
+                applyPostProcessing: applyPostProcessing
+            )
         }
 
         markRecordingStopped()
@@ -673,10 +700,10 @@ final class PipelineEngine: @unchecked Sendable {
         return _sessionId ?? UUID()
     }
 
-    private func snapshotConfig() -> (ProductMode, SuperTextStyle?, NormalizationHints, LLMClient) {
+    private func snapshotConfig() -> (ProductMode, SuperTextStyle?, NormalizationHints, LLMClient, CloudAudioProcessing?) {
         lock.lock()
         defer { lock.unlock() }
-        return (_productMode, _superStyle, _hints, _llmClient)
+        return (_productMode, _superStyle, _hints, _llmClient, _cloudClient)
     }
 
     private func prepareForRecording() {
@@ -696,6 +723,124 @@ final class PipelineEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _isCancelled
+    }
+
+    private func processCloudPath(
+        stopTime: CFAbsoluteTime,
+        sessionId: UUID,
+        superStyle: SuperTextStyle?,
+        hints: NormalizationHints,
+        cloudClient: CloudAudioProcessing?,
+        applyPostProcessing: (String) -> String
+    ) async throws -> PipelineResult {
+        markRecordingStopped()
+        let audioDurationMs = Int(audioCapture.duration * 1_000)
+        let audioData = audioCapture.stopRecording()
+
+        // Сохраняем аудио на диск для истории
+        let audioFileName: String?
+        if !audioData.isEmpty, saveAudioHistory {
+            do {
+                audioFileName = try saveAudioFile(audioData, sessionId)
+            } catch {
+                Self.logger.error(
+                    "Failed to save audio history: \(String(describing: error), privacy: .public)"
+                )
+                audioFileName = nil
+            }
+        } else {
+            audioFileName = nil
+        }
+
+        func cleanupAudioOnFailure() {
+            if let audioFileName {
+                deleteAudioFile(audioFileName)
+            }
+        }
+
+        // Пустое аудио → trivial
+        guard !audioData.isEmpty else {
+            let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+            return PipelineResult(
+                sessionId: sessionId,
+                rawTranscript: "",
+                normalizedText: "",
+                superStyle: superStyle,
+                normalizationPath: .trivial,
+                sttLatencyMs: 0,
+                llmLatencyMs: 0,
+                insertionLatencyMs: 0,
+                totalLatencyMs: totalMs,
+                audioDurationMs: audioDurationMs,
+                audioFileName: audioFileName
+            )
+        }
+
+        guard !currentIsCancelled() else {
+            cleanupAudioOnFailure()
+            throw PipelineError.cancelled
+        }
+
+        // Cloud API
+        let llmStart = CFAbsoluteTimeGetCurrent()
+        let cloudOutput: String
+        let llmLatencyMs: Int
+
+        do {
+            guard let cloudClient else {
+                throw LLMError.networkError("Cloud client не настроен")
+            }
+            cloudOutput = try await cloudClient.processAudio(
+                audioData: audioData,
+                superStyle: superStyle ?? .normal,
+                hints: hints
+            )
+            guard !currentIsCancelled() else {
+                cleanupAudioOnFailure()
+                throw PipelineError.cancelled
+            }
+            llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+        } catch PipelineError.cancelled {
+            cleanupAudioOnFailure()
+            throw PipelineError.cancelled
+        } catch is CancellationError {
+            cleanupAudioOnFailure()
+            throw PipelineError.cancelled
+        } catch {
+            llmLatencyMs = Int((CFAbsoluteTimeGetCurrent() - llmStart) * 1_000)
+            Self.logger.error("Cloud API failed: \(String(describing: error), privacy: .public)")
+            cleanupAudioOnFailure()
+            let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+            return PipelineResult(
+                sessionId: sessionId,
+                rawTranscript: "",
+                normalizedText: "",
+                superStyle: superStyle,
+                normalizationPath: .cloudFailed,
+                sttLatencyMs: 0,
+                llmLatencyMs: llmLatencyMs,
+                insertionLatencyMs: 0,
+                totalLatencyMs: totalMs,
+                audioDurationMs: audioDurationMs,
+                audioFileName: nil
+            )
+        }
+
+        let finalText = applyPostProcessing(cloudOutput)
+        let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
+        return PipelineResult(
+            sessionId: sessionId,
+            rawTranscript: cloudOutput,
+            normalizedText: finalText,
+            superStyle: superStyle,
+            normalizationPath: .cloud,
+            sttLatencyMs: 0,
+            llmLatencyMs: llmLatencyMs,
+            insertionLatencyMs: 0,
+            totalLatencyMs: totalMs,
+            audioDurationMs: audioDurationMs,
+            audioFileName: audioFileName
+        )
     }
 
     private func mapNormalizationPath(_ path: NormalizationPipelinePath) -> PipelineResult.NormalizationPath {

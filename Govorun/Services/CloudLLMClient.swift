@@ -318,6 +318,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
     }
 }
 
+// MARK: - CloudAudioProcessing
+
+extension CloudLLMClient: CloudAudioProcessing {}
+
 // MARK: - Data extension
 
 private extension Data {

@@ -58,6 +58,23 @@ final class MockSnippetEngine: SnippetMatching, @unchecked Sendable {
     }
 }
 
+// MARK: - Мок Cloud Audio
+
+final class MockCloudAudioClient: CloudAudioProcessing, @unchecked Sendable {
+    private let lock = NSLock()
+    var processAudioResult: String?
+    var processAudioError: Error?
+    private(set) var processAudioCalls: [(audioData: Data, superStyle: SuperTextStyle, hints: NormalizationHints)] = []
+
+    func processAudio(audioData: Data, superStyle: SuperTextStyle, hints: NormalizationHints) async throws -> String {
+        lock.lock()
+        processAudioCalls.append((audioData, superStyle, hints))
+        lock.unlock()
+        if let error = processAudioError { throw error }
+        return processAudioResult ?? ""
+    }
+}
+
 // MARK: - Хелперы
 
 private func makePipeline(
@@ -1476,5 +1493,189 @@ final class IsTrivialTests: XCTestCase {
 
         XCTAssertEqual(result.normalizedText, "1. Молоко\n2. Хлеб",
                        "LLM failed fallback тоже проходит через ListFormatter")
+    }
+
+    // MARK: - Cloud mode
+
+    func test_cloud_mode_skips_stt() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "не должен вызываться")
+
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioResult = "Привет, мир."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(stt.recognizeCalls.count, 0, "STT не должен вызываться в cloud mode")
+        XCTAssertEqual(result.normalizationPath, .cloud)
+        XCTAssertEqual(result.sttLatencyMs, 0)
+    }
+
+    func test_cloud_mode_calls_processAudio() async throws {
+        let audio = MockAudioRecording()
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioResult = "Привет."
+
+        let (engine, _, _, _) = makePipeline(audio: audio, stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        _ = try await engine.stopRecording()
+
+        XCTAssertEqual(cloudClient.processAudioCalls.count, 1)
+        XCTAssertEqual(cloudClient.processAudioCalls[0].audioData, audio.audioData)
+    }
+
+    func test_cloud_mode_empty_audio() async throws {
+        let audio = MockAudioRecording()
+        audio.audioData = Data()
+
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+
+        let (engine, _, _, _) = makePipeline(audio: audio, stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "")
+        XCTAssertEqual(result.normalizationPath, .trivial)
+        XCTAssertEqual(cloudClient.processAudioCalls.count, 0)
+    }
+
+    func test_cloud_mode_applies_post_processing() async throws {
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioResult = "первое молоко второе хлеб"
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.superStyle = .formal
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "1. Молоко\n2. Хлеб")
+    }
+
+    func test_cloud_mode_failure_returns_cloudFailed() async throws {
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioError = LLMError.networkError("timeout")
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizationPath, .cloudFailed)
+        XCTAssertEqual(result.normalizedText, "")
+    }
+
+    func test_cloud_mode_cancellation() async throws {
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioError = CancellationError()
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        engine.cancel()
+
+        do {
+            _ = try await engine.stopRecording()
+            XCTFail("Должен был выбросить PipelineError.cancelled")
+        } catch PipelineError.cancelled {
+            // Ожидаемо
+        }
+    }
+
+    func test_super_mode_unchanged_with_cloud_additions() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет марк ой точнее саша")
+
+        let llm = MockLLMClient()
+        llm.normalizeResult = "Привет, Саша"
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .superMode
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(stt.recognizeCalls.count, 1)
+        XCTAssertEqual(result.normalizedText, "Привет, Саша")
+        XCTAssertEqual(result.normalizationPath, .llm)
+    }
+
+    func test_standard_mode_unchanged_with_cloud_additions() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "ок")
+
+        let llm = MockLLMClient()
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .standard
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizedText, "Ок.")
+        XCTAssertEqual(result.normalizationPath, .trivial)
+        XCTAssertEqual(llm.normalizeCalls.count, 0)
+    }
+
+    func test_cloud_mode_rawTranscript_is_cloud_output() async throws {
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioResult = "Привет, мир."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.productMode = .cloud
+        engine.updateCloudClient(cloudClient)
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.rawTranscript, "Привет, мир.")
+    }
+
+    func test_update_cloud_client_nil_clears() async throws {
+        let stt = MockSTTClient()
+        let llm = MockLLMClient()
+        let cloudClient = MockCloudAudioClient()
+        cloudClient.processAudioResult = "Привет."
+
+        let (engine, _, _, _) = makePipeline(stt: stt, llm: llm)
+        engine.updateCloudClient(cloudClient)
+        engine.updateCloudClient(nil)
+        engine.productMode = .cloud
+
+        try engine.startRecording(sessionId: UUID())
+        let result = try await engine.stopRecording()
+
+        XCTAssertEqual(result.normalizationPath, .cloudFailed)
+        XCTAssertEqual(result.normalizedText, "")
     }
 }
