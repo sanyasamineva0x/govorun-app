@@ -47,7 +47,9 @@ private func makeTestAppState(
     recordingMode: RecordingMode = .pushToTalk,
     analytics: AnalyticsEmitting = NoOpAnalyticsService(),
     productMode: ProductMode = .superMode,
-    superModelDownloader: MockSuperModelDownloader = MockSuperModelDownloader()
+    superModelDownloader: MockSuperModelDownloader = MockSuperModelDownloader(),
+    credentialStore: CredentialStoring? = nil,
+    llmRuntimeManager: LLMRuntimeManaging? = nil
 ) async -> (AppState, MockAudioRecording, MockEventMonitoring, MockSuperModelDownloader) {
     let eventMonitor = MockEventMonitoring()
     let stt = sttClient ?? {
@@ -98,9 +100,11 @@ private func makeTestAppState(
         appContextEngine: appContextEngine,
         modelContainer: modelContainer,
         analytics: analytics,
+        llmRuntimeManager: llmRuntimeManager,
         superAssetsManager: MockSuperAssetsManager(),
         superModelDownloadManager: superModelDownloader,
-        settings: settings
+        settings: settings,
+        credentialStore: credentialStore
     )
 
     // MockSuperAssetsManager.check() → .installed → superAssetsState обновляется через реальный wiring
@@ -634,6 +638,108 @@ final class IntegrationTests: XCTestCase {
 
         XCTAssertEqual(appState.sessionManager.state, .idle)
         XCTAssertNil(appState.lastResult)
+    }
+
+    // MARK: - 11. Guard audit: cloud mode
+
+    func test_guard_audit_cloud_does_not_set_llmRuntimeState_notStarted() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // G2/G3: cloud не ставит .notStarted
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
+    func test_guard_audit_cloud_pipeline_gets_cloud_mode_directly() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // G1/G4: cloud не даунгрейдится до .standard
+        XCTAssertEqual(appState.pipelineEngine.productMode, .cloud)
+    }
+
+    func test_guard_audit_updateLLMRuntimeState_disabled_for_cloud() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // G5: updateLLMRuntimeState всегда .disabled для cloud
+        appState.updateLLMRuntimeState(.ready)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
+    func test_guard_audit_handleSuperAssetsChanged_noop_for_cloud() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let mockRuntime = MockLLMRuntimeManager()
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store,
+            llmRuntimeManager: mockRuntime
+        )
+        // G6: handleSuperAssetsChanged не запускает llmRuntimeManager для cloud
+        await appState.handleSuperAssetsChanged()
+        XCTAssertFalse(mockRuntime.startCalled)
+    }
+
+    func test_guard_audit_start_does_not_trigger_super_assets_for_cloud() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let mockRuntime = MockLLMRuntimeManager()
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store,
+            llmRuntimeManager: mockRuntime
+        )
+        // G7: start() не вызывает handleSuperAssetsChanged для cloud
+        appState.start()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(mockRuntime.startCalled)
+    }
+
+    func test_guard_audit_applyLLMConfiguration_noop_for_cloud() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let mockRuntime = MockLLMRuntimeManager()
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store,
+            llmRuntimeManager: mockRuntime
+        )
+        // G9: смена LLM конфигурации не перезапускает runtime для cloud
+        appState.settings.llmBaseURL = "http://localhost:9999"
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertFalse(mockRuntime.startCalled)
+    }
+
+    func test_guard_audit_handleActivated_no_downgrade_for_cloud() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test", clientSecret: "secret")
+        let mockAudio = MockAudioRecording()
+        let (appState, _, _, _) = await makeTestAppState(
+            mockAudio: mockAudio,
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // superAssetsState = .unknown (не .installed), но cloud не даунгрейдится
+        appState.activationKeyMonitor.onActivated?()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        // G10: cloud не даунгрейдится при отсутствии super assets
+        XCTAssertEqual(appState.pipelineEngine.productMode, .cloud)
+    }
+
+    func test_super_mode_guards_unchanged() async {
+        let (appState, _, _, _) = await makeTestAppState(productMode: .superMode)
+        // Super по-прежнему запускает local LLM инфраструктуру
+        XCTAssertNotEqual(appState.llmRuntimeState, .disabled)
     }
 }
 

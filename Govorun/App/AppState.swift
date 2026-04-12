@@ -30,6 +30,15 @@ final class AppState: ObservableObject {
     /// Менеджер готовности Super-ассетов (runtime binary + модель)
     private let superAssetsManager: SuperAssetsManaging
 
+    /// Cloud LLM клиент (создаётся при переключении в .cloud)
+    private var cloudLLMClient: CloudLLMClient?
+    /// Хранилище API credentials (Keychain)
+    private let credentialStore: CredentialStoring
+    /// Trust policy для Sber API (cert pinning)
+    private let trustPolicy: TrustPolicyProviding?
+    /// Доступен ли cloud режим (есть credentials)
+    @Published var cloudAvailable: Bool = false
+
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
 
@@ -164,7 +173,7 @@ final class AppState: ObservableObject {
             snippetEngine: snippetEngine
         )
         // productMode ставим .standard до проверки ассетов; start() обновит после check()
-        pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
+        pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode
         textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
@@ -190,7 +199,17 @@ final class AppState: ObservableObject {
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
         updaterService = UpdaterService()
-        llmRuntimeState = settings.productMode.usesLLM ? .notStarted : .disabled
+        let credentialStore = CredentialStore()
+        self.credentialStore = credentialStore
+        let trustPolicy: TrustPolicyProviding?
+        do {
+            trustPolicy = try SberTrustPolicy()
+        } catch {
+            Self.logger.error("SberTrustPolicy init failed: \(String(describing: error), privacy: .public)")
+            trustPolicy = nil
+        }
+        self.trustPolicy = trustPolicy
+        llmRuntimeState = settings.productMode.usesLocalLLM ? .notStarted : .disabled
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -210,6 +229,7 @@ final class AppState: ObservableObject {
             }
         }
         superModelDownloadManager.restoreStateFromDisk(for: SuperModelCatalog.current)
+        cloudAvailable = credentialStore.get() != nil
     }
 
     /// Тестовый init с инжектированными зависимостями
@@ -233,7 +253,9 @@ final class AppState: ObservableObject {
         initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
         eventMonitor: EventMonitoring? = nil,
-        updaterService: UpdaterService? = nil
+        updaterService: UpdaterService? = nil,
+        credentialStore: CredentialStoring? = nil,
+        trustPolicy: TrustPolicyProviding? = nil
     ) {
         self.workerManager = workerManager
         self.llmRuntimeManager = llmRuntimeManager
@@ -265,10 +287,14 @@ final class AppState: ObservableObject {
         currentRecordingMode = settings.recordingMode
         currentLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         self.updaterService = updaterService
+        self.credentialStore = credentialStore ?? MockCredentialStore()
+        self.trustPolicy = trustPolicy
 
         workerState = initialWorkerState
-        llmRuntimeState = settings.productMode.usesLLM ? initialLLMRuntimeState : .disabled
-        self.pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
+        llmRuntimeState = settings.productMode.usesLocalLLM ? initialLLMRuntimeState : .disabled
+        self.pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode
+
+        cloudAvailable = self.credentialStore.get() != nil
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -294,7 +320,7 @@ final class AppState: ObservableObject {
     }
 
     func updateLLMRuntimeState(_ state: LLMRuntimeState) {
-        llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
+        llmRuntimeState = currentProductMode.usesLocalLLM ? state : .disabled
     }
 
     @MainActor
@@ -353,7 +379,7 @@ final class AppState: ObservableObject {
     func handleSuperAssetsChanged() async {
         await refreshSuperAssetsReadiness()
 
-        guard effectiveProductMode.usesLLM else { return }
+        guard effectiveProductMode.usesLocalLLM else { return }
 
         guard let llmRuntimeManager else {
             pipelineEngine.productMode = currentProductMode
@@ -429,13 +455,21 @@ final class AppState: ObservableObject {
         }
 
         if llmRuntimeManager != nil {
-            if currentProductMode.usesLLM {
+            if currentProductMode.usesLocalLLM {
                 Task {
                     await handleSuperAssetsChanged()
                 }
             } else {
                 updateLLMRuntimeState(.disabled)
             }
+        }
+
+        // Cloud auto-downgrade: если режим cloud но нет credentials -- откат на standard
+        if currentProductMode.isCloud, credentialStore.get() == nil {
+            Self.logger.warning("Cloud credentials отсутствуют при запуске, откат на .standard")
+            currentProductMode = .standard
+            settings.productMode = .standard
+            pipelineEngine.productMode = .standard
         }
     }
 
@@ -644,7 +678,7 @@ final class AppState: ObservableObject {
             return
         }
 
-        if productMode.usesLLM {
+        if productMode.usesLocalLLM {
             if isReady {
                 Task {
                     await handleSuperAssetsChanged()
@@ -664,7 +698,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
 
-        if currentProductMode.usesLLM, llmRuntimeManager != nil {
+        if currentProductMode.usesLocalLLM, llmRuntimeManager != nil {
             Task {
                 await handleSuperAssetsChanged()
             }
@@ -836,11 +870,11 @@ final class AppState: ObservableObject {
         currentAppContext = context
         let dictionary = loadDictionaryHints()
 
-        let effectiveProductMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+        let effectiveProductMode = (currentProductMode.usesLocalLLM && superAssetsState != .installed)
             ? .standard
             : currentProductMode
         pipelineEngine.productMode = effectiveProductMode
-        pipelineEngine.superStyle = effectiveProductMode == .superMode
+        pipelineEngine.superStyle = effectiveProductMode.usesLLM
             ? SuperStyleEngine.resolve(
                 bundleId: context.bundleId,
                 mode: settings.superStyleMode,
