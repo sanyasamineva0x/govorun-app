@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### v2.0 Говорун Cloud
 
 - [x] **Phase 10: TLS & Credentials** - SberRootCA.pem, SberTrustPolicy, CredentialStore, HTTPClient protocol (completed 2026-04-12)
-- [ ] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping
+- [x] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping (completed 2026-04-12)
 - [ ] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout
 - [ ] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing
 - [ ] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail
@@ -65,9 +65,9 @@ Plans:
   3. Concurrent token requests coalesce into a single HTTP call (actor-based, no thundering herd)
   4. RqUID header (UUID) is included in every OAuth request
   5. AuthError cases (credentialsNotFound, networkError, invalidResponse, tokenParsingFailed) map cleanly to LLMError at the client boundary
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 11-01-PLAN.md -- SberAuthService actor с OAuth, coalescing, AuthError (TDD)
+- [x] 11-01-PLAN.md -- SberAuthService actor с OAuth, coalescing, AuthError (TDD)
 
 ### Phase 12: Cloud LLM Client
 **Goal**: App can send audio to GigaChat API and receive normalized text back in a single round-trip
@@ -145,7 +145,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 10. TLS & Credentials | v2.0 | 2/2 | Complete    | 2026-04-12 |
-| 11. OAuth | v2.0 | 0/1 | Not started | - |
+| 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
 | 12. Cloud LLM Client | v2.0 | 0/? | Not started | - |
 | 13. Mode & Routing | v2.0 | 0/? | Not started | - |
 | 14. Pipeline Hardening | v2.0 | 0/? | Not started | - |
