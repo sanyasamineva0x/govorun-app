@@ -673,12 +673,21 @@ final class AppState: ObservableObject {
         currentProductMode = productMode
         pendingProductMode = nil
 
-        guard let llmRuntimeManager else {
+        switch productMode {
+        case .standard:
             pipelineEngine.productMode = productMode
-            return
-        }
+            pipelineEngine.updateCloudClient(nil)
+            cloudLLMClient = nil
+            llmRuntimeManager?.stop()
+            updateLLMRuntimeState(.disabled)
 
-        if productMode.usesLocalLLM {
+        case .superMode:
+            pipelineEngine.updateCloudClient(nil)
+            cloudLLMClient = nil
+            guard let llmRuntimeManager else {
+                pipelineEngine.productMode = productMode
+                return
+            }
             if isReady {
                 Task {
                     await handleSuperAssetsChanged()
@@ -686,11 +695,29 @@ final class AppState: ObservableObject {
             } else {
                 updateLLMRuntimeState(.notStarted)
             }
-        } else {
-            pipelineEngine.productMode = productMode
-            llmRuntimeManager.stop()
+
+        case .cloud:
+            guard credentialStore.get() != nil else {
+                Self.logger.warning("Cloud credentials не найдены, остаёмся на текущем режиме")
+                return
+            }
+            let authService = SberAuthService(
+                credentialProvider: { [credentialStore] in credentialStore.get() }
+            )
+            let httpClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+            let cloudClient = CloudLLMClient(
+                authService: authService,
+                httpClient: httpClient
+            )
+            cloudLLMClient = cloudClient
+            pipelineEngine.updateCloudClient(cloudClient)
+            pipelineEngine.updateLLMClient(cloudClient)
+            pipelineEngine.productMode = .cloud
+            llmRuntimeManager?.stop()
             updateLLMRuntimeState(.disabled)
         }
+
+        cloudAvailable = credentialStore.get() != nil
     }
 
     private func applyLLMConfiguration(_ configuration: LocalLLMConfiguration) {

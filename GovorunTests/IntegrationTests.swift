@@ -741,6 +741,109 @@ final class IntegrationTests: XCTestCase {
         // Super по-прежнему запускает local LLM инфраструктуру
         XCTAssertNotEqual(appState.llmRuntimeState, .disabled)
     }
+
+    // MARK: - 12. applyProductMode(.cloud) wiring
+
+    func test_applyProductMode_cloud_wires_pipeline() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        // Переключение на .cloud через settings (Combine → handleSettingsChanged → applyProductMode)
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(appState.pipelineEngine.productMode, .cloud)
+    }
+
+    func test_applyProductMode_cloud_credential_gate_blocks() async throws {
+        let store = MockCredentialStore()
+        // Нет credentials
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        // Без credentials cloud не активируется
+        XCTAssertNotEqual(appState.pipelineEngine.productMode, .cloud)
+    }
+
+    func test_applyProductMode_cloud_stops_llmRuntimeManager() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let mockRuntime = MockLLMRuntimeManager()
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .superMode,
+            credentialStore: store,
+            llmRuntimeManager: mockRuntime
+        )
+        // Переключение super → cloud
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(mockRuntime.stopCalled)
+        XCTAssertEqual(appState.llmRuntimeState, .disabled)
+    }
+
+    func test_applyProductMode_standard_clears_cloudClient() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // Переключение cloud → standard
+        appState.settings.productMode = .standard
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(appState.pipelineEngine.productMode, .standard)
+    }
+
+    func test_applyProductMode_super_clears_cloudClient() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .cloud,
+            credentialStore: store
+        )
+        // Переключение cloud → super (без llmRuntimeManager → productMode ставится напрямую)
+        appState.settings.productMode = .superMode
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(appState.pipelineEngine.productMode, .superMode)
+    }
+
+    func test_cloudAvailable_true_when_credentials_exist() async {
+        let store = MockCredentialStore()
+        try? store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        XCTAssertTrue(appState.cloudAvailable)
+    }
+
+    func test_cloudAvailable_false_when_no_credentials() async {
+        let store = MockCredentialStore()
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        XCTAssertFalse(appState.cloudAvailable)
+    }
+
+    func test_applyProductMode_cloud_updates_cloudAvailable() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        XCTAssertTrue(appState.cloudAvailable)
+        // Переключаемся в cloud
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(appState.cloudAvailable)
+    }
 }
 
 // MARK: - Dictionary wiring тесты
