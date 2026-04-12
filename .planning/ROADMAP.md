@@ -79,7 +79,9 @@ Plans:
   3. Response text is extracted from `choices[0].message.content`
   4. Timeout is 30 seconds; transient errors (429, 5xx) trigger one retry with exponential backoff
   5. CloudLLMConfiguration holds cloud-specific defaults (model: GigaChat-2-Max, temperature: 0.1, timeout: 30s)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 12-01-PLAN.md -- CloudLLMClient с audio upload, chat/completions, retry, AuthError mapping (TDD)
 
 ### Phase 13: Mode & Routing
 **Goal**: User can select Cloud as a third product mode and the pipeline routes audio through the cloud path
@@ -146,7 +148,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 |-------|-----------|----------------|--------|-----------|
 | 10. TLS & Credentials | v2.0 | 2/2 | Complete    | 2026-04-12 |
 | 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
-| 12. Cloud LLM Client | v2.0 | 0/? | Not started | - |
+| 12. Cloud LLM Client | v2.0 | 0/1 | In progress | - |
 | 13. Mode & Routing | v2.0 | 0/? | Not started | - |
 | 14. Pipeline Hardening | v2.0 | 0/? | Not started | - |
 | 15. Cloud Settings UI | v2.0 | 0/? | Not started | - |
