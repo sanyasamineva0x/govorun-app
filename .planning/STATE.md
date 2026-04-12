@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
-status: "Milestone v1.0 shipped, PR #19 pending merge"
-stopped_at: Phase 12 context gathered
-last_updated: "2026-04-12T15:49:20.388Z"
-last_activity: 2026-04-12
+status: executing
+stopped_at: Phase 13 context gathered
+last_updated: "2026-04-12T17:45:00.858Z"
+last_activity: 2026-04-12 -- Phase 12 execution started
 progress:
   total_phases: 8
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Стиль текста адаптируется к контексту -- расслабленный в мессенджерах, формальный в почте, обычный везде остальном
-**Current focus:** Milestone v1.0 complete. PR #19 open, post-milestone bugfixes applied.
+**Current focus:** Phase 12 — cloud-llm-client
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Milestone v1.0 shipped, PR #19 pending merge
-Last activity: 2026-04-12
+Phase: 12 (cloud-llm-client) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 12
+Last activity: 2026-04-12 -- Phase 12 execution started
 
 Progress: [##########] 100%
 
@@ -92,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T15:49:20.383Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-cloud-llm-client/12-CONTEXT.md
+Last session: 2026-04-12T17:45:00.853Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-mode-routing/13-CONTEXT.md
