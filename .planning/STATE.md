@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: "Milestone v1.0 shipped, PR #19 pending merge"
-stopped_at: Phase 9 context gathered
-last_updated: "2026-04-12T14:50:45.951Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-04-12T15:49:20.388Z"
 last_activity: 2026-04-12
 progress:
   total_phases: 8
@@ -92,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T16:50:49.532Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-textmode-deletion/09-CONTEXT.md
+Last session: 2026-04-12T15:49:20.383Z
+Stopped at: Phase 12 context gathered
+Resume file: .planning/phases/12-cloud-llm-client/12-CONTEXT.md
