@@ -309,5 +309,21 @@
                    sparkle:edSignature="2jYyD8XljwGtFea7c8e07fAlIzTYQ97BX71oP9W0zF0LgPNFM8YskAX5FOH83dSMsarkw//RYiFJpyMMFiYuCA=="
                    length="166237687" />
       </item>
+<item>
+        <title>Version 0.2.6</title>
+        <pubDate>Sun, 12 Apr 2026 20:42:53 +0000</pubDate>
+        <sparkle:version>20</sparkle:version>
+        <sparkle:shortVersionString>0.2.6</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[## What's Changed
+* fix: вернуть Liquid Glass контролы и починить pill artifact by @sanyasamineva0x in https://github.com/sanyasamineva0x/govorun-app/pull/24
+
+
+**Full Changelog**: https://github.com/sanyasamineva0x/govorun-app/compare/v0.2.5...v0.2.6]]></description>
+        <enclosure url="https://github.com/sanyasamineva0x/govorun-app/releases/download/v0.2.6/Govorun.dmg"
+                   type="application/octet-stream"
+                   sparkle:edSignature="B6yMs33sXkbRXbPQCfrSrD482n8J1KJp2wnlZrF++xLYnWbTnOFj9ybvNOuk6YPqiP9dUASyLiN1nchr4OfuAw=="
+                   length="166159774" />
+      </item>
   </channel>
 </rss>
