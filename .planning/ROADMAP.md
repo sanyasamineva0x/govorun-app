@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 10: TLS & Credentials** - SberRootCA.pem, SberTrustPolicy, CredentialStore, HTTPClient protocol (completed 2026-04-12)
 - [x] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping (completed 2026-04-12)
-- [ ] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout
+- [x] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout (completed 2026-04-12)
 - [ ] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing
 - [ ] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail
 - [ ] **Phase 15: Cloud Settings UI** - Credential input, connection status, ProductMode picker, privacy consent
@@ -79,9 +79,9 @@ Plans:
   3. Response text is extracted from `choices[0].message.content`
   4. Timeout is 30 seconds; transient errors (429, 5xx) trigger one retry with exponential backoff
   5. CloudLLMConfiguration holds cloud-specific defaults (model: GigaChat-2-Max, temperature: 0.1, timeout: 30s)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 12-01-PLAN.md -- CloudLLMClient с audio upload, chat/completions, retry, AuthError mapping (TDD)
+- [x] 12-01-PLAN.md -- CloudLLMClient с audio upload, chat/completions, retry, AuthError mapping (TDD)
 
 ### Phase 13: Mode & Routing
 **Goal**: User can select Cloud as a third product mode and the pipeline routes audio through the cloud path
@@ -93,7 +93,10 @@ Plans:
   3. AppState.applyProductMode(.cloud) wires CloudLLMClient into PipelineEngine via updateLLMClient()
   4. Cloud mode bypasses local STT and local LLM entirely -- audio goes directly to the cloud
   5. Standard and Super modes continue working identically to before (zero regression)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 13-01-PLAN.md -- ProductMode.cloud enum + PipelineEngine cloud fork (TDD)
+- [ ] 13-02-PLAN.md -- AppState guard audit (usesLLM->usesLocalLLM) + cloud wiring + credential gate (TDD)
 
 ### Phase 14: Pipeline Hardening
 **Goal**: Cloud output flows through the full post-processing pipeline correctly, including snippets and offline degradation
@@ -148,8 +151,8 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 |-------|-----------|----------------|--------|-----------|
 | 10. TLS & Credentials | v2.0 | 2/2 | Complete    | 2026-04-12 |
 | 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
-| 12. Cloud LLM Client | v2.0 | 0/1 | In progress | - |
-| 13. Mode & Routing | v2.0 | 0/? | Not started | - |
+| 12. Cloud LLM Client | v2.0 | 1/1 | Complete   | 2026-04-12 |
+| 13. Mode & Routing | v2.0 | 0/2 | Not started | - |
 | 14. Pipeline Hardening | v2.0 | 0/? | Not started | - |
 | 15. Cloud Settings UI | v2.0 | 0/? | Not started | - |
 | 16. Tests | v2.0 | 0/? | Not started | - |
