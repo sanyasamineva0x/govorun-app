@@ -89,7 +89,7 @@ struct BottomBarView: View {
 // Нет stacked .animation — вся анимация приходит из withAnimation в контроллере.
 // shellSpring для metering updates, stateSpring для state transitions.
 #if compiler(>=6.2)
-            .modifier(LiquidGlassPillModifier(namespace: pillNamespace))
+            .modifier(LiquidGlassPillModifier(shape: shape, namespace: pillNamespace))
 #endif
     }
 
@@ -491,14 +491,15 @@ struct OrganicPillShape: Shape {
 // MARK: - Liquid Glass модификатор
 
 #if compiler(>=6.2)
-struct LiquidGlassPillModifier: ViewModifier {
+struct LiquidGlassPillModifier<S: Shape>: ViewModifier {
+    let shape: S
     var namespace: Namespace.ID
 
     func body(content: Content) -> some View {
         if #available(macOS 26, *) {
             GlassEffectContainer {
                 content
-                    .glassEffect(.clear, in: .capsule)
+                    .glassEffect(.clear, in: shape)
                     .glassEffectID("pill", in: namespace)
             }
         } else {

@@ -189,10 +189,14 @@ private struct GeneralSettingsContent: View {
             KeyRecorderView(store: appState.settings)
                 .staggeredAppear(index: 1)
 
+            Divider()
+                .padding(.vertical, 12)
+
             ProductModeCard(selection: settingsBinding(\.productMode))
                 .staggeredAppear(index: 2)
 
-            Divider().foregroundStyle(Color.mist)
+            Divider()
+                .padding(.vertical, 12)
 
             // Поведение
             VStack(alignment: .leading, spacing: 0) {
