@@ -24,6 +24,7 @@ build/
 .env
 *.key
 *.pem
+!Govorun/Resources/Certificates/SberRootCA.pem
 
 # IDE
 .idea/
