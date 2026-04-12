@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### v2.0 Говорун Cloud
 
-- [ ] **Phase 10: TLS & Credentials** - SberRootCA.pem, SberTrustPolicy, CredentialStore, HTTPClient protocol
+- [x] **Phase 10: TLS & Credentials** - SberRootCA.pem, SberTrustPolicy, CredentialStore, HTTPClient protocol (completed 2026-04-12)
 - [ ] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping
 - [ ] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout
 - [ ] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing
@@ -50,10 +50,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A dedicated URLSession with SberTrustDelegate trusts `*.sberbank.ru` using the bundled CA while preserving system CA trust for all other domains
   3. CredentialStore saves and retrieves clientId + clientSecret from Keychain (Security.framework, not KeychainAccess)
   4. HTTPClient protocol exists with URLSession conformance, injectable for testing
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 10-01-PLAN.md -- SberRootCA.pem bundling + SberTrustPolicy with failable init, PEM parsing, SberTrustDelegate
-- [ ] 10-02-PLAN.md -- CredentialStore (Security.framework) + HTTPClient protocol with URLSession conformance
+- [x] 10-01-PLAN.md -- SberRootCA.pem bundling + SberTrustPolicy with failable init, PEM parsing, SberTrustDelegate
+- [x] 10-02-PLAN.md -- CredentialStore (Security.framework) + HTTPClient protocol with URLSession conformance
 
 ### Phase 11: OAuth
 **Goal**: App can obtain and cache OAuth tokens from Sber API transparently
@@ -65,7 +65,9 @@ Plans:
   3. Concurrent token requests coalesce into a single HTTP call (actor-based, no thundering herd)
   4. RqUID header (UUID) is included in every OAuth request
   5. AuthError cases (credentialsNotFound, networkError, invalidResponse, tokenParsingFailed) map cleanly to LLMError at the client boundary
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 11-01-PLAN.md -- SberAuthService actor с OAuth, coalescing, AuthError (TDD)
 
 ### Phase 12: Cloud LLM Client
 **Goal**: App can send audio to GigaChat API and receive normalized text back in a single round-trip
@@ -142,8 +144,8 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. TLS & Credentials | v2.0 | 0/2 | Planning complete | - |
-| 11. OAuth | v2.0 | 0/? | Not started | - |
+| 10. TLS & Credentials | v2.0 | 2/2 | Complete    | 2026-04-12 |
+| 11. OAuth | v2.0 | 0/1 | Not started | - |
 | 12. Cloud LLM Client | v2.0 | 0/? | Not started | - |
 | 13. Mode & Routing | v2.0 | 0/? | Not started | - |
 | 14. Pipeline Hardening | v2.0 | 0/? | Not started | - |
