@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 14 complete (Pipeline Hardening)
-last_updated: "2026-04-19T23:44:00+03:00"
-last_activity: 2026-04-19 -- Phase 14 plan 04 executed (cloud path integration — final Phase 14 plan)
+stopped_at: Phase 15 context gathered (Cloud Settings UI)
+last_updated: "2026-04-20T01:30:00+03:00"
+last_activity: 2026-04-20 -- Phase 15 CONTEXT.md + DISCUSSION-LOG.md собраны (discuss-phase), Codex round 1 verified, 7 findings applied
 progress:
   total_phases: 8
   completed_phases: 5
@@ -23,18 +23,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 14 — pipeline-hardening
+**Current focus:** Phase 15 — cloud-settings-ui (context gathered)
 
 ## Current Position
 
-Phase: 14 (pipeline-hardening) — COMPLETE
-Plan: 4 of 4 (14-04 shipped)
-Status: Phase 14 complete — cloud pipeline hardening done
-Last activity: 2026-04-19 -- Plan 14-04 complete (cloud path integration end-to-end)
+Phase: 15 (cloud-settings-ui) — CONTEXT GATHERED
+Plan: 0 of ? (не начат)
+Status: CONTEXT.md + DISCUSSION-LOG.md записаны, готов к /gsd-plan-phase 15
+Last activity: 2026-04-20 -- 11 decisions captured (D-01..D-11, D-07.1, D-11.1), placement Option C (disclosure в ProductModeCard), Codex round 1 patches applied
 
-Progress: [##########] 100% of Phase 14 plans (4/4)
+Progress: [          ] 0% plans of Phase 15
 
-Next phase: 15 (Cloud Settings UI) — не начат; Phase 14 фаундамент для Phase 15 UI готов.
+Resume file: .planning/phases/15-cloud-settings-ui/15-CONTEXT.md
 
 ## Performance Metrics
 
