@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping (completed 2026-04-12)
 - [x] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout (completed 2026-04-12)
 - [x] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing (completed 2026-04-12)
-- [ ] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail
+- [x] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail (completed 2026-04-19)
 - [ ] **Phase 15: Cloud Settings UI** - Credential input, connection status, ProductMode picker, privacy consent
 - [ ] **Phase 16: Tests** - Unit tests for all cloud services, quality benchmark cloud vs local
 - [ ] **Phase 17: Polish & Rollout** - Error messages, analytics cloud events, credential-gated launch, edge cases
@@ -109,12 +109,12 @@ Plans:
   2. NormalizationGate evaluates cloud output with same contract/style logic as local LLM -- no special cloud thresholds needed initially (interpreted as: Gate код не модифицируется; cloud fork skips Gate per D-06/D-07)
   3. ListFormatter processes cloud output without changes
   4. When network is unavailable, cloud mode fast-fails (NetworkMonitor check) and degrades to deterministic text without 30s timeout wait
-**Plans:** 2/4 plans complete
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 14-01-PLAN.md -- SnippetReinserter.cleanSubstitute helper для cloud embedded fallback (TDD)
 - [x] 14-02-PLAN.md -- SuperTextStyle snippet-aware systemPrompt + NormalizationHints.snippetDictionary + CloudLLMClient wiring (TDD)
-- [ ] 14-03-PLAN.md -- NetworkAvailabilityProviding протокол + PipelineEngine DI (TDD)
-- [ ] 14-04-PLAN.md -- processCloudPath integration: offline fallback, dictionary, snippet, toast wiring
+- [x] 14-03-PLAN.md -- NetworkAvailabilityProviding протокол + PipelineEngine DI (TDD)
+- [x] 14-04-PLAN.md -- processCloudPath integration: offline fallback, dictionary, snippet, toast wiring
 
 ### Phase 15: Cloud Settings UI
 **Goal**: User can enter credentials, see connection status, select Cloud mode, and give informed consent before data leaves the device

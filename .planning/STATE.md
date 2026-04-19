@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 14 plan 03 complete
-last_updated: "2026-04-19T23:27:00+03:00"
-last_activity: 2026-04-19 -- Phase 14 plan 03 executed (NetworkAvailabilityProviding DI, TDD)
+stopped_at: Phase 14 complete (Pipeline Hardening)
+last_updated: "2026-04-19T23:44:00+03:00"
+last_activity: 2026-04-19 -- Phase 14 plan 04 executed (cloud path integration — final Phase 14 plan)
 progress:
   total_phases: 8
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 9
-  percent: 82
+  completed_phases: 5
+  total_plans: 12
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -27,12 +27,14 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 ## Current Position
 
-Phase: 14 (pipeline-hardening) — EXECUTING
-Plan: 4 of 4 (next: 14-04)
-Status: Executing Phase 14
-Last activity: 2026-04-19 -- Plan 14-03 complete (NetworkAvailabilityProviding DI, TDD)
+Phase: 14 (pipeline-hardening) — COMPLETE
+Plan: 4 of 4 (14-04 shipped)
+Status: Phase 14 complete — cloud pipeline hardening done
+Last activity: 2026-04-19 -- Plan 14-04 complete (cloud path integration end-to-end)
 
-Progress: [########--] 82%
+Progress: [##########] 100% of Phase 14 plans (4/4)
+
+Next phase: 15 (Cloud Settings UI) — не начат; Phase 14 фаундамент для Phase 15 UI готов.
 
 ## Performance Metrics
 
@@ -66,6 +68,7 @@ Progress: [########--] 82%
 | Phase 14 P01 | 3m | 2 tasks | 2 files |
 | Phase 14 P02 | 7m | 2 tasks | 4 files |
 | Phase 14 P03 | 4m | 2 tasks | 4 files |
+| Phase 14 P04 | 11m | 5 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +96,11 @@ Recent decisions affecting current work:
 - [Phase 14-03]: NetworkAvailabilityProviding: Sendable protocol + NetworkMonitor class-declaration conformance (не extension) — единая декларация с @unchecked Sendable, consistent с остальными DI протоколами (STTClient, LLMClient, CloudAudioProcessing)
 - [Phase 14-03]: networkAvailability параметр в КОНЦЕ списка PipelineEngine init с default nil — zero-regression для всех 1263+ существующих тестов и production callsites
 - [Phase 14-03]: _networkAvailability storage под NSLock consistent с _cloudClient/_llmClient/_hints паттерном; accessor private до Plan 14-04 (который прочитает его в processCloudPath)
+- [Phase 14-04]: stopRecording становится тонким диспетчером (~40 строк) — cloud fork вызывает processCloudPath, default вызывает processLocalSTTPath helper; разделение cloud/local explicit и testable
+- [Phase 14-04]: processLocalSTTPath принимает productMode параметр (не читает из snapshot) — позволяет offline-cloud-fallback передать .standard без infinite recursion
+- [Phase 14-04]: snippetDictionary enrichment только в processCloudPath (не в processLocalSTTPath) — cloud prompt единственное место где словарь нужен inline
+- [Phase 14-04]: bottomBarController создаётся как локальный let до PipelineEngine init — обходит ограничение Swift «нельзя self в init до всех stored props», closure захватывает weak
+- [Phase 14-04]: offline fallback productMode == .standard (D-09) — cloud при offline НЕ пытается использовать local llama-server
 
 ### Pending Todos
 
@@ -105,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-19T23:27:00+03:00
-Stopped at: Plan 14-03 complete — NetworkAvailabilityProviding protocol + NetworkMonitor conformance + PipelineEngine DI + AppState wiring shipped (TDD)
-Resume file: .planning/phases/14-pipeline-hardening/14-04-PLAN.md
+Last session: 2026-04-19T23:44:00+03:00
+Stopped at: Phase 14 complete — cloud pipeline hardening end-to-end. All 4 plans shipped: SnippetReinserter.cleanSubstitute (14-01), snippet-aware systemPrompt (14-02), NetworkAvailabilityProviding DI (14-03), processCloudPath integration (14-04). 1280 tests PASS.
+Resume file: .planning/phases/15-cloud-settings-ui/ (next phase — не начат)
