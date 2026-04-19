@@ -113,7 +113,8 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
             currentDate: hints.currentDate,
             personalDictionary: hints.personalDictionary,
             snippetContext: hints.snippetContext,
-            appName: hints.appName
+            appName: hints.appName,
+            snippetDictionary: hints.snippetDictionary
         )
 
         do {
@@ -126,6 +127,7 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as LLMError where error.isRetryable {
+            // swiftformat:disable:next redundantSelf
             Self.logger.info("Retry chat/completions через \(self.configuration.retryDelay, privacy: .public)s")
             try await Task.sleep(nanoseconds: UInt64(configuration.retryDelay * 1_000_000_000))
             return try await sendChatCompletion(
@@ -267,13 +269,13 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
 
     private func validateStatus(_ response: HTTPURLResponse) throws {
         switch response.statusCode {
-        case 200 ..< 300:
+        case 200..<300:
             return
         case 408:
             throw LLMError.timeout
         case 429:
             throw LLMError.rateLimited
-        case 500 ..< 600:
+        case 500..<600:
             throw LLMError.serverError(statusCode: response.statusCode)
         default:
             throw LLMError.invalidResponse(statusCode: response.statusCode)

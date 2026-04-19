@@ -255,7 +255,8 @@ extension SuperTextStyle {
         currentDate: Date,
         personalDictionary: [String: String] = [:],
         snippetContext: SnippetContext? = nil,
-        appName: String? = nil
+        appName: String? = nil,
+        snippetDictionary: [String: String] = [:]
     ) -> String {
         var prompt = Self.basePrompt(currentDate: currentDate, personalDictionary: personalDictionary)
         prompt += "\n\n" + styleBlock
@@ -283,6 +284,29 @@ extension SuperTextStyle {
             - "привет вот мой адрес" → "Привет, мой адрес — \(SnippetPlaceholder.token)."
             - "отправь на мой телефон" → "Отправь на мой телефон: \(SnippetPlaceholder.token)."
             """
+        }
+
+        if !snippetDictionary.isEmpty {
+            var block = """
+
+
+            ГОЛОСОВЫЕ СОКРАЩЕНИЯ (inline замена):
+            Пользователь может произнести ключевые слова — замени их в выходном тексте на значения, перестраивая фразу грамматически. Сохраняй значение ДОСЛОВНО (не меняй email, номер телефона, имя). Не добавляй оригинальное ключевое слово рядом с замещённым значением.
+
+            Словарь:
+            """
+            for (trigger, content) in snippetDictionary {
+                block += "\n\(trigger) → \(content)"
+            }
+            block += """
+
+
+            Примеры применения:
+            «скинь на мой имейл» → «Скинь на user@example.com»
+            «привет это мой адрес» → «Привет, это Саша Аминева 9»
+            «позвони на мой телефон сегодня» → «Позвони на +7 999 123 45 67 сегодня»
+            """
+            prompt += block
         }
 
         return prompt
