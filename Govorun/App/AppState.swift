@@ -166,12 +166,22 @@ final class AppState: ObservableObject {
         currentRecordingMode = settings.recordingMode
 
         audioCapture = audio
+
+        // bottomBar создаём ДО PipelineEngine, чтобы захватить его в onCloudOfflineFallback closure
+        let bottomBarController = BottomBarController()
+        bottomBar = bottomBarController
+
         pipelineEngine = PipelineEngine(
             audioCapture: audio,
             sttClient: stt,
             llmClient: llm,
             snippetEngine: snippetEngine,
-            networkAvailability: networkMonitor
+            networkAvailability: networkMonitor,
+            onCloudOfflineFallback: { [weak bottomBarController] in
+                Task { @MainActor in
+                    bottomBarController?.showError("Нет сети — использую локальную обработку")
+                }
+            }
         )
         // productMode ставим .standard до проверки ассетов; start() обновит после check()
         pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode
@@ -185,7 +195,6 @@ final class AppState: ObservableObject {
             recordingMode: settings.recordingMode,
             eventMonitor: eventMonitor
         )
-        bottomBar = BottomBarController()
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
         appContextEngine = AppContextEngine(workspace: workspace)
