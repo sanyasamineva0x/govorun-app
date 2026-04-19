@@ -249,6 +249,7 @@ enum SnippetReinserter {
 
 protocol SnippetMatching: Sendable {
     func match(_ text: String) -> SnippetMatch?
+    func allTriggerContents() -> [String: String]
 }
 
 // MARK: - PipelineEngine

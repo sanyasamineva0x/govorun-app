@@ -40,21 +40,28 @@ final class MockAudioRecording: AudioRecording, @unchecked Sendable {
 
 final class MockSnippetEngine: SnippetMatching, @unchecked Sendable {
     var matchResults: [String: SnippetMatch] = [:]
+    var triggerContents: [String: String] = [:]
 
     func configureStandalone(_ trigger: String, content: String) {
         matchResults[trigger.lowercased()] = SnippetMatch(
             trigger: trigger, content: content, kind: .standalone
         )
+        triggerContents[trigger] = content
     }
 
     func configureEmbedded(_ trigger: String, content: String, forInput input: String) {
         matchResults[input.lowercased()] = SnippetMatch(
             trigger: trigger, content: content, kind: .embedded
         )
+        triggerContents[trigger] = content
     }
 
     func match(_ text: String) -> SnippetMatch? {
         matchResults[text.lowercased()]
+    }
+
+    func allTriggerContents() -> [String: String] {
+        triggerContents
     }
 }
 
