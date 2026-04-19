@@ -262,6 +262,7 @@ final class PipelineEngine: @unchecked Sendable {
     private let snippetEngine: SnippetMatching?
     private let saveAudioFile: @Sendable (Data, UUID) throws -> String
     private let deleteAudioFile: @Sendable (String) -> Void
+    private let onCloudOfflineFallback: (@Sendable () -> Void)?
 
     private let lock = NSLock()
     private var _isCancelled = false
@@ -309,12 +310,14 @@ final class PipelineEngine: @unchecked Sendable {
         snippetEngine: SnippetMatching? = nil,
         saveAudioFile: (@Sendable (Data, UUID) throws -> String)? = nil,
         deleteAudioFile: (@Sendable (String) -> Void)? = nil,
-        networkAvailability: NetworkAvailabilityProviding? = nil
+        networkAvailability: NetworkAvailabilityProviding? = nil,
+        onCloudOfflineFallback: (@Sendable () -> Void)? = nil
     ) {
         self.audioCapture = audioCapture
         self.sttClient = sttClient
         _llmClient = llmClient
         _networkAvailability = networkAvailability
+        self.onCloudOfflineFallback = onCloudOfflineFallback
         self.snippetEngine = snippetEngine
         self.saveAudioFile = saveAudioFile ?? { audioData, sessionId in
             try AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
@@ -355,6 +358,7 @@ final class PipelineEngine: @unchecked Sendable {
 
         // Snapshot под локом — защита от race condition при быстром двойном тапе ⌥
         let (currentProductMode, currentSuperStyle, currentHints, currentLLMClient, currentCloudClient) = snapshotConfig()
+        let currentNetwork = currentNetworkAvailability()
         let effectiveTerminalPeriod = currentSuperStyle?.terminalPeriod ?? terminalPeriodEnabled
 
         func applyPostProcessing(_ text: String) -> String {
@@ -373,9 +377,33 @@ final class PipelineEngine: @unchecked Sendable {
                 superStyle: currentSuperStyle,
                 hints: currentHints,
                 cloudClient: currentCloudClient,
+                networkAvailability: currentNetwork,
+                llmClient: currentLLMClient,
                 applyPostProcessing: applyPostProcessing
             )
         }
+
+        return try await processLocalSTTPath(
+            stopTime: stopTime,
+            sessionId: sessionId,
+            superStyle: currentSuperStyle,
+            hints: currentHints,
+            llmClient: currentLLMClient,
+            productMode: currentProductMode,
+            applyPostProcessing: applyPostProcessing
+        )
+    }
+
+    private func processLocalSTTPath(
+        stopTime: CFAbsoluteTime,
+        sessionId: UUID,
+        superStyle: SuperTextStyle?,
+        hints: NormalizationHints,
+        llmClient: LLMClient,
+        productMode: ProductMode,
+        applyPostProcessing: (String) -> String
+    ) async throws -> PipelineResult {
+        let effectiveTerminalPeriod = superStyle?.terminalPeriod ?? terminalPeriodEnabled
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
@@ -423,7 +451,7 @@ final class PipelineEngine: @unchecked Sendable {
         // Пост-замены из словаря (жира → Jira) — до нормализации и сниппетов
         let correctedTranscript = DictionaryStore.applyReplacements(
             to: rawTranscript,
-            replacements: currentHints.personalDictionary
+            replacements: hints.personalDictionary
         )
 
         // Пустой транскрипт → пропускаем LLM
@@ -433,7 +461,7 @@ final class PipelineEngine: @unchecked Sendable {
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
                 normalizedText: "",
-                superStyle: currentSuperStyle,
+                superStyle: superStyle,
                 normalizationPath: .trivial,
                 sttLatencyMs: sttLatencyMs,
                 llmLatencyMs: 0,
@@ -463,7 +491,7 @@ final class PipelineEngine: @unchecked Sendable {
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
                     normalizedText: snippetOutput,
-                    superStyle: currentSuperStyle,
+                    superStyle: superStyle,
                     normalizationPath: .snippet,
                     sttLatencyMs: sttLatencyMs,
                     llmLatencyMs: 0,
@@ -477,7 +505,7 @@ final class PipelineEngine: @unchecked Sendable {
                 )
 
             case .embedded:
-                if !currentProductMode.usesLLM {
+                if !productMode.usesLLM {
                     let finalText = SnippetReinserter.mechanicalFallback(
                         rawTranscript: deterministicText,
                         trigger: snippetMatch.trigger,
@@ -489,7 +517,7 @@ final class PipelineEngine: @unchecked Sendable {
                         sessionId: sessionId,
                         rawTranscript: rawTranscript,
                         normalizedText: outputText,
-                        superStyle: currentSuperStyle,
+                        superStyle: superStyle,
                         normalizationPath: .snippet,
                         sttLatencyMs: sttLatencyMs,
                         llmLatencyMs: 0,
@@ -505,9 +533,9 @@ final class PipelineEngine: @unchecked Sendable {
 
                 let snippetCtx = SnippetContext(trigger: snippetMatch.trigger)
                 let hintsWithSnippet = NormalizationHints(
-                    personalDictionary: currentHints.personalDictionary,
-                    appName: currentHints.appName,
-                    currentDate: currentHints.currentDate,
+                    personalDictionary: hints.personalDictionary,
+                    appName: hints.appName,
+                    currentDate: hints.currentDate,
                     snippetContext: snippetCtx
                 )
 
@@ -523,8 +551,8 @@ final class PipelineEngine: @unchecked Sendable {
                         cleanupAudioOnFailure()
                         throw PipelineError.cancelled
                     }
-                    let llmOutput = try await currentLLMClient.normalize(
-                        deterministicText, superStyle: currentSuperStyle ?? .normal, hints: hintsWithSnippet
+                    let llmOutput = try await llmClient.normalize(
+                        deterministicText, superStyle: superStyle ?? .normal, hints: hintsWithSnippet
                     )
                     guard !currentIsCancelled() else {
                         cleanupAudioOnFailure()
@@ -535,8 +563,8 @@ final class PipelineEngine: @unchecked Sendable {
                     let gateResult = NormalizationGate.evaluate(
                         input: deterministicText,
                         output: llmOutput,
-                        contract: currentSuperStyle?.contract ?? .normalization,
-                        superStyle: currentSuperStyle,
+                        contract: superStyle?.contract ?? .normalization,
+                        superStyle: superStyle,
                         ignoredOutputLiterals: Set([SnippetPlaceholder.token])
                     )
 
@@ -591,7 +619,7 @@ final class PipelineEngine: @unchecked Sendable {
                     sessionId: sessionId,
                     rawTranscript: rawTranscript,
                     normalizedText: outputText,
-                    superStyle: currentSuperStyle,
+                    superStyle: superStyle,
                     normalizationPath: .snippetPlusLLM,
                     sttLatencyMs: sttLatencyMs,
                     llmLatencyMs: llmLatencyMs,
@@ -608,14 +636,14 @@ final class PipelineEngine: @unchecked Sendable {
         }
 
         // Trivial text → только DeterministicNormalizer, без LLM
-        if !currentProductMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
+        if !productMode.usesLLM || !pipelinePreflight.shouldInvokeLLM {
             let trivialOutput = applyPostProcessing(deterministicText)
             let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
             return PipelineResult(
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
                 normalizedText: trivialOutput,
-                superStyle: currentSuperStyle,
+                superStyle: superStyle,
                 normalizationPath: .trivial,
                 sttLatencyMs: sttLatencyMs,
                 llmLatencyMs: 0,
@@ -636,10 +664,10 @@ final class PipelineEngine: @unchecked Sendable {
                 cleanupAudioOnFailure()
                 throw PipelineError.cancelled
             }
-            llmOutput = try await currentLLMClient.normalize(
+            llmOutput = try await llmClient.normalize(
                 deterministicText,
-                superStyle: currentSuperStyle ?? .normal,
-                hints: currentHints
+                superStyle: superStyle ?? .normal,
+                hints: hints
             )
             guard !currentIsCancelled() else {
                 cleanupAudioOnFailure()
@@ -663,7 +691,7 @@ final class PipelineEngine: @unchecked Sendable {
                 sessionId: sessionId,
                 rawTranscript: rawTranscript,
                 normalizedText: failedOutput,
-                superStyle: currentSuperStyle,
+                superStyle: superStyle,
                 normalizationPath: mapNormalizationPath(failedPostflight.path),
                 sttLatencyMs: sttLatencyMs,
                 llmLatencyMs: llmLatencyMs,
@@ -677,8 +705,8 @@ final class PipelineEngine: @unchecked Sendable {
         let postflight = NormalizationPipeline.postflight(
             deterministicText: deterministicText,
             llmOutput: llmOutput,
-            contract: currentSuperStyle?.contract ?? .normalization,
-            superStyle: currentSuperStyle,
+            contract: superStyle?.contract ?? .normalization,
+            superStyle: superStyle,
             terminalPeriodEnabled: effectiveTerminalPeriod
         )
         if let failureReason = postflight.gateFailureReason {
@@ -692,7 +720,7 @@ final class PipelineEngine: @unchecked Sendable {
             sessionId: sessionId,
             rawTranscript: rawTranscript,
             normalizedText: postflight.finalText,
-            superStyle: currentSuperStyle,
+            superStyle: superStyle,
             normalizationPath: mapNormalizationPath(postflight.path),
             sttLatencyMs: sttLatencyMs,
             llmLatencyMs: llmLatencyMs,
@@ -759,8 +787,15 @@ final class PipelineEngine: @unchecked Sendable {
         superStyle: SuperTextStyle?,
         hints: NormalizationHints,
         cloudClient: CloudAudioProcessing?,
+        networkAvailability: NetworkAvailabilityProviding?,
+        llmClient: LLMClient,
         applyPostProcessing: (String) -> String
     ) async throws -> PipelineResult {
+        // Task 3 будет добавлять offline fallback / dictionary / snippet post-process.
+        // Task 2 только расширяет signature; текущая логика пока без использования новых параметров.
+        _ = networkAvailability
+        _ = llmClient
+
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
         let audioData = audioCapture.stopRecording()
