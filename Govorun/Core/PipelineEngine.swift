@@ -190,6 +190,24 @@ enum SnippetReinserter {
         return "\(capitalizedTrigger): \(content)"
     }
 
+    /// Чистая подстановка: заменяет trigger на content БЕЗ 'trigger:' префикса.
+    /// Используется в cloud path (D-04) как fallback когда LLM не сделал substitution.
+    /// Отличия от mechanicalFallback:
+    ///   - нет 'trigger: ' префикса — только content
+    ///   - нет capitalization — cloud output уже отформатирован стилевым блоком
+    ///   - nil при no-match — вызывающий решает что делать
+    static func cleanSubstitute(
+        text: String,
+        trigger: String,
+        content: String
+    ) -> String? {
+        guard !text.isEmpty else { return nil }
+        guard let range = triggerRange(in: text, trigger: trigger) else {
+            return nil
+        }
+        return text.replacingCharacters(in: range, with: content)
+    }
+
     private static func triggerRange(in text: String, trigger: String) -> Range<String.Index>? {
         if let directRange = text.range(of: trigger, options: [.caseInsensitive, .diacriticInsensitive]) {
             return directRange
