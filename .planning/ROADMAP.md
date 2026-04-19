@@ -161,7 +161,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 | 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
 | 12. Cloud LLM Client | v2.0 | 1/1 | Complete   | 2026-04-12 |
 | 13. Mode & Routing | v2.0 | 2/2 | Complete   | 2026-04-12 |
-| 14. Pipeline Hardening | v2.0 | 2/4 | In progress | - |
+| 14. Pipeline Hardening | v2.0 | 3/4 | In progress | - |
 | 15. Cloud Settings UI | v2.0 | 0/? | Not started | - |
 | 16. Tests | v2.0 | 0/? | Not started | - |
 | 17. Polish & Rollout | v2.0 | 0/? | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 14 plan 02 complete
-last_updated: "2026-04-19T23:17:21+03:00"
-last_activity: 2026-04-19 -- Phase 14 plan 02 executed (snippet-aware systemPrompt, TDD)
+stopped_at: Phase 14 plan 03 complete
+last_updated: "2026-04-19T23:27:00+03:00"
+last_activity: 2026-04-19 -- Phase 14 plan 03 executed (NetworkAvailabilityProviding DI, TDD)
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 8
-  percent: 80
+  total_plans: 11
+  completed_plans: 9
+  percent: 82
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 14 (pipeline-hardening) — EXECUTING
-Plan: 3 of 4 (next: 14-03)
+Plan: 4 of 4 (next: 14-04)
 Status: Executing Phase 14
-Last activity: 2026-04-19 -- Plan 14-02 complete (snippet-aware systemPrompt, TDD)
+Last activity: 2026-04-19 -- Plan 14-03 complete (NetworkAvailabilityProviding DI, TDD)
 
-Progress: [########--] 80%
+Progress: [########--] 82%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [########--] 80%
 | Phase 08-ui P02 | 3m | 2 tasks | 2 files |
 | Phase 14 P01 | 3m | 2 tasks | 2 files |
 | Phase 14 P02 | 7m | 2 tasks | 4 files |
+| Phase 14 P03 | 4m | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 14-02]: systemPrompt snippetDictionary добавляется в КОНЕЦ списка параметров с default `[:]` — zero-regression для всех существующих 14+ callsites NormalizationHints()
 - [Phase 14-02]: SwiftFormat `redundantSelf` vs Swift strict concurrency в Logger macro autoclosure — используем `// swiftformat:disable:next redundantSelf` directive для точечного обхода
 - [Phase 14-02]: Блок ГОЛОСОВЫЕ СОКРАЩЕНИЯ размещён ПОСЛЕ ПОДСТАНОВКА блока — ближе к задаче LLM, меньше риск переопределения стилевым блоком
+- [Phase 14-03]: NetworkAvailabilityProviding: Sendable protocol + NetworkMonitor class-declaration conformance (не extension) — единая декларация с @unchecked Sendable, consistent с остальными DI протоколами (STTClient, LLMClient, CloudAudioProcessing)
+- [Phase 14-03]: networkAvailability параметр в КОНЦЕ списка PipelineEngine init с default nil — zero-regression для всех 1263+ существующих тестов и production callsites
+- [Phase 14-03]: _networkAvailability storage под NSLock consistent с _cloudClient/_llmClient/_hints паттерном; accessor private до Plan 14-04 (который прочитает его в processCloudPath)
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-19T23:17:21+03:00
-Stopped at: Plan 14-02 complete — SuperTextStyle snippet-aware systemPrompt + NormalizationHints.snippetDictionary + CloudLLMClient wiring shipped (TDD)
-Resume file: .planning/phases/14-pipeline-hardening/14-03-PLAN.md
+Last session: 2026-04-19T23:27:00+03:00
+Stopped at: Plan 14-03 complete — NetworkAvailabilityProviding protocol + NetworkMonitor conformance + PipelineEngine DI + AppState wiring shipped (TDD)
+Resume file: .planning/phases/14-pipeline-hardening/14-04-PLAN.md
