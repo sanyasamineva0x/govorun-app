@@ -791,10 +791,20 @@ final class PipelineEngine: @unchecked Sendable {
         llmClient: LLMClient,
         applyPostProcessing: (String) -> String
     ) async throws -> PipelineResult {
-        // Task 3 будет добавлять offline fallback / dictionary / snippet post-process.
-        // Task 2 только расширяет signature; текущая логика пока без использования новых параметров.
-        _ = networkAvailability
-        _ = llmClient
+        // Offline fast-fail (D-09): delegate to local STT path as .standard
+        if let network = networkAvailability, !network.isCurrentlyConnected {
+            onCloudOfflineFallback?()
+            Self.logger.info("Cloud mode offline — routing to local STT fallback")
+            return try await processLocalSTTPath(
+                stopTime: stopTime,
+                sessionId: sessionId,
+                superStyle: superStyle,
+                hints: hints,
+                llmClient: llmClient,
+                productMode: .standard,
+                applyPostProcessing: applyPostProcessing
+            )
+        }
 
         markRecordingStopped()
         let audioDurationMs = Int(audioCapture.duration * 1_000)
@@ -844,6 +854,16 @@ final class PipelineEngine: @unchecked Sendable {
             throw PipelineError.cancelled
         }
 
+        // Enrich hints with snippet dictionary (D-01 Option G)
+        let snippetDictionary = snippetEngine?.allTriggerContents() ?? [:]
+        let enrichedHints = NormalizationHints(
+            personalDictionary: hints.personalDictionary,
+            appName: hints.appName,
+            currentDate: hints.currentDate,
+            snippetContext: hints.snippetContext,
+            snippetDictionary: snippetDictionary
+        )
+
         // Cloud API
         let llmStart = CFAbsoluteTimeGetCurrent()
         let cloudOutput: String
@@ -856,7 +876,7 @@ final class PipelineEngine: @unchecked Sendable {
             cloudOutput = try await cloudClient.processAudio(
                 audioData: audioData,
                 superStyle: superStyle ?? .normal,
-                hints: hints
+                hints: enrichedHints
             )
             guard !currentIsCancelled() else {
                 cleanupAudioOnFailure()
@@ -889,7 +909,34 @@ final class PipelineEngine: @unchecked Sendable {
             )
         }
 
-        let finalText = applyPostProcessing(cloudOutput)
+        // Post-cloud: Dictionary → Snippet → applyPostProcessing (D-05, D-10)
+        let dictText = DictionaryStore.applyReplacements(
+            to: cloudOutput,
+            replacements: hints.personalDictionary
+        )
+
+        let snippetText: String
+        var matchedSnippetTrigger: String?
+
+        if let snippetEngine, let match = snippetEngine.match(dictText) {
+            matchedSnippetTrigger = match.trigger
+            switch match.kind {
+            case .standalone:
+                // D-03: литеральная замена всего текста на content
+                snippetText = match.content
+            case .embedded:
+                // D-04: cleanSubstitute; если nil — cloud уже сделал substitution inline
+                snippetText = SnippetReinserter.cleanSubstitute(
+                    text: dictText,
+                    trigger: match.trigger,
+                    content: match.content
+                ) ?? dictText
+            }
+        } else {
+            snippetText = dictText
+        }
+
+        let finalText = applyPostProcessing(snippetText)
         let totalMs = Int((CFAbsoluteTimeGetCurrent() - stopTime) * 1_000)
         return PipelineResult(
             sessionId: sessionId,
@@ -901,6 +948,7 @@ final class PipelineEngine: @unchecked Sendable {
             llmLatencyMs: llmLatencyMs,
             insertionLatencyMs: 0,
             totalLatencyMs: totalMs,
+            matchedSnippetTrigger: matchedSnippetTrigger,
             audioDurationMs: audioDurationMs,
             audioFileName: audioFileName
         )
