@@ -3,34 +3,36 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 13 context gathered
-last_updated: "2026-04-12T17:45:00.858Z"
-last_activity: 2026-04-12 -- Phase 12 execution started
+stopped_at: Phase 14 plan 01 complete
+last_updated: "2026-04-19T20:08:35Z"
+last_activity: 2026-04-19 -- Phase 14 plan 01 executed (SnippetReinserter.cleanSubstitute, TDD)
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  completed_phases: 4
+  total_plans: 10
+  completed_plans: 7
+  percent: 70
 ---
 
 # Project State
+
+<!-- [skip-review: STATE.md is mechanical progress tracking, not spec/plan; end-of-phase Codex review covers cumulative state] -->
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-04-02)
 
-**Core value:** Стиль текста адаптируется к контексту -- расслабленный в мессенджерах, формальный в почте, обычный везде остальном
-**Current focus:** Phase 12 — cloud-llm-client
+**Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
+**Current focus:** Phase 14 — pipeline-hardening
 
 ## Current Position
 
-Phase: 12 (cloud-llm-client) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 12
-Last activity: 2026-04-12 -- Phase 12 execution started
+Phase: 14 (pipeline-hardening) — EXECUTING
+Plan: 2 of 4 (next: 14-02)
+Status: Executing Phase 14
+Last activity: 2026-04-19 -- Plan 14-01 complete (SnippetReinserter.cleanSubstitute, TDD)
 
-Progress: [##########] 100%
+Progress: [#######---] 70%
 
 ## Performance Metrics
 
@@ -61,6 +63,7 @@ Progress: [##########] 100%
 | Phase 06 P01 | 3m | 2 tasks | 4 files |
 | Phase 08 P01 | 2m | 2 tasks | 4 files |
 | Phase 08-ui P02 | 3m | 2 tasks | 2 files |
+| Phase 14 P01 | 3m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 04]: nil default for superStyle in postflight() preserves all existing test callsites without modification
 - [Phase 08]: Placeholder Text view в SettingsView.swift для textStyle case — Exhaustive switch requirement -- Plan 02 заменит на TextStyleSettingsContent
 - [Phase 08-ui]: xcodegen regeneration needed after creating new Swift file — Standard step when adding files to XcodeGen-based project
+- [Phase 14-01]: SnippetReinserter.cleanSubstitute reuses private triggerRange via same-enum scope — triggerRange остаётся private без повышения видимости
+- [Phase 14-01]: SwiftFormat pre-commit hook преобразует `//` комментарии в `///` doc comments — проектная конвенция, принимаем
 
 ### Pending Todos
 
@@ -92,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T17:45:00.853Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-mode-routing/13-CONTEXT.md
+Last session: 2026-04-19T20:08:35Z
+Stopped at: Plan 14-01 complete — SnippetReinserter.cleanSubstitute shipped (TDD)
+Resume file: .planning/phases/14-pipeline-hardening/14-02-PLAN.md

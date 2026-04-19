@@ -1,5 +1,7 @@
 # Roadmap: Говорун
 
+<!-- [skip-review: ROADMAP.md progress flips are mechanical bookkeeping; Codex reviews spec + plan + end-of-phase diff per feedback_codex_reviews_artifacts.md] -->
+
 ## Milestones
 
 - v1.0 Стили текста v2 (Phases 1-9) -- shipped 2026-04-02
@@ -107,9 +109,9 @@ Plans:
   2. NormalizationGate evaluates cloud output with same contract/style logic as local LLM -- no special cloud thresholds needed initially (interpreted as: Gate код не модифицируется; cloud fork skips Gate per D-06/D-07)
   3. ListFormatter processes cloud output without changes
   4. When network is unavailable, cloud mode fast-fails (NetworkMonitor check) and degrades to deterministic text without 30s timeout wait
-**Plans:** 4 plans
+**Plans:** 1/4 plans complete
 Plans:
-- [ ] 14-01-PLAN.md -- SnippetReinserter.cleanSubstitute helper для cloud embedded fallback (TDD)
+- [x] 14-01-PLAN.md -- SnippetReinserter.cleanSubstitute helper для cloud embedded fallback (TDD)
 - [ ] 14-02-PLAN.md -- SuperTextStyle snippet-aware systemPrompt + NormalizationHints.snippetDictionary + CloudLLMClient wiring (TDD)
 - [ ] 14-03-PLAN.md -- NetworkAvailabilityProviding протокол + PipelineEngine DI (TDD)
 - [ ] 14-04-PLAN.md -- processCloudPath integration: offline fallback, dictionary, snippet, toast wiring
@@ -159,7 +161,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 | 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
 | 12. Cloud LLM Client | v2.0 | 1/1 | Complete   | 2026-04-12 |
 | 13. Mode & Routing | v2.0 | 2/2 | Complete   | 2026-04-12 |
-| 14. Pipeline Hardening | v2.0 | 0/4 | Planned | - |
+| 14. Pipeline Hardening | v2.0 | 1/4 | In progress | - |
 | 15. Cloud Settings UI | v2.0 | 0/? | Not started | - |
 | 16. Tests | v2.0 | 0/? | Not started | - |
 | 17. Polish & Rollout | v2.0 | 0/? | Not started | - |
