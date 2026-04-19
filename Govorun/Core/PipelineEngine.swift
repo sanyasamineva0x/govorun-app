@@ -267,6 +267,7 @@ final class PipelineEngine: @unchecked Sendable {
     private var _isRecording = false
     private var _llmClient: LLMClient
     private var _cloudClient: CloudAudioProcessing?
+    private var _networkAvailability: NetworkAvailabilityProviding?
 
     private var _productMode: ProductMode = .standard
     private var _superStyle: SuperTextStyle?
@@ -306,11 +307,13 @@ final class PipelineEngine: @unchecked Sendable {
         llmClient: LLMClient,
         snippetEngine: SnippetMatching? = nil,
         saveAudioFile: (@Sendable (Data, UUID) throws -> String)? = nil,
-        deleteAudioFile: (@Sendable (String) -> Void)? = nil
+        deleteAudioFile: (@Sendable (String) -> Void)? = nil,
+        networkAvailability: NetworkAvailabilityProviding? = nil
     ) {
         self.audioCapture = audioCapture
         self.sttClient = sttClient
         _llmClient = llmClient
+        _networkAvailability = networkAvailability
         self.snippetEngine = snippetEngine
         self.saveAudioFile = saveAudioFile ?? { audioData, sessionId in
             try AudioHistoryStorage.saveWAV(audioData: audioData, sessionId: sessionId)
@@ -741,6 +744,12 @@ final class PipelineEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _isCancelled
+    }
+
+    private func currentNetworkAvailability() -> NetworkAvailabilityProviding? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _networkAvailability
     }
 
     private func processCloudPath(

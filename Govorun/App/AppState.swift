@@ -170,7 +170,8 @@ final class AppState: ObservableObject {
             audioCapture: audio,
             sttClient: stt,
             llmClient: llm,
-            snippetEngine: snippetEngine
+            snippetEngine: snippetEngine,
+            networkAvailability: networkMonitor
         )
         // productMode ставим .standard до проверки ассетов; start() обновит после check()
         pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode

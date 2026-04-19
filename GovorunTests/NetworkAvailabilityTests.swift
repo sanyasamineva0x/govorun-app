@@ -72,12 +72,15 @@ final class NetworkAvailabilityProvidingTests: XCTestCase {
     }
 
     func test_pipelineEngine_with_nil_provider_does_not_crash_in_startStop() async throws {
+        let stt = MockSTTClient()
+        stt.recognizeResult = STTResult(text: "привет")
         let engine = PipelineEngine(
             audioCapture: MockAudioRecording(),
-            sttClient: MockSTTClient(),
+            sttClient: stt,
             llmClient: MockLLMClient()
         )
         try engine.startRecording(sessionId: UUID())
         _ = try await engine.stopRecording()
+        // Если дошли сюда — nil provider не ломает happy path
     }
 }

@@ -1,7 +1,15 @@
 import Combine
 import Network
 
-final class NetworkMonitor: ObservableObject {
+// MARK: - NetworkAvailabilityProviding
+
+protocol NetworkAvailabilityProviding: Sendable {
+    var isCurrentlyConnected: Bool { get }
+}
+
+// MARK: - NetworkMonitor
+
+final class NetworkMonitor: ObservableObject, NetworkAvailabilityProviding, @unchecked Sendable {
     @Published private(set) var isConnected = false
     private let monitor = NWPathMonitor()
 
