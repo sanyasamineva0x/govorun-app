@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 14 plan 01 complete
-last_updated: "2026-04-19T20:08:35Z"
-last_activity: 2026-04-19 -- Phase 14 plan 01 executed (SnippetReinserter.cleanSubstitute, TDD)
+stopped_at: Phase 14 plan 02 complete
+last_updated: "2026-04-19T23:17:21+03:00"
+last_activity: 2026-04-19 -- Phase 14 plan 02 executed (snippet-aware systemPrompt, TDD)
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 10
-  completed_plans: 7
-  percent: 70
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 14 (pipeline-hardening) — EXECUTING
-Plan: 2 of 4 (next: 14-02)
+Plan: 3 of 4 (next: 14-03)
 Status: Executing Phase 14
-Last activity: 2026-04-19 -- Plan 14-01 complete (SnippetReinserter.cleanSubstitute, TDD)
+Last activity: 2026-04-19 -- Plan 14-02 complete (snippet-aware systemPrompt, TDD)
 
-Progress: [#######---] 70%
+Progress: [########--] 80%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [#######---] 70%
 | Phase 08 P01 | 2m | 2 tasks | 4 files |
 | Phase 08-ui P02 | 3m | 2 tasks | 2 files |
 | Phase 14 P01 | 3m | 2 tasks | 2 files |
+| Phase 14 P02 | 7m | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 08-ui]: xcodegen regeneration needed after creating new Swift file — Standard step when adding files to XcodeGen-based project
 - [Phase 14-01]: SnippetReinserter.cleanSubstitute reuses private triggerRange via same-enum scope — triggerRange остаётся private без повышения видимости
 - [Phase 14-01]: SwiftFormat pre-commit hook преобразует `//` комментарии в `///` doc comments — проектная конвенция, принимаем
+- [Phase 14-02]: systemPrompt snippetDictionary добавляется в КОНЕЦ списка параметров с default `[:]` — zero-regression для всех существующих 14+ callsites NormalizationHints()
+- [Phase 14-02]: SwiftFormat `redundantSelf` vs Swift strict concurrency в Logger macro autoclosure — используем `// swiftformat:disable:next redundantSelf` directive для точечного обхода
+- [Phase 14-02]: Блок ГОЛОСОВЫЕ СОКРАЩЕНИЯ размещён ПОСЛЕ ПОДСТАНОВКА блока — ближе к задаче LLM, меньше риск переопределения стилевым блоком
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-19T20:08:35Z
-Stopped at: Plan 14-01 complete — SnippetReinserter.cleanSubstitute shipped (TDD)
-Resume file: .planning/phases/14-pipeline-hardening/14-02-PLAN.md
+Last session: 2026-04-19T23:17:21+03:00
+Stopped at: Plan 14-02 complete — SuperTextStyle snippet-aware systemPrompt + NormalizationHints.snippetDictionary + CloudLLMClient wiring shipped (TDD)
+Resume file: .planning/phases/14-pipeline-hardening/14-03-PLAN.md
