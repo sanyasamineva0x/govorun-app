@@ -250,6 +250,12 @@ final class AppState: ObservableObject {
         }
         superModelDownloadManager.restoreStateFromDisk(for: SuperModelCatalog.current)
         cloudAvailable = credentialStore.get() != nil
+
+        // Если productMode был сохранён как .cloud, нужно прокинуть cloudLLMClient
+        // в pipelineEngine — иначе первая диктовка упадёт с "Cloud client не настроен".
+        if settings.productMode == .cloud, cloudAvailable {
+            applyProductMode(.cloud)
+        }
     }
 
     /// Тестовый init с инжектированными зависимостями
