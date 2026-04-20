@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 15 context gathered (Cloud Settings UI)
-last_updated: "2026-04-20T01:30:00+03:00"
-last_activity: 2026-04-20 -- Phase 15 CONTEXT.md + DISCUSSION-LOG.md собраны (discuss-phase), Codex round 1 verified, 7 findings applied
+stopped_at: Phase 15 planned — ready to execute (Cloud Settings UI)
+last_updated: "2026-04-20T19:35:00+03:00"
+last_activity: 2026-04-20 -- Phase 15 planned — 6 PLAN файлов в 3 waves, plan-checker 0 blockers + 4 warnings (2 patched inline), D-11.2 Path B override принят (AuthError preserves URLError)
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 12
+  total_plans: 18
   completed_plans: 12
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -23,18 +23,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 15 — cloud-settings-ui (context gathered)
+**Current focus:** Phase 15 — cloud-settings-ui (PLANNED, ready to execute)
 
 ## Current Position
 
-Phase: 15 (cloud-settings-ui) — CONTEXT GATHERED
-Plan: 0 of ? (не начат)
-Status: CONTEXT.md + DISCUSSION-LOG.md записаны, готов к /gsd-plan-phase 15
-Last activity: 2026-04-20 -- 11 decisions captured (D-01..D-11, D-07.1, D-11.1), placement Option C (disclosure в ProductModeCard), Codex round 1 patches applied
+Phase: 15 (cloud-settings-ui) — READY TO EXECUTE
+Plan: 0 of 6 (не начат)
+Status: 6 PLAN файлов в 3 waves, plan-checker PASSED (0 blockers), all UI-01..UI-04 covered
+Last activity: 2026-04-20 -- Planning complete: RESEARCH + VALIDATION + PATTERNS + 6 PLANs. D-11.2 override: AuthError.networkError будет нести URLError? (Path B — Plan 15-02). Wave 1 parallel: 01/02/05; Wave 2: 03/04; Wave 3: 06 (UAT checkpoint).
 
 Progress: [          ] 0% plans of Phase 15
 
-Resume file: .planning/phases/15-cloud-settings-ui/15-CONTEXT.md
+Resume file: .planning/phases/15-cloud-settings-ui/15-01-PLAN.md
 
 ## Performance Metrics
 

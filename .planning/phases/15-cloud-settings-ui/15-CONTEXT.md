@@ -49,6 +49,12 @@
     - прочие (DNS/TLS/etc) → «Сервис Сбера недоступен. Попробуйте позже.»
   - **`AuthError.invalidResponse(-1)` (не HTTP response):** generic fallback «Сбой Cloud. Попробуйте позже.»
 - **D-11.1 (out-of-scope ошибки):** Следующие кейсы существуют в коде (`CloudLLMClient.parsingFailed`, mid-session token-expiry 401, quota/permission exhaustion отличная от 429), но **маппятся в generic «Сбой Cloud» без дифференциации**. Дифференциация требует расширения `AuthError` / `LLMError` (Services-слой) — out of scope для Phase 15 (pure UI). Этот пункт — явный нон-гол, не забыть упомянуть в UAT.
+- **D-11.2 (ОВЕРРАЙД D-11.1 для URLError, принят 2026-04-20):** 15-RESEARCH.md Landmine #3 показал: `SberAuthService.swift:98` заворачивает `URLError` в `String` через `.localizedDescription`, поэтому `if let urlErr = error as? URLError` во View никогда не срабатывает — UI-SPEC §Status table для `AuthError.networkError(URLError.notConnectedToInternet / .timedOut / other)` был аспирационным. Пользователь выбрал **Path B: сохраняем гранулярный UX**. Действия:
+  1. Расширить `AuthError.networkError` в `Govorun/Services/SberAuthService.swift` — нести `URLError?` рядом с `description` (`.networkError(urlError: URLError?, description: String)`).
+  2. Обновить `Equatable` conformance `AuthError` чтобы сравнивать оба поля (для тестов).
+  3. Обновить одну точку вызова в `CloudLLMClient.swift` если она явно матчит на `.networkError(let msg)` — заменить паттерн на `.networkError(_, let msg)` или `.networkError(let urlErr, let msg)`.
+  4. `errorMessage(for:)` во View матчит на `.networkError(let urlErr, _)` и разворачивает `urlErr?.code` в специфичные сообщения согласно UI-SPEC §Status table.
+  5. Границу фазы слегка размыкаем (Services/ получает ~10 строк), но всё в одной TDD-итерации (тест → код → рефактор). Остальные D-11.1 кейсы (`parsingFailed`, token-expiry) остаются generic — это точечный оверрайд только для URLError.
 
 ### Claude's Discretion
 - **Файловое деление:** планер сам решает — `CloudSettingsDisclosure` приватный subview в `SettingsView.swift` или отдельный `CloudSettingsDisclosure.swift` (рекомендация: отдельный файл, т.к. `SettingsView.swift` уже 26KB + `ProductModeCard` 240 строк, а новая логика принесёт ещё ~200+ строк). В любом случае `ProductModeCard` остаётся тем же struct'ом, disclosure — новый subview.
