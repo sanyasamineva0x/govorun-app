@@ -38,6 +38,9 @@ final class AppState: ObservableObject {
     private let trustPolicy: TrustPolicyProviding?
     /// Доступен ли cloud режим (есть credentials)
     @Published var cloudAvailable: Bool = false
+    /// Фабрика AuthService для probeCloudConnection — тесты подменяют на MockAuthService.
+    /// По умолчанию — свежий SberAuthService из credentialStore.
+    var authServiceFactory: () -> AuthService = { SberAuthService(credentialProvider: { nil }) }
 
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
@@ -211,6 +214,11 @@ final class AppState: ObservableObject {
         updaterService = UpdaterService()
         let credentialStore = CredentialStore()
         self.credentialStore = credentialStore
+        authServiceFactory = { @Sendable [credentialStore] in
+            SberAuthService(
+                credentialProvider: { credentialStore.get() }
+            )
+        }
         let trustPolicy: TrustPolicyProviding?
         do {
             trustPolicy = try SberTrustPolicy()
@@ -298,6 +306,12 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         self.updaterService = updaterService
         self.credentialStore = credentialStore ?? MockCredentialStore()
+        let resolvedCredentialStore = self.credentialStore
+        authServiceFactory = { @Sendable [resolvedCredentialStore] in
+            SberAuthService(
+                credentialProvider: { resolvedCredentialStore.get() }
+            )
+        }
         self.trustPolicy = trustPolicy
 
         workerState = initialWorkerState
@@ -340,6 +354,39 @@ final class AppState: ObservableObject {
             baseURLString: settings.llmBaseURL,
             modelAlias: settings.llmModel
         )
+    }
+
+    // MARK: - Cloud Settings (Phase 15 shim)
+
+    /// Сохраняет GigaChat creds в Keychain и включает cloudAvailable.
+    /// Вызывается из CloudSettingsDisclosure.
+    func saveCloudCredentials(clientId: String, clientSecret: String) throws {
+        try credentialStore.save(clientId: clientId, clientSecret: clientSecret)
+        cloudAvailable = true
+    }
+
+    /// Удаляет GigaChat creds из Keychain и сбрасывает cloudAvailable.
+    /// Consent (cloudConsentAcceptedAt) НЕ трогаем — D-07.
+    func deleteCloudCredentials() throws {
+        try credentialStore.delete()
+        cloudAvailable = false
+    }
+
+    /// Пробует получить OAuth токен от Сбера — используется для «Сохранить» auto-probe
+    /// и для «Проверить» manual retest. Не делает /chat/completions (не тратит токены).
+    func probeCloudConnection() async -> Result<Void, AuthError> {
+        let authService = authServiceFactory()
+        do {
+            _ = try await authService.getAccessToken()
+            return .success(())
+        } catch let error as AuthError {
+            return .failure(error)
+        } catch {
+            return .failure(.networkError(
+                urlError: error as? URLError,
+                description: error.localizedDescription
+            ))
+        }
     }
 
     // MARK: - Super Model Download
