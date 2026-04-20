@@ -120,17 +120,49 @@ struct SectionPageHeader: View {
 // MARK: - StatusDot
 
 struct StatusDot: View {
+    enum State {
+        case idle // Mist dot (notConfigured / checking)
+        case connected // Sage dot
+        case error // Ember dot + Ember text
+    }
+
     let title: String
-    let isActive: Bool
+    let state: State
+
+    /// Совместимость: сохраняем `isActive: Bool` API для существующих и будущих вызовов.
+    init(title: String, isActive: Bool) {
+        self.title = title
+        self.state = isActive ? .connected : .idle
+    }
+
+    init(title: String, state: State) {
+        self.title = title
+        self.state = state
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(isActive ? Color.sage : Color.mist)
+                .fill(dotColor)
                 .frame(width: 6, height: 6)
             Text(title)
                 .font(.caption)
-                .foregroundStyle(Color.ink.opacity(0.5))
+                .foregroundStyle(textColor)
+        }
+    }
+
+    private var dotColor: Color {
+        switch state {
+        case .idle: Color.mist
+        case .connected: Color.sage
+        case .error: Color.ember
+        }
+    }
+
+    private var textColor: Color {
+        switch state {
+        case .idle, .connected: Color.ink.opacity(0.5)
+        case .error: Color.ember
         }
     }
 }
