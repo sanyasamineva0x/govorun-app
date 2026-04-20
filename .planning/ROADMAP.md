@@ -129,8 +129,8 @@ Plans:
 Plans:
 - [x] 15-01-PLAN.md -- SettingsStore.cloudConsentAcceptedAt accessor + clearCloudConsent (TDD, UI-04)
 - [x] 15-02-PLAN.md -- AuthError.networkError preserves URLError + Equatable (TDD, Path B, UI-02)
-- [ ] 15-03-PLAN.md -- cloudErrorMessage(for:) -> String в Views/CloudErrorCopy.swift (TDD, UI-02)
-- [ ] 15-04-PLAN.md -- AppState shim: saveCloudCredentials / deleteCloudCredentials / probeCloudConnection (TDD, UI-01, UI-02)
+- [x] 15-03-PLAN.md -- cloudErrorMessage(for:) -> String в Views/CloudErrorCopy.swift (TDD, UI-02)
+- [x] 15-04-PLAN.md -- AppState shim: saveCloudCredentials / deleteCloudCredentials / probeCloudConnection (TDD, UI-01, UI-02)
 - [x] 15-05-PLAN.md -- StatusDot 3-state (idle/connected/error) additive (UI-02)
 - [ ] 15-06-PLAN.md -- CloudSettingsDisclosure.swift + ProductModeCard integration (UI-01, UI-02, UI-03, UI-04)
 **UI hint**: yes
