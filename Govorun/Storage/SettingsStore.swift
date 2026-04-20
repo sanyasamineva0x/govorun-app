@@ -23,6 +23,7 @@ final class SettingsStore: ObservableObject {
         static let llmModel = "llmModel"
         static let llmRequestTimeout = "llmRequestTimeout"
         static let llmHealthcheckTimeout = "llmHealthcheckTimeout"
+        static let cloudConsentAcceptedAt = "govorun.cloud.consent.acceptedAt"
     }
 
     // MARK: - Init
@@ -250,6 +251,25 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    // MARK: - Cloud consent (Phase 15)
+
+    var cloudConsentAcceptedAt: Date? {
+        get { defaults.object(forKey: Keys.cloudConsentAcceptedAt) as? Date }
+        set {
+            if let newValue {
+                defaults.set(newValue, forKey: Keys.cloudConsentAcceptedAt)
+            } else {
+                defaults.removeObject(forKey: Keys.cloudConsentAcceptedAt)
+            }
+            objectWillChange.send()
+        }
+    }
+
+    /// Отзыв согласия — консент возвращается в pre-ack состояние.
+    func clearCloudConsent() {
+        cloudConsentAcceptedAt = nil
+    }
+
     // MARK: - Reset
 
     func resetToDefaults() {
@@ -265,6 +285,7 @@ final class SettingsStore: ObservableObject {
         defaults.removeObject(forKey: Keys.llmModel)
         defaults.removeObject(forKey: Keys.llmRequestTimeout)
         defaults.removeObject(forKey: Keys.llmHealthcheckTimeout)
+        defaults.removeObject(forKey: Keys.cloudConsentAcceptedAt)
         // launchAtLogin управляется через SMAppService, не UserDefaults
         registerDefaults()
         objectWillChange.send()
