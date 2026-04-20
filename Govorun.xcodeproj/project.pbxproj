@@ -92,6 +92,7 @@
 		B3CDAFC3605703FF0EE9963A /* ActivationKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A46918EA766325EBB622716 /* ActivationKey.swift */; };
 		B5584ECAF32F16B3F9FB9621 /* recording_started.aiff in Resources */ = {isa = PBXBuildFile; fileRef = 148054325828C9A63DFBF796 /* recording_started.aiff */; };
 		B5EE38940FDBE3964EB2309E /* CloudErrorCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2AF40E19C833E8C32E9C81 /* CloudErrorCopy.swift */; };
+		B74B828905ED0C75976215E4 /* CloudSettingsDisclosure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DA8099A64375734888596EE /* CloudSettingsDisclosure.swift */; };
 		B78FCC92DE61D7BEE9B4C57E /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A0A917EFD70238AEEAC3B4 /* StatusBarController.swift */; };
 		B96C60D9DEA6209384FB98BB /* ErrorMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634A6B60896D5BBAD1DDAD92 /* ErrorMessages.swift */; };
 		BAF85F53E20D6993EFA3CD37 /* PostInsertionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD57F2CAF152D7085C5A219B /* PostInsertionMonitor.swift */; };
@@ -172,6 +173,7 @@
 		1C0ED1AA83B74290A6FA5747 /* AXTextInserter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXTextInserter.swift; sourceTree = "<group>"; };
 		1C6B0548A677BFF0DA2166F2 /* SberTrustPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SberTrustPolicyTests.swift; sourceTree = "<group>"; };
 		1D697E8CF215D44A451EEB1C /* BottomBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomBarTests.swift; sourceTree = "<group>"; };
+		1DA8099A64375734888596EE /* CloudSettingsDisclosure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSettingsDisclosure.swift; sourceTree = "<group>"; };
 		1DC7436290A2B2148B6328FD /* AnalyticsEmitting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsEmitting.swift; sourceTree = "<group>"; };
 		1DE479255B3DDF52CB631916 /* AudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCapture.swift; sourceTree = "<group>"; };
 		1E0DB3AC05A8E2CF24712DC0 /* SberAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SberAuthService.swift; sourceTree = "<group>"; };
@@ -366,6 +368,7 @@
 			children = (
 				9BBD6E36B5D21F480F32BFF4 /* .gitkeep */,
 				5F2AF40E19C833E8C32E9C81 /* CloudErrorCopy.swift */,
+				1DA8099A64375734888596EE /* CloudSettingsDisclosure.swift */,
 				35C1F7285CD1914934621B20 /* DictionaryView.swift */,
 				47684C610847BC47C88AF60E /* HistoryView.swift */,
 				1B06D37AD3899F3BF9EFDB26 /* KeyRecorderView.swift */,
@@ -709,6 +712,7 @@
 				573B4D83504F8BB5DAE4363A /* BottomBarWindow.swift in Sources */,
 				B5EE38940FDBE3964EB2309E /* CloudErrorCopy.swift in Sources */,
 				9AA1501FD84C2B76DC6DBCD2 /* CloudLLMClient.swift in Sources */,
+				B74B828905ED0C75976215E4 /* CloudSettingsDisclosure.swift in Sources */,
 				E3C88E1286D3BF982BE0BFF3 /* CredentialStore.swift in Sources */,
 				E7A7591ACED3A7A23EED0B3D /* DictionaryEntry.swift in Sources */,
 				D4926A5FB7B316111F3EBAAD /* DictionaryStore.swift in Sources */,
