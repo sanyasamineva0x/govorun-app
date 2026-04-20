@@ -83,16 +83,27 @@ final class SberAuthServiceTests: XCTestCase {
         }
     }
 
-    func test_getAccessToken_networkError() async {
+    func test_getAccessToken_networkError_preserves_urlError_notConnected() async {
         mockHTTP.error = URLError(.notConnectedToInternet)
         do {
             _ = try await sut.getAccessToken()
             XCTFail("Ожидалась ошибка")
+        } catch let AuthError.networkError(urlErr, _) {
+            XCTAssertEqual(urlErr?.code, .notConnectedToInternet)
         } catch {
-            guard case .networkError = error as? AuthError else {
-                XCTFail("Ожидался networkError, получен \(error)")
-                return
-            }
+            XCTFail("Ожидался AuthError.networkError, получен \(error)")
+        }
+    }
+
+    func test_getAccessToken_networkError_preserves_urlError_timedOut() async {
+        mockHTTP.error = URLError(.timedOut)
+        do {
+            _ = try await sut.getAccessToken()
+            XCTFail("Ожидалась ошибка")
+        } catch let AuthError.networkError(urlErr, _) {
+            XCTAssertEqual(urlErr?.code, .timedOut)
+        } catch {
+            XCTFail("Ожидался AuthError.networkError, получен \(error)")
         }
     }
 
@@ -218,8 +229,22 @@ final class SberAuthServiceTests: XCTestCase {
 
     func test_authError_equatable() {
         XCTAssertEqual(AuthError.credentialsNotFound, AuthError.credentialsNotFound)
-        XCTAssertEqual(AuthError.networkError("a"), AuthError.networkError("a"))
-        XCTAssertNotEqual(AuthError.networkError("a"), AuthError.networkError("b"))
+        XCTAssertEqual(
+            AuthError.networkError(urlError: nil, description: "a"),
+            AuthError.networkError(urlError: nil, description: "a")
+        )
+        XCTAssertNotEqual(
+            AuthError.networkError(urlError: nil, description: "a"),
+            AuthError.networkError(urlError: nil, description: "b")
+        )
+        XCTAssertEqual(
+            AuthError.networkError(urlError: URLError(.timedOut), description: "x"),
+            AuthError.networkError(urlError: URLError(.timedOut), description: "x")
+        )
+        XCTAssertNotEqual(
+            AuthError.networkError(urlError: URLError(.timedOut), description: "x"),
+            AuthError.networkError(urlError: URLError(.notConnectedToInternet), description: "x")
+        )
         XCTAssertEqual(AuthError.invalidResponse(statusCode: 401), AuthError.invalidResponse(statusCode: 401))
         XCTAssertNotEqual(AuthError.invalidResponse(statusCode: 401), AuthError.invalidResponse(statusCode: 500))
         XCTAssertEqual(AuthError.tokenParsingFailed, AuthError.tokenParsingFailed)
