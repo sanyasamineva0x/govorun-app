@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 15 planned — ready to execute (Cloud Settings UI)
-last_updated: "2026-04-20T19:35:00+03:00"
-last_activity: 2026-04-20 -- Phase 15 planned — 6 PLAN файлов в 3 waves, plan-checker 0 blockers + 4 warnings (2 patched inline), D-11.2 Path B override принят (AuthError preserves URLError)
+stopped_at: Phase 15 Plan 06 shipped pending UAT (CloudSettingsDisclosure + ProductModeCard Cloud integration)
+last_updated: "2026-04-20T20:31:38+03:00"
+last_activity: 2026-04-20 -- Plan 15-06 executor sequential: CloudSettingsDisclosure.swift (378 строк) + ProductModeCard +27 строк. 1297/1297 tests PASS. Deviation Rule 3: applyProductMode остался private, consent accept/revoke через settings.productMode observer. UAT (Task 06-03) делегирован пользователю — см. 15-06-SUMMARY.md §UAT Checkpoint.
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 18
-  completed_plans: 12
-  percent: 67
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -23,18 +23,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 15 — cloud-settings-ui (PLANNED, ready to execute)
+**Current focus:** Phase 15 — cloud-settings-ui (6/6 plans shipped, pending UAT на 15-06)
 
 ## Current Position
 
-Phase: 15 (cloud-settings-ui) — READY TO EXECUTE
-Plan: 0 of 6 (не начат)
-Status: 6 PLAN файлов в 3 waves, plan-checker PASSED (0 blockers), all UI-01..UI-04 covered
-Last activity: 2026-04-20 -- Planning complete: RESEARCH + VALIDATION + PATTERNS + 6 PLANs. D-11.2 override: AuthError.networkError будет нести URLError? (Path B — Plan 15-02). Wave 1 parallel: 01/02/05; Wave 2: 03/04; Wave 3: 06 (UAT checkpoint).
+Phase: 15 (cloud-settings-ui) — 6/6 PLANS SHIPPED, PENDING UAT
+Plan: 6 of 6 — 15-06 automatic part complete, human UAT delegated
+Status: All 6 plans coded + committed на main. Test baseline: 1297/1297 PASS. Task 06-03 (UAT) needs человека.
+Last activity: 2026-04-20 -- Plan 15-06 executor sequential: CloudSettingsDisclosure.swift (378 строк) + ProductModeCard +27 строк. 1297/1297 tests PASS. Deviation Rule 3: applyProductMode остался private, consent accept/revoke через settings.productMode observer. UAT (Task 06-03) делегирован пользователю — см. 15-06-SUMMARY.md §UAT Checkpoint.
 
-Progress: [          ] 0% plans of Phase 15
+Progress: [██████████] 100% plans of Phase 15 coded (UAT pending on 15-06)
 
-Resume file: .planning/phases/15-cloud-settings-ui/15-01-PLAN.md
+Resume file: .planning/phases/15-cloud-settings-ui/15-06-SUMMARY.md §UAT Checkpoint (pending human verification)
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Resume file: .planning/phases/15-cloud-settings-ui/15-01-PLAN.md
 | Phase 14 P02 | 7m | 2 tasks | 4 files |
 | Phase 14 P03 | 4m | 2 tasks | 4 files |
 | Phase 14 P04 | 11m | 5 tasks | 4 files |
+| Phase 15 P06 | 5m | 2 tasks (Task 06-03 UAT pending) | 2 files |
 
 ## Accumulated Context
 
@@ -101,10 +102,13 @@ Recent decisions affecting current work:
 - [Phase 14-04]: snippetDictionary enrichment только в processCloudPath (не в processLocalSTTPath) — cloud prompt единственное место где словарь нужен inline
 - [Phase 14-04]: bottomBarController создаётся как локальный let до PipelineEngine init — обходит ограничение Swift «нельзя self в init до всех stored props», closure захватывает weak
 - [Phase 14-04]: offline fallback productMode == .standard (D-09) — cloud при offline НЕ пытается использовать local llama-server
+- [Phase 15-06]: applyProductMode остался private в AppState — consent accept/revoke в CloudSettingsDisclosure пишут settings.productMode и полагаются на wireSettingsChange observer (который вызывает applyProductMode или откладывает в pendingProductMode если sessionManager.state != .idle). Строже плана, корректнее уважает D-07.1 revoke-during-dictation race rule.
+- [Phase 15-06]: Landmine #4 (picker dropdown lock icon opacity) shipped as-is — HStack+lock.fill+.foregroundStyle(Color.ink.opacity(0.25)) в .menu pickerStyle. Если dropdown не применит opacity на macOS 14.x — lock-иконка сама по себе сигнал (UAT шаг A).
+- [Phase 15-06]: SwiftUI .alert destructive вместо AppKit NSAlert shipped (D-05 deviation preserved from Plan-level per PATTERNS.md HistoryView.swift precedent).
 
 ### Pending Todos
 
-None yet.
+- Phase 15 Task 06-03: Human UAT delegated — 11 шагов в 15-06-SUMMARY.md §UAT Checkpoint. После approval: флипнуть ROADMAP checkbox 15-06 и закрыть Phase 15.
 
 ### Blockers/Concerns
 
@@ -113,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-19T23:44:00+03:00
-Stopped at: Phase 14 complete — cloud pipeline hardening end-to-end. All 4 plans shipped: SnippetReinserter.cleanSubstitute (14-01), snippet-aware systemPrompt (14-02), NetworkAvailabilityProviding DI (14-03), processCloudPath integration (14-04). 1280 tests PASS.
-Resume file: .planning/phases/15-cloud-settings-ui/ (next phase — не начат)
+Last session: 2026-04-20T20:31:38+03:00
+Stopped at: Phase 15 — все 6 планов shipped на main (1297/1297 tests). Последним merged 15-06 (CloudSettingsDisclosure + ProductModeCard integration). Task 06-03 UAT делегирован человеку — см. 15-06-SUMMARY.md §UAT Checkpoint для 11 шагов ручной верификации.
+Resume file: .planning/phases/15-cloud-settings-ui/15-06-SUMMARY.md (UAT pending)

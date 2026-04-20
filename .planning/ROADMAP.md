@@ -132,7 +132,7 @@ Plans:
 - [x] 15-03-PLAN.md -- cloudErrorMessage(for:) -> String в Views/CloudErrorCopy.swift (TDD, UI-02)
 - [x] 15-04-PLAN.md -- AppState shim: saveCloudCredentials / deleteCloudCredentials / probeCloudConnection (TDD, UI-01, UI-02)
 - [x] 15-05-PLAN.md -- StatusDot 3-state (idle/connected/error) additive (UI-02)
-- [ ] 15-06-PLAN.md -- CloudSettingsDisclosure.swift + ProductModeCard integration (UI-01, UI-02, UI-03, UI-04)
+- [ ] 15-06-PLAN.md -- CloudSettingsDisclosure.swift + ProductModeCard integration (UI-01, UI-02, UI-03, UI-04) (pending UAT — code shipped to main, awaiting human verification per 15-06-SUMMARY.md §UAT Checkpoint)
 **UI hint**: yes
 
 ### Phase 16: Tests
@@ -169,6 +169,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 | 12. Cloud LLM Client | v2.0 | 1/1 | Complete   | 2026-04-12 |
 | 13. Mode & Routing | v2.0 | 2/2 | Complete   | 2026-04-12 |
 | 14. Pipeline Hardening | v2.0 | 3/4 | In progress | - |
-| 15. Cloud Settings UI | v2.0 | 0/6 | Not started | - |
+| 15. Cloud Settings UI | v2.0 | 5/6 | Pending UAT on 15-06 | - |
 | 16. Tests | v2.0 | 0/? | Not started | - |
 | 17. Polish & Rollout | v2.0 | 0/? | Not started | - |

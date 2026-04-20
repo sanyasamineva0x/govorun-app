@@ -78,9 +78,9 @@
 | MODE-03 | Phase 13 | Pending |
 | MODE-04 | Phase 13 | Pending |
 | MODE-05 | Phase 14 | Complete (14-04) |
-| UI-01 | Phase 15 | Pending |
-| UI-02 | Phase 15 | Pending |
-| UI-03 | Phase 15 | Pending |
-| UI-04 | Phase 15 | Pending |
+| UI-01 | Phase 15 | Pending UAT (15-06 shipped) |
+| UI-02 | Phase 15 | Pending UAT (15-06 shipped) |
+| UI-03 | Phase 15 | Pending UAT (15-06 shipped) |
+| UI-04 | Phase 15 | Pending UAT (15-06 shipped) |
 | TEST-01 | Phase 16 | Pending |
 | TEST-02 | Phase 16 | Pending |
