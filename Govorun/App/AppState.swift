@@ -214,11 +214,6 @@ final class AppState: ObservableObject {
         updaterService = UpdaterService()
         let credentialStore = CredentialStore()
         self.credentialStore = credentialStore
-        authServiceFactory = { @Sendable [credentialStore] in
-            SberAuthService(
-                credentialProvider: { credentialStore.get() }
-            )
-        }
         let trustPolicy: TrustPolicyProviding?
         do {
             trustPolicy = try SberTrustPolicy()
@@ -227,6 +222,13 @@ final class AppState: ObservableObject {
             trustPolicy = nil
         }
         self.trustPolicy = trustPolicy
+        let authHTTPClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+        authServiceFactory = { @Sendable [credentialStore, authHTTPClient] in
+            SberAuthService(
+                credentialProvider: { credentialStore.get() },
+                httpClient: authHTTPClient
+            )
+        }
         llmRuntimeState = settings.productMode.usesLocalLLM ? .notStarted : .disabled
 
         wireActivationKeyMonitor()
@@ -307,12 +309,14 @@ final class AppState: ObservableObject {
         self.updaterService = updaterService
         self.credentialStore = credentialStore ?? MockCredentialStore()
         let resolvedCredentialStore = self.credentialStore
-        authServiceFactory = { @Sendable [resolvedCredentialStore] in
+        self.trustPolicy = trustPolicy
+        let authHTTPClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+        authServiceFactory = { @Sendable [resolvedCredentialStore, authHTTPClient] in
             SberAuthService(
-                credentialProvider: { resolvedCredentialStore.get() }
+                credentialProvider: { resolvedCredentialStore.get() },
+                httpClient: authHTTPClient
             )
         }
-        self.trustPolicy = trustPolicy
 
         workerState = initialWorkerState
         llmRuntimeState = settings.productMode.usesLocalLLM ? initialLLMRuntimeState : .disabled
@@ -758,10 +762,11 @@ final class AppState: ObservableObject {
                 Self.logger.warning("Cloud credentials не найдены, остаёмся на текущем режиме")
                 return
             }
-            let authService = SberAuthService(
-                credentialProvider: { [credentialStore] in credentialStore.get() }
-            )
             let httpClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+            let authService = SberAuthService(
+                credentialProvider: { [credentialStore] in credentialStore.get() },
+                httpClient: httpClient
+            )
             let cloudClient = CloudLLMClient(
                 authService: authService,
                 httpClient: httpClient
