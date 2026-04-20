@@ -286,7 +286,7 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
         switch error {
         case .credentialsNotFound:
             .networkError("Cloud credentials not configured")
-        case .networkError(let msg):
+        case .networkError(_, let msg):
             .networkError(msg)
         case .invalidResponse(let code):
             .invalidResponse(statusCode: code)

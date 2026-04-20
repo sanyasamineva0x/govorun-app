@@ -407,7 +407,7 @@ final class CloudLLMClientTests: XCTestCase {
 
     func test_processAudio_mapsAuthNetworkError() async throws {
         let mockAuth = MockAuthService()
-        mockAuth.tokenError = AuthError.networkError("timeout")
+        mockAuth.tokenError = AuthError.networkError(urlError: nil, description: "timeout")
         let mockHTTP = MockHTTPClient()
 
         let client = CloudLLMClient(

@@ -10,7 +10,7 @@ protocol AuthService: Sendable {
 
 enum AuthError: Error, Equatable {
     case credentialsNotFound
-    case networkError(String)
+    case networkError(urlError: URLError?, description: String)
     case invalidResponse(statusCode: Int)
     case tokenParsingFailed
 
@@ -18,8 +18,8 @@ enum AuthError: Error, Equatable {
         switch (lhs, rhs) {
         case (.credentialsNotFound, .credentialsNotFound):
             true
-        case (.networkError(let a), .networkError(let b)):
-            a == b
+        case (.networkError(let ua, let da), .networkError(let ub, let db)):
+            ua?.code == ub?.code && da == db
         case (.invalidResponse(let a), .invalidResponse(let b)):
             a == b
         case (.tokenParsingFailed, .tokenParsingFailed):
@@ -95,7 +95,11 @@ actor SberAuthService: AuthService {
             do {
                 (data, response) = try await self.httpClient.data(for: request)
             } catch {
-                throw AuthError.networkError(error.localizedDescription)
+                let urlErr = error as? URLError
+                throw AuthError.networkError(
+                    urlError: urlErr,
+                    description: error.localizedDescription
+                )
             }
 
             guard let httpResponse = response as? HTTPURLResponse else {
