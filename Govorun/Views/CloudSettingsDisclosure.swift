@@ -276,6 +276,13 @@ private struct CloudConsentBanner: View {
     @EnvironmentObject private var appState: AppState
     @Binding var connectionState: CloudSettingsDisclosure.ConnectionState
 
+    private static let consentDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .none
+        return f
+    }()
+
     private var acceptedAt: Date? {
         appState.settings.cloudConsentAcceptedAt
     }
@@ -340,14 +347,7 @@ private struct CloudConsentBanner: View {
 
     @ViewBuilder
     private func postAckContent(acceptedAt: Date) -> some View {
-        let formatter: DateFormatter = {
-            let f = DateFormatter()
-            f.dateStyle = .short
-            f.timeStyle = .none
-            return f
-        }()
-
-        Text("Cloud активен с \(formatter.string(from: acceptedAt))")
+        Text("Cloud активен с \(Self.consentDateFormatter.string(from: acceptedAt))")
             .font(.caption)
             .foregroundStyle(Color.ink.opacity(0.5))
 
