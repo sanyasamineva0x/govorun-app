@@ -159,7 +159,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
         let wavData = Self.wrapPCMAsWAV(audioData, sampleRate: 16_000, channels: 1, bitsPerSample: 16)
         let body = buildMultipartBody(audioData: wavData, boundary: boundary)
 
-        var request = URLRequest(url: URL(string: configuration.baseURLString + "/files")!)
+        guard let url = URL(string: configuration.baseURLString + "/files") else {
+            throw LLMError.networkError("Некорректный Cloud URL: \(configuration.baseURLString)")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -283,7 +286,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
 
         let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
 
-        var request = URLRequest(url: URL(string: configuration.baseURLString + "/chat/completions")!)
+        guard let url = URL(string: configuration.baseURLString + "/chat/completions") else {
+            throw LLMError.networkError("Некорректный Cloud URL: \(configuration.baseURLString)")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

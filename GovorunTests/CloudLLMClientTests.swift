@@ -612,4 +612,63 @@ final class CloudLLMClientTests: XCTestCase {
     func test_isRetryable_parsingFailed() {
         XCTAssertFalse(LLMError.parsingFailed.isRetryable)
     }
+
+    // MARK: - H-01: guard против некорректного baseURLString
+
+    func test_processAudio_throwsNetworkError_whenBaseURLInvalid() async throws {
+        let mockAuth = MockAuthService()
+        mockAuth.tokenResult = "mock-token"
+        let mockHTTP = MockHTTPClient()
+
+        // "http://[invalid" — незакрытая скобка IPv6, URL(string:) возвращает nil
+        let client = CloudLLMClient(
+            authService: mockAuth,
+            httpClient: mockHTTP,
+            configuration: CloudLLMConfiguration(baseURLString: "http://[invalid")
+        )
+
+        do {
+            _ = try await client.processAudio(
+                audioData: Data([0x00]),
+                superStyle: .normal,
+                hints: makeHints()
+            )
+            XCTFail("Ожидалась networkError при некорректном baseURLString")
+        } catch let error as LLMError {
+            guard case .networkError = error else {
+                XCTFail("Ожидался .networkError, получен \(error)")
+                return
+            }
+        } catch {
+            XCTFail("Ожидался LLMError, получен \(error)")
+        }
+    }
+
+    func test_normalize_throwsNetworkError_whenBaseURLInvalid() async throws {
+        let mockAuth = MockAuthService()
+        mockAuth.tokenResult = "mock-token"
+        let mockHTTP = MockHTTPClient()
+
+        let client = CloudLLMClient(
+            authService: mockAuth,
+            httpClient: mockHTTP,
+            configuration: CloudLLMConfiguration(baseURLString: "http://[invalid")
+        )
+
+        do {
+            _ = try await client.normalize(
+                "тест",
+                superStyle: .normal,
+                hints: makeHints()
+            )
+            XCTFail("Ожидалась networkError при некорректном baseURLString")
+        } catch let error as LLMError {
+            guard case .networkError = error else {
+                XCTFail("Ожидался .networkError, получен \(error)")
+                return
+            }
+        } catch {
+            XCTFail("Ожидался LLMError, получен \(error)")
+        }
+    }
 }
