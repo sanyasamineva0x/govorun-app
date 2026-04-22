@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 15 Plan 06 shipped pending UAT (CloudSettingsDisclosure + ProductModeCard Cloud integration)
-last_updated: "2026-04-20T20:31:38+03:00"
-last_activity: 2026-04-20 -- Plan 15-06 executor sequential: CloudSettingsDisclosure.swift (378 строк) + ProductModeCard +27 строк. 1297/1297 tests PASS. Deviation Rule 3: applyProductMode остался private, consent accept/revoke через settings.productMode observer. UAT (Task 06-03) делегирован пользователю — см. 15-06-SUMMARY.md §UAT Checkpoint.
+stopped_at: Phase 15 closed — live cloud round-trip verified, REVIEW-FIX done, UAT passed/skipped per product decision
+last_updated: "2026-04-23T00:10:00+03:00"
+last_activity: 2026-04-22 -- REVIEW-FIX: H-01/M-01/M-02/L-01/I-02/I-03 закрыты + WAV-wrapper для /files upload (commit 27d5861). I-01 accepted-risk. 1299/1299 tests PASS (baseline 1297 + 2 новых TDD H-01). Live UAT 2026-04-22 23:58: Sanya «Проверить» + диктовка → полный OAuth + /files (76KB WAV) + /chat/completions round-trip, 0 errors, local llama idle (no silent Super fallback). Phase 15 passed.
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 18
-  completed_plans: 17
-  percent: 94
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State
@@ -23,18 +23,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 15 — cloud-settings-ui (6/6 plans shipped, pending UAT на 15-06)
+**Current focus:** Phase 16 — Tests (next up; Phase 15 closed 2026-04-23 с live cloud round-trip)
 
 ## Current Position
 
-Phase: 15 (cloud-settings-ui) — 6/6 PLANS SHIPPED, PENDING UAT
-Plan: 6 of 6 — 15-06 automatic part complete, human UAT delegated
-Status: All 6 plans coded + committed на main. Test baseline: 1297/1297 PASS. Task 06-03 (UAT) needs человека.
-Last activity: 2026-04-20 -- Plan 15-06 executor sequential: CloudSettingsDisclosure.swift (378 строк) + ProductModeCard +27 строк. 1297/1297 tests PASS. Deviation Rule 3: applyProductMode остался private, consent accept/revoke через settings.productMode observer. UAT (Task 06-03) делегирован пользователю — см. 15-06-SUMMARY.md §UAT Checkpoint.
+Phase: **15 CLOSED** — live cloud round-trip verified, REVIEW-FIX done. Ready for Phase 16.
+Status: Phase 15 Cloud Settings UI — все 6 планов shipped + REVIEW-FIX (H-01/M-01/M-02/L-01/I-02/I-03 closed, I-01 accepted-risk) + WAV-wrapper для /files upload. 1299/1299 tests PASS. Live UAT: OAuth + /files (76KB WAV) + /chat/completions round-trip 2026-04-22 23:58 MSK — реальный Cloud, без Super-фолбэка.
+Last activity: 2026-04-22 20:06 -- REVIEW-FIX 7 commits на main (WAV 27d5861, H-01 9533b5a, M-01 2e749f5, M-02 07fe4d0, L-01 a8ce6e2, I-02 4b114d2, I-03 1d70657, docs 1b91bdd). 2026-04-22 23:58 live UAT prod DMG: OAuth + audio upload + chat/completions успешны; locals llama-server idle в окне диктовки (no silent fallback).
 
-Progress: [██████████] 100% plans of Phase 15 coded (UAT pending on 15-06)
+Progress: [███████░] 75% (6/8 phases done, Phase 16 Tests + 17 Polish remain)
 
-Resume file: .planning/phases/15-cloud-settings-ui/15-06-SUMMARY.md §UAT Checkpoint (pending human verification)
+Resume file: .planning/ROADMAP.md §Phase 16 (next up — Tests)
 
 ## Performance Metrics
 
