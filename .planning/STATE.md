@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
 status: executing
-stopped_at: Phase 15 closed — live cloud round-trip verified, REVIEW-FIX done, UAT passed/skipped per product decision
-last_updated: "2026-04-23T00:10:00+03:00"
-last_activity: 2026-04-22 -- REVIEW-FIX: H-01/M-01/M-02/L-01/I-02/I-03 закрыты + WAV-wrapper для /files upload (commit 27d5861). I-01 accepted-risk. 1299/1299 tests PASS (baseline 1297 + 2 новых TDD H-01). Live UAT 2026-04-22 23:58: Sanya «Проверить» + диктовка → полный OAuth + /files (76KB WAV) + /chat/completions round-trip, 0 errors, local llama idle (no silent Super fallback). Phase 15 passed.
+stopped_at: Phase 16 planned — 4 plans across 3 waves, ready for /gsd-execute-phase 16
+last_updated: "2026-04-23T00:30:00+03:00"
+last_activity: 2026-04-23 -- Phase 16 (Tests) planned: research+pattern-mapping в parallel → planner v1 (3 plans) → checker (2 blockers + 5 warnings) → planner v2 (split 16-03 → 16-03+16-04) → checker iteration 2 PASS. 4 plans: 16-01 coverage closure (TDD, GAP-A CredentialStore Keychain + GAP-B AppStateCloudShim error paths), 16-02 benchmark runner cloud mode (Q2 checkpoint), 16-03 benchmark execution (Q1 checkpoint + A1 dry-run), 16-04 results doc + regression + roadmap close. VALIDATION.md approved. Researcher развенчал устаревшее предположение «benchmark Swift helper сломан» — оно компилится и работает.
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 18
+  total_plans: 22
   completed_plans: 18
-  percent: 100
+  percent: 82
 ---
 
 # Project State
@@ -23,17 +23,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 16 — Tests (next up; Phase 15 closed 2026-04-23 с live cloud round-trip)
+**Current focus:** Phase 16 — Tests (PLANNED 2026-04-23, ready to execute)
 
 ## Current Position
 
-Phase: **15 CLOSED** — live cloud round-trip verified, REVIEW-FIX done. Ready for Phase 16.
-Status: Phase 15 Cloud Settings UI — все 6 планов shipped + REVIEW-FIX (H-01/M-01/M-02/L-01/I-02/I-03 closed, I-01 accepted-risk) + WAV-wrapper для /files upload. 1299/1299 tests PASS. Live UAT: OAuth + /files (76KB WAV) + /chat/completions round-trip 2026-04-22 23:58 MSK — реальный Cloud, без Super-фолбэка.
-Last activity: 2026-04-22 20:06 -- REVIEW-FIX 7 commits на main (WAV 27d5861, H-01 9533b5a, M-01 2e749f5, M-02 07fe4d0, L-01 a8ce6e2, I-02 4b114d2, I-03 1d70657, docs 1b91bdd). 2026-04-22 23:58 live UAT prod DMG: OAuth + audio upload + chat/completions успешны; locals llama-server idle в окне диктовки (no silent fallback).
+Phase: **16 PLANNED** — 4 plans across 3 waves. Ready to execute.
+Status: Wave 1 в parallel: 16-01 (TDD coverage closure, GAP-A CredentialStore Keychain + GAP-B AppStateCloudShim error paths) + 16-02 (benchmark runner cloud mode, Q2 product checkpoint про bench-vs-prod credentials). Wave 2: 16-03 (Q1 product checkpoint про benchmark scope text-vs-audio + A1 dry-run + benchmark execution). Wave 3: 16-04 (16-BENCHMARK-RESULTS.md doc + full XCTest regression gate + ROADMAP close).
+Last activity: 2026-04-23 — Phase 16 planned via gsd-planner + gsd-plan-checker (2 iterations, all 7 issues resolved). VALIDATION.md approved. RESEARCH+PATTERNS+CONTEXT+VALIDATION+4 PLAN files written.
 
-Progress: [███████░] 75% (6/8 phases done, Phase 16 Tests + 17 Polish remain)
+Progress: [████████░] 82% milestone (Phase 15 shipped + Phase 16 planned, 18/22 plans complete)
 
-Resume file: .planning/ROADMAP.md §Phase 16 (next up — Tests)
+Resume file: .planning/phases/16-tests/16-01-PLAN.md (start of Wave 1)
+Next command: `/clear` then `/gsd-execute-phase 16`
 
 ## Performance Metrics
 

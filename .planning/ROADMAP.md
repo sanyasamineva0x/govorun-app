@@ -143,7 +143,11 @@ Plans:
   1. SberAuthService, CloudLLMClient, CredentialStore each have mock-based unit tests covering happy path, error cases, and edge cases (token expiry, retry, keychain errors)
   2. SberTrustPolicy tested with MockTrustPolicy (not real certificates) -- no network calls in unit tests
   3. Quality benchmark compares cloud vs local normalization on existing eval seed, with results documented
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 16-01-PLAN.md -- CredentialStoreKeychainTests (real Keychain) + AppStateCloudShim error-path tests (TEST-01)
+- [ ] 16-02-PLAN.md -- benchmark-llm-normalization.py --mode cloud + .env.bench infrastructure (TEST-02)
+- [ ] 16-03-PLAN.md -- Cloud vs local benchmark execution + 16-BENCHMARK-RESULTS.md (TEST-02, TEST-01 regression gate)
 
 ### Phase 17: Polish & Rollout
 **Goal**: Cloud mode is production-ready with clear error messages, analytics tracking, and safe launch behavior
