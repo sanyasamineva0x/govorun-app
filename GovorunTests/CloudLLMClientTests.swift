@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Мок с последовательными ответами
 
@@ -125,14 +125,18 @@ final class CloudLLMClientTests: XCTestCase {
         XCTAssertEqual(auth, "Bearer mock-token")
 
         let body = try XCTUnwrap(uploadRequest.httpBody)
-        let bodyString = String(data: body, encoding: .utf8) ?? ""
+        // isoLatin1 всегда декодирует любые байты 1:1, не теряя ASCII-delimiters
+        // из multipart (в отличие от .utf8, который вернёт nil на binary WAV-header).
+        let bodyString = String(data: body, encoding: .isoLatin1) ?? ""
         XCTAssertTrue(bodyString.contains("audio.wav"), "Body должен содержать filename audio.wav")
         XCTAssertTrue(bodyString.contains("purpose"), "Body должен содержать поле purpose")
         XCTAssertTrue(bodyString.contains("general"), "Body должен содержать значение general")
 
-        // Проверяем что raw audio bytes присутствуют
+        // WAV-обёртка должна присутствовать: RIFF header + исходный PCM внутри data chunk.
+        XCTAssertTrue(bodyString.contains("RIFF"), "Body должен содержать WAV RIFF header")
+        XCTAssertTrue(bodyString.contains("WAVE"), "Body должен содержать WAV WAVE marker")
         let audioRange = body.range(of: audioData)
-        XCTAssertNotNil(audioRange, "Body должен содержать сырые аудио-байты")
+        XCTAssertNotNil(audioRange, "PCM байты должны присутствовать внутри WAV data chunk")
     }
 
     // MARK: - CLOUD-02: chat/completions с attachment
@@ -223,12 +227,12 @@ final class CloudLLMClientTests: XCTestCase {
         let json = """
         {"choices":[{"message":{"role":"assistant","content":"  Trimmed  "},"index":0,"finish_reason":"stop"}],"model":"GigaChat-2-Max","usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15},"object":"chat.completion"}
         """
-        let response = HTTPURLResponse(
-            url: URL(string: "https://gigachat.devices.sberbank.ru/api/v1/chat/completions")!,
+        let response = try XCTUnwrap(try HTTPURLResponse(
+            url: XCTUnwrap(URL(string: "https://gigachat.devices.sberbank.ru/api/v1/chat/completions")),
             statusCode: 200,
             httpVersion: nil,
             headerFields: nil
-        )!
+        ))
         mockHTTP.responses = [
             makeUploadResponse(),
             (Data(json.utf8), response as URLResponse),

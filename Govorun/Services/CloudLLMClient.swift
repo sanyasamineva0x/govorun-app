@@ -154,7 +154,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
 
     private func uploadAudio(_ audioData: Data, token: String) async throws -> String {
         let boundary = UUID().uuidString
-        let body = buildMultipartBody(audioData: audioData, boundary: boundary)
+        // Оборачиваем raw PCM Int16 16kHz mono (как отдаёт AudioCapture) в WAV RIFF-контейнер.
+        // Без header'а Сбер отвечает 400 "File format is not supported".
+        let wavData = Self.wrapPCMAsWAV(audioData, sampleRate: 16_000, channels: 1, bitsPerSample: 16)
+        let body = buildMultipartBody(audioData: wavData, boundary: boundary)
 
         var request = URLRequest(url: URL(string: configuration.baseURLString + "/files")!)
         request.httpMethod = "POST"
@@ -177,6 +180,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw LLMError.networkError("GigaChat API не вернул HTTP-ответ")
         }
+        if !(200..<300).contains(httpResponse.statusCode) {
+            let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
+            Self.logger.error("/files upload failed: \(httpResponse.statusCode, privacy: .public) body=\(bodyPreview, privacy: .public)")
+        }
         try validateStatus(httpResponse)
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -186,6 +193,50 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
         }
 
         return fileID
+    }
+
+    /// Оборачивает raw PCM в 44-байтный WAV RIFF header (формат 1, little-endian).
+    /// Используется для `/files` upload — AudioCapture отдаёт чистый PCM Int16.
+    static func wrapPCMAsWAV(
+        _ pcm: Data,
+        sampleRate: UInt32,
+        channels: UInt16,
+        bitsPerSample: UInt16
+    ) -> Data {
+        let byteRate = sampleRate * UInt32(channels) * UInt32(bitsPerSample)/8
+        let blockAlign = channels * bitsPerSample/8
+        let dataSize = UInt32(pcm.count)
+        let riffSize = 36 + dataSize
+
+        var header = Data()
+        header.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // "RIFF"
+        header.append(Self.le32(riffSize))
+        header.append(contentsOf: [0x57, 0x41, 0x56, 0x45]) // "WAVE"
+        header.append(contentsOf: [0x66, 0x6d, 0x74, 0x20]) // "fmt "
+        header.append(Self.le32(16)) // fmt chunk size
+        header.append(Self.le16(1)) // audioFormat PCM
+        header.append(Self.le16(channels))
+        header.append(Self.le32(sampleRate))
+        header.append(Self.le32(byteRate))
+        header.append(Self.le16(blockAlign))
+        header.append(Self.le16(bitsPerSample))
+        header.append(contentsOf: [0x64, 0x61, 0x74, 0x61]) // "data"
+        header.append(Self.le32(dataSize))
+        header.append(pcm)
+        return header
+    }
+
+    private static func le32(_ value: UInt32) -> Data {
+        Data([
+            UInt8(value & 0xff),
+            UInt8((value >> 8) & 0xff),
+            UInt8((value >> 16) & 0xff),
+            UInt8((value >> 24) & 0xff),
+        ])
+    }
+
+    private static func le16(_ value: UInt16) -> Data {
+        Data([UInt8(value & 0xff), UInt8((value >> 8) & 0xff)])
     }
 
     private func buildMultipartBody(audioData: Data, boundary: String) -> Data {
@@ -218,12 +269,17 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
             userMessage,
         ]
 
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "model": configuration.model,
             "temperature": configuration.temperature,
             "max_tokens": configuration.maxOutputTokens,
             "messages": messages,
         ]
+        // GigaChat требует function_call=auto для распознавания audio из attachments
+        // (иначе вернёт 400 либо проигнорирует аудио-вложение)
+        if attachments?.isEmpty == false {
+            requestBody["function_call"] = "auto"
+        }
 
         let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
 
@@ -249,6 +305,10 @@ final class CloudLLMClient: LLMClient, @unchecked Sendable {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw LLMError.networkError("GigaChat API не вернул HTTP-ответ")
+        }
+        if !(200..<300).contains(httpResponse.statusCode) {
+            let bodyPreview = String(data: data.prefix(512), encoding: .utf8) ?? "<binary>"
+            Self.logger.error("/chat/completions failed: \(httpResponse.statusCode, privacy: .public) body=\(bodyPreview, privacy: .public)")
         }
         try validateStatus(httpResponse)
 
