@@ -203,13 +203,11 @@ private struct CloudCredentialsBlock: View {
         clientSecretDraft = ""
         Task {
             let result = await appState.probeCloudConnection()
-            await MainActor.run {
-                switch result {
-                case .success:
-                    connectionState = .connected
-                case .failure(let authError):
-                    connectionState = .error(cloudErrorMessage(for: authError))
-                }
+            switch result {
+            case .success:
+                connectionState = .connected
+            case .failure(let authError):
+                connectionState = .error(cloudErrorMessage(for: authError))
             }
         }
     }
@@ -218,13 +216,11 @@ private struct CloudCredentialsBlock: View {
         connectionState = .checking
         Task {
             let result = await appState.probeCloudConnection()
-            await MainActor.run {
-                switch result {
-                case .success:
-                    connectionState = .connected
-                case .failure(let authError):
-                    connectionState = .error(cloudErrorMessage(for: authError))
-                }
+            switch result {
+            case .success:
+                connectionState = .connected
+            case .failure(let authError):
+                connectionState = .error(cloudErrorMessage(for: authError))
             }
         }
     }
