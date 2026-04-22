@@ -246,6 +246,15 @@ private struct CloudCredentialsBlock: View {
 private struct CloudStatusBlock: View {
     let connectionState: CloudSettingsDisclosure.ConnectionState
 
+    private var statusTitle: String {
+        switch connectionState {
+        case .notConfigured: "Не настроено"
+        case .checking: "Проверяю подключение…"
+        case .connected: "Подключено"
+        case .error(let message): message
+        }
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             switch connectionState {
@@ -261,6 +270,7 @@ private struct CloudStatusBlock: View {
             Spacer()
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("Статус подключения: \(statusTitle)")
     }
 }
 
