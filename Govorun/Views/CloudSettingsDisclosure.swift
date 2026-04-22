@@ -368,7 +368,7 @@ private struct CloudConsentBanner: View {
         }
         .buttonStyle(.plain)
         .padding(.top, 4)
-        .accessibilityHint("Отключает облачный режим со следующей сессии. Ключи останутся сохранены.")
+        .accessibilityHint("Отключает облачный режим. Ключи останутся сохранены.")
     }
 
     // MARK: - Actions
