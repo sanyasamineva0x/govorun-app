@@ -26,6 +26,10 @@ build/
 *.pem
 !Govorun/Resources/Certificates/SberRootCA.pem
 
+# Benchmark credentials (Phase 16)
+.env.bench
+!.env.bench.example
+
 # IDE
 .idea/
 *.code-workspace
