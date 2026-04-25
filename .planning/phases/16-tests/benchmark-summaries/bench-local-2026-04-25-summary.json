@@ -1,0 +1,173 @@
+{
+  "total_samples": 36,
+  "latency_ms": {
+    "count": 36,
+    "mean_ms": 1621.14,
+    "p50_ms": 1157.78,
+    "p95_ms": 2396.78,
+    "max_ms": 14293.42
+  },
+  "first_token_latency_ms": {
+    "count": 36,
+    "mean_ms": 832.61,
+    "p50_ms": 469.79,
+    "p95_ms": 592.48,
+    "max_ms": 14183.7
+  },
+  "buckets": {
+    "long": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 2037.79,
+        "p50_ms": 2080.28,
+        "p95_ms": 2480.48,
+        "max_ms": 2710.63
+      },
+      "first_token_latency_ms": {
+        "count": 12,
+        "mean_ms": 529.79,
+        "p50_ms": 548.81,
+        "p95_ms": 601.17,
+        "max_ms": 625.08
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 2022.99,
+        "p50_ms": 2067.54,
+        "p95_ms": 2461.71,
+        "max_ms": 2689.47
+      },
+      "period_tolerant_pct": 58.3,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    },
+    "medium": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 1112.19,
+        "p50_ms": 1139.46,
+        "p95_ms": 1275.83,
+        "max_ms": 1282.69
+      },
+      "first_token_latency_ms": {
+        "count": 12,
+        "mean_ms": 475.48,
+        "p50_ms": 518.6,
+        "p95_ms": 559.47,
+        "max_ms": 575.83
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 1103.76,
+        "p50_ms": 1131.64,
+        "p95_ms": 1265.7,
+        "max_ms": 1273.34
+      },
+      "period_tolerant_pct": 91.7,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    },
+    "short": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 1713.44,
+        "p50_ms": 564.62,
+        "p95_ms": 6929.63,
+        "max_ms": 14293.42
+      },
+      "first_token_latency_ms": {
+        "count": 12,
+        "mean_ms": 1492.55,
+        "p50_ms": 335.5,
+        "p95_ms": 6626.84,
+        "max_ms": 14183.7
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 1707.37,
+        "p50_ms": 559.09,
+        "p95_ms": 6920.71,
+        "max_ms": 14281.48
+      },
+      "period_tolerant_pct": 100.0,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    }
+  },
+  "llm_latency_ms": {
+    "count": 36,
+    "mean_ms": 1611.37,
+    "p50_ms": 1149.7,
+    "p95_ms": 2378.89,
+    "max_ms": 14281.48
+  },
+  "quality": {
+    "total": 36,
+    "completed": 36,
+    "completed_pct": 100.0,
+    "errors": 0,
+    "error_pct": 0.0,
+    "exact_match": 30,
+    "exact_match_pct": 83.3,
+    "completed_exact_match_pct": 83.3,
+    "period_tolerant_match": 30,
+    "period_tolerant_pct": 83.3,
+    "completed_period_tolerant_pct": 83.3,
+    "failures": [
+      {
+        "id": "medium-012",
+        "bucket": "medium",
+        "expected": "Напиши в Telegram, что я опоздаю минут на 15",
+        "output": "Напиши в Telegram, что я опоздаю на 15 минут"
+      },
+      {
+        "id": "long-001",
+        "bucket": "long",
+        "expected": "Давай перенесём встречу по проекту «Алтай», потому что Иванов не может сегодня, и предложим четверг после обеда",
+        "output": "Давай перенесём встречу по проекту «Алтай» потому что Иванов не может сегодня и предложим четверг после обеда"
+      },
+      {
+        "id": "long-004",
+        "bucket": "long",
+        "expected": "Напиши Алексею Владимировичу, что презентацию отправлю в четверг утром после созвона",
+        "output": "Напиши Алексею Владимировичу, что презентацию отправлю не в среду, а в четверг утром после созвона"
+      },
+      {
+        "id": "long-005",
+        "bucket": "long",
+        "expected": "Добавь в список дел: купить билеты в Казань на 28 апреля, забронировать гостиницу на 3 ночи и предупредить команду об отсутствии",
+        "output": "Добавь в список дел: купить билеты в Казань на 28 апреля, забронировать гостиницу на три ночи, предупредить команду об отсутствии"
+      },
+      {
+        "id": "long-009",
+        "bucket": "long",
+        "expected": "Запланируй, что в пятницу в 11:00 нужно созвониться с командой из Новосибирска, а потом в 14:30 провести интервью с кандидатом",
+        "output": "Запланируй: в пятницу в 11 созвониться с командой из Новосибирска, а в 14:30 провести интервью с кандидатом"
+      },
+      {
+        "id": "long-010",
+        "bucket": "long",
+        "expected": "Напиши, что я посмотрел pull request по авторизации, и в целом всё окей, но надо поправить обработку таймаута, добавить ретраи и обновить тесты",
+        "output": "Напиши, что я посмотрел pull request по авторизации, в целом всё окей, но нужно поправить обработку таймаута, добавить ретраи и обновить тесты"
+      }
+    ]
+  },
+  "normalization_paths": {
+    "llm": 36
+  },
+  "dataset": "benchmarks/llm-normalization-seed.jsonl",
+  "model": "gigachat-gguf",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "warmup": 0,
+  "pipeline_mode": "full-pipeline",
+  "super_style": "normal",
+  "legacy_text_mode": null,
+  "prompt_source": "<generated-from-production>",
+  "prompt_sha256": "b23cc0df7cd0e94dfe51ef8b45e2c6bb7365dda2d50d31421217863361a8019a",
+  "prompt_override": false,
+  "expected_key": "expected_full_pipeline_or_expected",
+  "mode": "local"
+}

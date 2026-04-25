@@ -1,0 +1,176 @@
+{
+  "total_samples": 36,
+  "latency_ms": {
+    "count": 36,
+    "mean_ms": 2421.53,
+    "p50_ms": 2073.07,
+    "p95_ms": 3519.92,
+    "max_ms": 8526.01
+  },
+  "first_token_latency_ms": {
+    "count": 0,
+    "mean_ms": null,
+    "p50_ms": null,
+    "p95_ms": null,
+    "max_ms": null
+  },
+  "buckets": {
+    "long": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 2146.09,
+        "p50_ms": 1966.07,
+        "p95_ms": 3002.96,
+        "max_ms": 3497.29
+      },
+      "first_token_latency_ms": {
+        "count": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "max_ms": null
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 2129.86,
+        "p50_ms": 1950.02,
+        "p95_ms": 2988.99,
+        "max_ms": 3486.77
+      },
+      "period_tolerant_pct": 50.0,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    },
+    "medium": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 2223.66,
+        "p50_ms": 2031.77,
+        "p95_ms": 3493.94,
+        "max_ms": 3587.81
+      },
+      "first_token_latency_ms": {
+        "count": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "max_ms": null
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 2215.86,
+        "p50_ms": 2024.51,
+        "p95_ms": 3485.39,
+        "max_ms": 3579.63
+      },
+      "period_tolerant_pct": 100.0,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    },
+    "short": {
+      "samples": 12,
+      "latency_ms": {
+        "count": 12,
+        "mean_ms": 2894.84,
+        "p50_ms": 2320.11,
+        "p95_ms": 5550.57,
+        "max_ms": 8526.01
+      },
+      "first_token_latency_ms": {
+        "count": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "max_ms": null
+      },
+      "llm_latency_ms": {
+        "count": 12,
+        "mean_ms": 2889.24,
+        "p50_ms": 2314.43,
+        "p95_ms": 5541.59,
+        "max_ms": 8511.63
+      },
+      "period_tolerant_pct": 100.0,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    }
+  },
+  "llm_latency_ms": {
+    "count": 36,
+    "mean_ms": 2411.65,
+    "p50_ms": 2067.33,
+    "p95_ms": 3509.98,
+    "max_ms": 8511.63
+  },
+  "quality": {
+    "total": 36,
+    "completed": 36,
+    "completed_pct": 100.0,
+    "errors": 0,
+    "error_pct": 0.0,
+    "exact_match": 30,
+    "exact_match_pct": 83.3,
+    "completed_exact_match_pct": 83.3,
+    "period_tolerant_match": 30,
+    "period_tolerant_pct": 83.3,
+    "completed_period_tolerant_pct": 83.3,
+    "failures": [
+      {
+        "id": "long-004",
+        "bucket": "long",
+        "expected": "Напиши Алексею Владимировичу, что презентацию отправлю в четверг утром после созвона",
+        "output": "Напиши Алексею Владимировичу, что презентацию отправлю не в среду, а в четверг утром после созвона"
+      },
+      {
+        "id": "long-005",
+        "bucket": "long",
+        "expected": "Добавь в список дел: купить билеты в Казань на 28 апреля, забронировать гостиницу на 3 ночи и предупредить команду об отсутствии",
+        "output": "Добавь в список дел: купить билеты в Казань на 28 апреля, забронировать гостиницу на три ночи и предупредить команду об отсутствии"
+      },
+      {
+        "id": "long-006",
+        "bucket": "long",
+        "expected": "Скажи, что по инциденту №1234 нужно поднять логи со staging, проверить интеграцию со Slack и ответить клиенту до 15:00",
+        "output": "Скажи, что по инциденту №1234 нужно поднять логи с staging, проверить интеграцию со Slack и ответить клиенту до 15:00"
+      },
+      {
+        "id": "long-008",
+        "bucket": "long",
+        "expected": "Подготовь текст: demo прошло хорошо, но клиент просит добавить экспорт в PDF, офлайн-режим и синхронизацию со своим Jira Server",
+        "output": "Подготовь текст: Demo прошло хорошо, но клиент просит добавить экспорт в PDF, офлайн-режим и синхронизацию со своим Jira Server"
+      },
+      {
+        "id": "long-009",
+        "bucket": "long",
+        "expected": "Запланируй, что в пятницу в 11:00 нужно созвониться с командой из Новосибирска, а потом в 14:30 провести интервью с кандидатом",
+        "output": "Запланируй, что в пятницу в 11 нужно созвониться с командой из Новосибирска, а потом в 14:30 провести интервью с кандидатом"
+      },
+      {
+        "id": "long-010",
+        "bucket": "long",
+        "expected": "Напиши, что я посмотрел pull request по авторизации, и в целом всё окей, но надо поправить обработку таймаута, добавить ретраи и обновить тесты",
+        "output": "Напиши, что я посмотрел pull request по авторизации и в целом всё окей, но надо поправить обработку таймаута, добавить ретраи и обновить тесты"
+      }
+    ]
+  },
+  "normalization_paths": {
+    "llm": 36
+  },
+  "dataset": "benchmarks/llm-normalization-seed.jsonl",
+  "model": "local-model",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "warmup": 0,
+  "pipeline_mode": "full-pipeline",
+  "super_style": "normal",
+  "legacy_text_mode": null,
+  "prompt_source": "<generated-from-production>",
+  "prompt_sha256": "b23cc0df7cd0e94dfe51ef8b45e2c6bb7365dda2d50d31421217863361a8019a",
+  "prompt_override": false,
+  "expected_key": "expected_full_pipeline_or_expected",
+  "mode": "cloud",
+  "cloud_model": "GigaChat-2-Max",
+  "cloud_base_url": "https://gigachat.devices.sberbank.ru/api/v1",
+  "cloud_usage_total_tokens": 15046
+}
