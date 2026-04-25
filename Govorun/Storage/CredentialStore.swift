@@ -20,11 +20,16 @@ protocol CredentialStoring: Sendable {
 
 final class CredentialStore: CredentialStoring, @unchecked Sendable {
     private let lock = NSLock()
+    private let service: String
 
     private enum Keys {
-        static let service = "com.govorun.app.credentials"
+        static let defaultService = "com.govorun.app.credentials"
         static let clientId = "gigachat.clientId"
         static let clientSecret = "gigachat.clientSecret"
+    }
+
+    init(serviceOverride: String? = nil) {
+        self.service = serviceOverride ?? Keys.defaultService
     }
 
     func save(clientId: String, clientSecret: String) throws {
@@ -58,7 +63,7 @@ final class CredentialStore: CredentialStoring, @unchecked Sendable {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Keys.service,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
         ]
@@ -75,7 +80,7 @@ final class CredentialStore: CredentialStoring, @unchecked Sendable {
     private func readItem(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Keys.service,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecMatchLimit as String: kSecMatchLimitOne,
             kSecReturnData as String: kCFBooleanTrue as Any,
@@ -96,7 +101,7 @@ final class CredentialStore: CredentialStoring, @unchecked Sendable {
     private func deleteItem(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Keys.service,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
 
