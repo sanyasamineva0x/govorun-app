@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing (completed 2026-04-12)
 - [x] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail (completed 2026-04-19)
 - [ ] **Phase 15: Cloud Settings UI** - Credential input, connection status, ProductMode picker, privacy consent
-- [ ] **Phase 16: Tests** - Unit tests for all cloud services, quality benchmark cloud vs local
+- [x] **Phase 16: Tests** - Unit tests for all cloud services, quality benchmark cloud vs local
 - [ ] **Phase 17: Polish & Rollout** - Error messages, analytics cloud events, credential-gated launch, edge cases
 
 ## Phase Details
@@ -143,11 +143,12 @@ Plans:
   1. SberAuthService, CloudLLMClient, CredentialStore each have mock-based unit tests covering happy path, error cases, and edge cases (token expiry, retry, keychain errors)
   2. SberTrustPolicy tested with MockTrustPolicy (not real certificates) -- no network calls in unit tests
   3. Quality benchmark compares cloud vs local normalization on existing eval seed, with results documented
-**Plans:** 3 plans
+**Plans:** 4/4 plans complete
 Plans:
-- [ ] 16-01-PLAN.md -- CredentialStoreKeychainTests (real Keychain) + AppStateCloudShim error-path tests (TEST-01)
-- [ ] 16-02-PLAN.md -- benchmark-llm-normalization.py --mode cloud + .env.bench infrastructure (TEST-02)
-- [ ] 16-03-PLAN.md -- Cloud vs local benchmark execution + 16-BENCHMARK-RESULTS.md (TEST-02, TEST-01 regression gate)
+- [x] 16-01-PLAN.md -- CredentialStoreKeychainTests (real Keychain) + AppStateCloudShim error-paths (TEST-01)
+- [x] 16-02-PLAN.md -- benchmark-llm-normalization.py --mode cloud + .env.bench infrastructure (TEST-02)
+- [x] 16-03-PLAN.md -- Q1 checkpoint + smoke + local/cloud benchmark runs (TEST-02 Variant A only; Variant B → Phase 17)
+- [x] 16-04-PLAN.md -- 16-BENCHMARK-RESULTS.md + XCTest regression + roadmap close (TEST-01, TEST-02)
 
 ### Phase 17: Polish & Rollout
 **Goal**: Cloud mode is production-ready with clear error messages, analytics tracking, and safe launch behavior
@@ -174,5 +175,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 | 13. Mode & Routing | v2.0 | 2/2 | Complete   | 2026-04-12 |
 | 14. Pipeline Hardening | v2.0 | 3/4 | In progress | - |
 | 15. Cloud Settings UI | v2.0 | 5/6 | Pending UAT on 15-06 | - |
-| 16. Tests | v2.0 | 0/? | Not started | - |
+| 16. Tests | v2.0 | 4/4 | Complete | 2026-04-25 |
 | 17. Polish & Rollout | v2.0 | 0/? | Not started | - |

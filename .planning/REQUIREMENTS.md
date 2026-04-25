@@ -40,8 +40,8 @@
 
 ### Тестирование (TEST)
 
-- [ ] **TEST-01**: Unit-тесты для SberAuthService, CloudPipelineClient, CredentialStore через моки
-- [ ] **TEST-02**: Benchmark качества cloud vs локальная модель на существующем seed
+- [x] **TEST-01**: Unit-тесты для SberAuthService, CloudPipelineClient, CredentialStore через моки
+- [x] **TEST-02**: Benchmark качества cloud vs локальная модель на существующем seed
 
 ## Future Requirements
 
@@ -82,5 +82,5 @@
 | UI-02 | Phase 15 | Pending UAT (15-06 shipped) |
 | UI-03 | Phase 15 | Pending UAT (15-06 shipped) |
 | UI-04 | Phase 15 | Pending UAT (15-06 shipped) |
-| TEST-01 | Phase 16 | Pending |
-| TEST-02 | Phase 16 | Pending |
+| TEST-01 | Phase 16 | Complete (16-01 KeychainTests + 16-04 regression gate, 1311 tests) |
+| TEST-02 | Phase 16 | Complete (16-02 infra + 16-03 Variant A runs + 16-04 docs; Variant B → Phase 17 CLOUD-06) |

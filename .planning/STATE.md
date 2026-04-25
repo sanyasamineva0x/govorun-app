@@ -2,16 +2,26 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Говорун Cloud
-status: executing
-stopped_at: Phase 16 planned — 4 plans across 3 waves, ready for /gsd-execute-phase 16
-last_updated: "2026-04-23T00:30:00+03:00"
-last_activity: 2026-04-23 -- Phase 16 (Tests) planned: research+pattern-mapping в parallel → planner v1 (3 plans) → checker (2 blockers + 5 warnings) → planner v2 (split 16-03 → 16-03+16-04) → checker iteration 2 PASS. 4 plans: 16-01 coverage closure (TDD, GAP-A CredentialStore Keychain + GAP-B AppStateCloudShim error paths), 16-02 benchmark runner cloud mode (Q2 checkpoint), 16-03 benchmark execution (Q1 checkpoint + A1 dry-run), 16-04 results doc + regression + roadmap close. VALIDATION.md approved. Researcher развенчал устаревшее предположение «benchmark Swift helper сломан» — оно компилится и работает.
+status: phase_complete
+stopped_at: |
+  Phase 16 closed Complete — coverage closure (KeychainTests + AppStateCloudShim error-paths,
+  +12 тестов, 1311 total) + cloud benchmark Variant A executed (text-in symmetric, identical
+  83.3% aggregate, distributional tradeoff: cloud +medium, local +long). Variant B (audio-in)
+  deferred to Phase 17 (CLOUD-06). 16-BENCHMARK-RESULTS.md published. Ready for Phase 17 Polish & Rollout.
+last_updated: "2026-04-25T13:30:00+03:00"
+last_activity: |
+  2026-04-25 — Phase 16 Tests shipped Complete.
+  Plan 01: +12 тестов (CredentialStoreKeychain 9 + AppStateCloudShim 3 error-paths), 1311 total PASS.
+  Plan 02: benchmark-llm-normalization.py --mode cloud + .env.bench infra (Q2=B reuse prod, SSL DI per W6, usage forwarding per I8).
+  Plan 03: Q1=A (text-in symmetric); A1 valid; smoke (3) + local (36) + cloud (36) = 19594 tokens (~1% of 2M Max).
+  Plan 04: 16-BENCHMARK-RESULTS.md published (cloud=local 83.3% aggregate, cloud +medium / local +long); full XCTest regression PASS; Variant B → Phase 17.
+  TEST-01 + TEST-02 закрыты Complete.
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 22
-  completed_plans: 18
-  percent: 82
+  completed_plans: 22
+  percent: 87
 ---
 
 # Project State
@@ -23,18 +33,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Cloud dictate через GigaChat-2-Max — audio-in, text-out за один API вызов
-**Current focus:** Phase 16 — Tests (PLANNED 2026-04-23, ready to execute)
+**Current focus:** Phase 16 CLOSED Complete — Phase 17 (Polish & Rollout) next up
 
 ## Current Position
 
-Phase: **16 PLANNED** — 4 plans across 3 waves. Ready to execute.
-Status: Wave 1 в parallel: 16-01 (TDD coverage closure, GAP-A CredentialStore Keychain + GAP-B AppStateCloudShim error paths) + 16-02 (benchmark runner cloud mode, Q2 product checkpoint про bench-vs-prod credentials). Wave 2: 16-03 (Q1 product checkpoint про benchmark scope text-vs-audio + A1 dry-run + benchmark execution). Wave 3: 16-04 (16-BENCHMARK-RESULTS.md doc + full XCTest regression gate + ROADMAP close).
-Last activity: 2026-04-23 — Phase 16 planned via gsd-planner + gsd-plan-checker (2 iterations, all 7 issues resolved). VALIDATION.md approved. RESEARCH+PATTERNS+CONTEXT+VALIDATION+4 PLAN files written.
+Phase: **16 CLOSED — Phase 17 next up (Polish & Rollout)**
+Status: Phase 16 Tests shipped Complete на 2026-04-25 — coverage closure (Plan 01) + cloud benchmark infra (Plan 02) + Variant A symmetric benchmark execution (Plan 03) + RESULTS.md / regression / phase-close (Plan 04). 1311 XCTest PASS, 0 failures. Cloud (GigaChat-2-Max) и local (GigaChat 3.1 10B Q4) показали identical 83.3% exact-match aggregate с distributional tradeoff (cloud +medium 100%, local +long 58.3%). Variant B (audio-in asymmetric) deferred → Phase 17 CLOUD-06. TEST-01 + TEST-02 закрыты.
+Last activity: 2026-04-25 — Phase 16 closed Complete. 22/22 plans done. ROADMAP.md / REQUIREMENTS.md / STATE.md синхронизированы.
 
-Progress: [████████░] 82% milestone (Phase 15 shipped + Phase 16 planned, 18/22 plans complete)
+Progress: [████████░] 87% milestone (7/8 phases complete, 22/22 plans complete)
 
-Resume file: .planning/phases/16-tests/16-01-PLAN.md (start of Wave 1)
-Next command: `/clear` then `/gsd-execute-phase 16`
+Resume file: .planning/ROADMAP.md §Phase 17 (next up — Polish & Rollout)
+Next command: `/gsd-discuss-phase 17` (или `/gsd-plan-phase 17` если scope уже ясен)
 
 ## Performance Metrics
 
@@ -105,6 +115,10 @@ Recent decisions affecting current work:
 - [Phase 15-06]: applyProductMode остался private в AppState — consent accept/revoke в CloudSettingsDisclosure пишут settings.productMode и полагаются на wireSettingsChange observer (который вызывает applyProductMode или откладывает в pendingProductMode если sessionManager.state != .idle). Строже плана, корректнее уважает D-07.1 revoke-during-dictation race rule.
 - [Phase 15-06]: Landmine #4 (picker dropdown lock icon opacity) shipped as-is — HStack+lock.fill+.foregroundStyle(Color.ink.opacity(0.25)) в .menu pickerStyle. Если dropdown не применит opacity на macOS 14.x — lock-иконка сама по себе сигнал (UAT шаг A).
 - [Phase 15-06]: SwiftUI .alert destructive вместо AppKit NSAlert shipped (D-05 deviation preserved from Plan-level per PATTERNS.md HistoryView.swift precedent).
+- [Phase 16-01]: CredentialStore тестируемость — добавлен init(serviceOverride: String? = nil), default nil сохраняет production compatibility. UUID-suffixed test services предотвращают засорение user Keychain (security dump-keychain | grep com.govorun.tests = 0).
+- [Phase 16-02]: Bench credentials Q2=B (reuse prod) per Sanya. .env.bench gitignored explicitly (defence-in-depth). SSL context через explicit DI (build_cloud_ssl_ctx + cloud_ssl_ctx param), без module-level state — per CLAUDE.md §Conventions.
+- [Phase 16-03]: Q1=A (text-in symmetric) per orchestrator surfaced choice. Variant B (audio-in) deferred к Phase 17. A1 (GigaChat-2-Max text-only chat/completions) валидирован smoke 3 samples.
+- [Phase 16-04]: Phase close — 1311 XCTest PASS; 16-BENCHMARK-RESULTS.md published. Cloud (GigaChat-2-Max) и local (GigaChat 3.1 10B Q4) дали identical 83.3% aggregate с разной distribution (cloud +medium, local +long). Recommendation: Phase 17 default-off explicit opt-in (D-07 preserved).
 
 ### Pending Todos
 
