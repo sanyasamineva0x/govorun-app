@@ -107,4 +107,49 @@ final class AppStateCloudShimTests: XCTestCase {
         }
         XCTAssertEqual(authError, AuthError.invalidResponse(statusCode: 401))
     }
+
+    // MARK: - TEST-01: Error-path propagation
+
+    func test_saveCloudCredentials_propagatesStoreError_keepsCloudAvailableFalse() {
+        let store = MockCredentialStore()
+        store.saveError = CredentialStoreError.saveFailed(-25299)
+        let (appState, _) = makeAppState(credentialStore: store)
+        XCTAssertFalse(appState.cloudAvailable, "пустой store + saveError — cloudAvailable=false")
+
+        XCTAssertThrowsError(try appState.saveCloudCredentials(clientId: "a", clientSecret: "b")) { error in
+            XCTAssertEqual(error as? CredentialStoreError, .saveFailed(-25299))
+        }
+
+        XCTAssertFalse(appState.cloudAvailable, "при ошибке save cloudAvailable не должен флипаться на true")
+    }
+
+    func test_deleteCloudCredentials_propagatesStoreError() throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "abc", clientSecret: "xyz")
+        store.deleteError = CredentialStoreError.deleteFailed(-25300)
+        let (appState, _) = makeAppState(credentialStore: store)
+
+        XCTAssertThrowsError(try appState.deleteCloudCredentials()) { error in
+            XCTAssertEqual(error as? CredentialStoreError, .deleteFailed(-25300))
+        }
+    }
+
+    func test_probeCloudConnection_wrapsNonAuthErrorIn_networkError() async throws {
+        struct UnexpectedError: Error {}
+
+        let store = MockCredentialStore()
+        try store.save(clientId: "abc", clientSecret: "xyz")
+        let mockAuth = MockAuthService()
+        mockAuth.tokenError = UnexpectedError()
+        let (appState, _) = makeAppState(credentialStore: store, authService: mockAuth)
+
+        let result = await appState.probeCloudConnection()
+
+        guard case .failure(let authError) = result,
+              case .networkError = authError
+        else {
+            XCTFail("Ожидался .failure(.networkError), получен \(result)")
+            return
+        }
+    }
 }
