@@ -59,6 +59,7 @@
 		6347B82A3D8E5CC554193CF2 /* BottomBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D697E8CF215D44A451EEB1C /* BottomBarTests.swift */; };
 		63D72EC83F972F69892629AE /* SuperModelDownloadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B6DBAECA74A82B5F527717 /* SuperModelDownloadManagerTests.swift */; };
 		67B89E95FEE2B417559E219B /* SnippetReinserterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EC150EF61D8B4224B7760B /* SnippetReinserterTests.swift */; };
+		68D4C27F394DB9FCF5D68F9B /* CredentialStoreKeychainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C02F2A007E39DF9E141EE7 /* CredentialStoreKeychainTests.swift */; };
 		6908E96CA0AC4CD264A6C1F7 /* CloudSettingsErrorMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9646EB4DFED198D28ACDF79B /* CloudSettingsErrorMessageTests.swift */; };
 		69953F146BDDE5F036CA8F59 /* DictionaryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F7D20519E75AF7559513E5 /* DictionaryStoreTests.swift */; };
 		6BC02699730346A87043C145 /* BottomBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1769F9A018C01A91A8D0DB7E /* BottomBarView.swift */; };
@@ -255,6 +256,7 @@
 		B5192ECD1DFF6052B41B44C1 /* SnippetContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetContext.swift; sourceTree = "<group>"; };
 		B5365F3932D98ABE023F461B /* TextStyleSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextStyleSettingsView.swift; sourceTree = "<group>"; };
 		B68748E9E0E3719D440D0112 /* SessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManagerTests.swift; sourceTree = "<group>"; };
+		B6C02F2A007E39DF9E141EE7 /* CredentialStoreKeychainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStoreKeychainTests.swift; sourceTree = "<group>"; };
 		B6D2C91923A9C48C03C93C2F /* ErrorClassifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorClassifierTests.swift; sourceTree = "<group>"; };
 		B96C4D0F22B71D0D75EFA5D4 /* CloudLLMClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLLMClientTests.swift; sourceTree = "<group>"; };
 		B9C1D6A76F016B9FB7B36935 /* Snippet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snippet.swift; sourceTree = "<group>"; };
@@ -461,6 +463,7 @@
 				B96C4D0F22B71D0D75EFA5D4 /* CloudLLMClientTests.swift */,
 				9646EB4DFED198D28ACDF79B /* CloudSettingsErrorMessageTests.swift */,
 				5D16B76304E26060516D195C /* ColdStartUITests.swift */,
+				B6C02F2A007E39DF9E141EE7 /* CredentialStoreKeychainTests.swift */,
 				388D9ECCA21E6A2D3F72C9FA /* CredentialStoreTests.swift */,
 				A9F7D20519E75AF7559513E5 /* DictionaryStoreTests.swift */,
 				B6D2C91923A9C48C03C93C2F /* ErrorClassifierTests.swift */,
@@ -653,6 +656,7 @@
 				F55E04F7463E786486FF3D55 /* CloudLLMClientTests.swift in Sources */,
 				6908E96CA0AC4CD264A6C1F7 /* CloudSettingsErrorMessageTests.swift in Sources */,
 				F4FD8C06B71C3F07AD21D14A /* ColdStartUITests.swift in Sources */,
+				68D4C27F394DB9FCF5D68F9B /* CredentialStoreKeychainTests.swift in Sources */,
 				735803A74083D34697A48756 /* CredentialStoreTests.swift in Sources */,
 				69953F146BDDE5F036CA8F59 /* DictionaryStoreTests.swift in Sources */,
 				49A6900A2D5E8FA1F0CEAF0E /* ErrorClassifierTests.swift in Sources */,
