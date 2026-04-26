@@ -288,6 +288,11 @@ final class PipelineEngine: @unchecked Sendable {
         set { lock.lock(); defer { lock.unlock() }; _productMode = newValue }
     }
 
+    /// Read-only access for tests/diagnostics. Mutates через `updateLLMClient`.
+    var llmClient: LLMClient {
+        lock.lock(); defer { lock.unlock() }; return _llmClient
+    }
+
     var hints: NormalizationHints {
         get { lock.lock(); defer { lock.unlock() }; return _hints }
         set { lock.lock(); defer { lock.unlock() }; _hints = newValue }

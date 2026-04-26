@@ -799,6 +799,25 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(appState.pipelineEngine.productMode, .standard)
     }
 
+    func test_applyProductMode_standard_after_cloud_restores_local_llm_client() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        // Включаем cloud → pipeline получает CloudLLMClient
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(appState.pipelineEngine.llmClient is CloudLLMClient,
+                      "Sanity: после переключения в cloud llmClient — CloudLLMClient")
+        // cloud → standard должен восстановить LocalLLMClient
+        appState.settings.productMode = .standard
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(appState.pipelineEngine.llmClient is LocalLLMClient,
+                      "После cloud → standard pipeline должен использовать LocalLLMClient, не CloudLLMClient")
+    }
+
     func test_applyProductMode_super_clears_cloudClient() async throws {
         let store = MockCredentialStore()
         try store.save(clientId: "test-id", clientSecret: "test-secret")
@@ -810,6 +829,25 @@ final class IntegrationTests: XCTestCase {
         appState.settings.productMode = .superMode
         try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(appState.pipelineEngine.productMode, .superMode)
+    }
+
+    func test_applyProductMode_super_after_cloud_restores_local_llm_client() async throws {
+        let store = MockCredentialStore()
+        try store.save(clientId: "test-id", clientSecret: "test-secret")
+        let (appState, _, _, _) = await makeTestAppState(
+            productMode: .standard,
+            credentialStore: store
+        )
+        // Включаем cloud → pipeline получает CloudLLMClient
+        appState.settings.productMode = .cloud
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(appState.pipelineEngine.llmClient is CloudLLMClient,
+                      "Sanity: после переключения в cloud llmClient — CloudLLMClient")
+        // cloud → super должен восстановить LocalLLMClient (super-режим работает на llama-server)
+        appState.settings.productMode = .superMode
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertTrue(appState.pipelineEngine.llmClient is LocalLLMClient,
+                      "После cloud → super super-режим должен использовать LocalLLMClient (llama-server), не CloudLLMClient")
     }
 
     func test_cloudAvailable_true_when_credentials_exist() async {

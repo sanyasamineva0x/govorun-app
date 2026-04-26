@@ -744,12 +744,18 @@ final class AppState: ObservableObject {
         case .standard:
             pipelineEngine.productMode = productMode
             pipelineEngine.updateCloudClient(nil)
+            // Восстанавливаем local LLM client при выходе из cloud-режима, иначе
+            // shared pipelineEngine._llmClient остался бы CloudLLMClient'ом.
+            pipelineEngine.updateLLMClient(LocalLLMClient(configuration: currentLLMConfiguration))
             cloudLLMClient = nil
             llmRuntimeManager?.stop()
             updateLLMRuntimeState(.disabled)
 
         case .superMode:
             pipelineEngine.updateCloudClient(nil)
+            // Восстанавливаем local LLM client при выходе из cloud-режима, иначе
+            // super-режим продолжит слать запросы в Сбер вместо local llama-server.
+            pipelineEngine.updateLLMClient(LocalLLMClient(configuration: currentLLMConfiguration))
             cloudLLMClient = nil
             guard let llmRuntimeManager else {
                 pipelineEngine.productMode = productMode

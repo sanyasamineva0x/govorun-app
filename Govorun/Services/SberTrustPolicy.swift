@@ -35,12 +35,12 @@ final class SberTrustPolicy: TrustPolicyProviding, @unchecked Sendable {
             throw TrustPolicyError.certificateParsingFailed
         }
 
-        self.secCertificates = certs
+        secCertificates = certs
 
         let delegate = SberTrustDelegate(certificates: certs)
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
-        self.urlSession = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        urlSession = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }
 
     // MARK: - PEM -> SecCertificate
@@ -68,7 +68,7 @@ final class SberTrustPolicy: TrustPolicyProviding, @unchecked Sendable {
 
         for block in blocks {
             guard let endRange = block.range(of: "-----END CERTIFICATE-----") else { continue }
-            let base64 = block[block.startIndex ..< endRange.lowerBound]
+            let base64 = block[block.startIndex..<endRange.lowerBound]
                 .replacingOccurrences(of: "\n", with: "")
                 .replacingOccurrences(of: "\r", with: "")
                 .trimmingCharacters(in: .whitespaces)
@@ -110,8 +110,10 @@ private final class SberTrustDelegate: NSObject, URLSessionDelegate {
         }
 
         SecTrustSetAnchorCertificates(serverTrust, certificates as CFArray)
-        // false = доверяем И системным CA, И вшитым
-        SecTrustSetAnchorCertificatesOnly(serverTrust, false)
+        // true = доверяем ТОЛЬКО вшитым CA Сбера (strict pinning).
+        // guard isSberDomain выше отсекает не-сбер хосты, поэтому system CAs
+        // для остальных доменов не задеваются (они идут performDefaultHandling).
+        SecTrustSetAnchorCertificatesOnly(serverTrust, true)
 
         var error: CFError?
         if SecTrustEvaluateWithError(serverTrust, &error) {
