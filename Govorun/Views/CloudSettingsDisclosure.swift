@@ -41,7 +41,6 @@ struct CloudSettingsDisclosure: View {
                     .transition(.opacity)
             }
         }
-        .padding(.horizontal, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
         .onAppear {
@@ -274,6 +273,7 @@ private struct CloudStatusBlock: View {
 private struct CloudConsentBanner: View {
     @EnvironmentObject private var appState: AppState
     @Binding var connectionState: CloudSettingsDisclosure.ConnectionState
+    @State private var revokeIsHovered: Bool = false
 
     private static let consentDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -348,9 +348,13 @@ private struct CloudConsentBanner: View {
         Button(action: revokeConsent) {
             Text("Отозвать согласие")
                 .font(.caption.weight(.medium))
-                .foregroundStyle(Color.ink.opacity(0.5))
+                .foregroundStyle(revokeIsHovered ? Color.ink : Color.ink.opacity(0.5))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(revokeIsHovered ? Color.mist.opacity(0.4) : Color.clear)
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.mist, lineWidth: 1)
@@ -358,6 +362,10 @@ private struct CloudConsentBanner: View {
         }
         .buttonStyle(.plain)
         .padding(.top, 4)
+        .onHover { hovering in
+            revokeIsHovered = hovering
+        }
+        .animation(.easeOut(duration: 0.15), value: revokeIsHovered)
         .accessibilityHint("Отключает облачный режим. Ключи останутся сохранены.")
     }
 
