@@ -5,9 +5,18 @@ import Foundation
 enum ProductMode: String, CaseIterable, Codable {
     case standard
     case superMode = "super"
+    case cloud
 
     var usesLLM: Bool {
+        self == .superMode || self == .cloud
+    }
+
+    var usesLocalLLM: Bool {
         self == .superMode
+    }
+
+    var isCloud: Bool {
+        self == .cloud
     }
 
     var title: String {
@@ -16,6 +25,8 @@ enum ProductMode: String, CaseIterable, Codable {
             "Говорун"
         case .superMode:
             "Говорун Super"
+        case .cloud:
+            "Говорун Cloud"
         }
     }
 
@@ -25,6 +36,8 @@ enum ProductMode: String, CaseIterable, Codable {
             "Быстрый голосовой ввод без ИИ-обработки"
         case .superMode:
             "Голосовой ввод с ИИ-усилением"
+        case .cloud:
+            "Диктовка, генерация и редактирование текста с Гигачатом"
         }
     }
 }

@@ -352,3 +352,102 @@ final class SuperTextStyleTests: XCTestCase {
         XCTAssertEqual(SuperStyleMode.manual.displayName, "Ручной")
     }
 }
+
+// MARK: - systemPrompt snippetDictionary (Phase 14-02)
+
+final class SuperTextStyleSnippetDictionaryPromptTests: XCTestCase {
+    private let date = Date(timeIntervalSince1970: 1_700_000_000)
+
+    // MARK: - Regression: без snippetDictionary блока нет
+
+    func test_systemPrompt_without_snippets_unchanged_regression() {
+        let prompt = SuperTextStyle.normal.systemPrompt(currentDate: date)
+        XCTAssertFalse(
+            prompt.contains("ГОЛОСОВЫЕ СОКРАЩЕНИЯ"),
+            "Без snippetDictionary блок ГОЛОСОВЫЕ СОКРАЩЕНИЯ не должен присутствовать"
+        )
+    }
+
+    func test_systemPrompt_with_empty_snippets_unchanged() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: date,
+            snippetDictionary: [:]
+        )
+        XCTAssertFalse(prompt.contains("ГОЛОСОВЫЕ СОКРАЩЕНИЯ"))
+    }
+
+    // MARK: - С сниппетами блок добавляется
+
+    func test_systemPrompt_with_snippets_includes_block() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: date,
+            snippetDictionary: ["мой адрес": "Аминева 9"]
+        )
+        XCTAssertTrue(prompt.contains("ГОЛОСОВЫЕ СОКРАЩЕНИЯ"))
+        XCTAssertTrue(prompt.contains("мой адрес → Аминева 9"))
+        XCTAssertTrue(prompt.contains("Не добавляй оригинальное ключевое слово"))
+    }
+
+    func test_systemPrompt_with_multiple_snippets_lists_all() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: date,
+            snippetDictionary: [
+                "мой адрес": "Аминева 9",
+                "мой имейл": "user@example.com",
+            ]
+        )
+        XCTAssertTrue(prompt.contains("мой адрес → Аминева 9"))
+        XCTAssertTrue(prompt.contains("мой имейл → user@example.com"))
+    }
+
+    func test_systemPrompt_snippet_dictionary_preserves_style_block() {
+        let prompt = SuperTextStyle.formal.systemPrompt(
+            currentDate: date,
+            snippetDictionary: ["мой адрес": "Аминева 9"]
+        )
+        XCTAssertTrue(
+            prompt.contains("АБСОЛЮТНЫЙ ЗАПРЕТ ПЕРЕФРАЗИРОВАНИЯ"),
+            "Стилевой блок .formal должен сохраниться"
+        )
+        XCTAssertTrue(prompt.contains("ГОЛОСОВЫЕ СОКРАЩЕНИЯ"))
+    }
+
+    func test_systemPrompt_snippet_dictionary_ordered_after_snippet_context() {
+        let prompt = SuperTextStyle.normal.systemPrompt(
+            currentDate: date,
+            snippetContext: SnippetContext(trigger: "моё имя"),
+            snippetDictionary: ["мой адрес": "Аминева 9"]
+        )
+        guard let contextRange = prompt.range(of: "ПОДСТАНОВКА"),
+              let dictRange = prompt.range(of: "ГОЛОСОВЫЕ СОКРАЩЕНИЯ")
+        else {
+            XCTFail("Оба блока должны присутствовать")
+            return
+        }
+        XCTAssertLessThan(
+            contextRange.lowerBound,
+            dictRange.lowerBound,
+            "ПОДСТАНОВКА должен идти до ГОЛОСОВЫЕ СОКРАЩЕНИЯ"
+        )
+    }
+}
+
+// MARK: - NormalizationHints.snippetDictionary (Phase 14-02)
+
+final class NormalizationHintsSnippetDictionaryTests: XCTestCase {
+    func test_normalizationHints_snippet_dictionary_defaults_to_empty() {
+        let hints = NormalizationHints()
+        XCTAssertEqual(hints.snippetDictionary, [:])
+    }
+
+    func test_normalizationHints_snippet_dictionary_retains_values() {
+        let hints = NormalizationHints(snippetDictionary: ["мой адрес": "Аминева 9"])
+        XCTAssertEqual(hints.snippetDictionary, ["мой адрес": "Аминева 9"])
+    }
+
+    func test_normalizationHints_equatable_includes_snippet_dictionary() {
+        let a = NormalizationHints(snippetDictionary: ["a": "b"])
+        let b = NormalizationHints(snippetDictionary: ["a": "c"])
+        XCTAssertNotEqual(a, b)
+    }
+}

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import hashlib
 import json
 import math
 import os
+import ssl
 import statistics
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -158,6 +161,43 @@ def parse_args() -> argparse.Namespace:
         "--no-terminal-period",
         action="store_true",
         help="Disable terminal period policy in full-pipeline mode.",
+    )
+    # --- Phase 16: cloud mode ---
+    parser.add_argument(
+        "--mode",
+        choices=["local", "cloud"],
+        default="local",
+        help="Backend: 'local' (llama-server OpenAI-compatible) или 'cloud' (Sber GigaChat).",
+    )
+    parser.add_argument(
+        "--cloud-base-url",
+        default="https://gigachat.devices.sberbank.ru/api/v1",
+        help="Base URL для cloud chat completions (only used when --mode cloud).",
+    )
+    parser.add_argument(
+        "--cloud-model",
+        default="GigaChat-2-Max",
+        help="Cloud model identifier (only used when --mode cloud).",
+    )
+    parser.add_argument(
+        "--cloud-credentials-env",
+        default=".env.bench",
+        help="Путь к .env.bench файлу с SBER_CLIENT_ID и SBER_CLIENT_SECRET (only used when --mode cloud).",
+    )
+    parser.add_argument(
+        "--cloud-token-url",
+        default="https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
+        help="Sber OAuth endpoint (only used when --mode cloud).",
+    )
+    parser.add_argument(
+        "--cloud-cert-path",
+        default="Govorun/Resources/Certificates/SberRootCA.pem",
+        help="Путь к Sber root CA (Минцифры) для TLS pinning.",
+    )
+    parser.add_argument(
+        "--force-cost",
+        action="store_true",
+        help="Пропустить cost guard prompt (для CI / auto-runs). По умолчанию benchmark требует подтверждение если estimated_tokens > 50K.",
     )
     return parser.parse_args()
 
@@ -418,6 +458,122 @@ def require_full_pipeline_helper(helper: FullPipelineHelper | None) -> FullPipel
     return helper
 
 
+def load_cloud_credentials(env_path: Path) -> tuple[str, str]:
+    """Читает .env.bench, возвращает (client_id, client_secret).
+
+    Парсит KEY=VALUE по строкам, игнорируя комментарии и пустые строки.
+    Raises BenchmarkConfigurationError если файл не найден или ключи пустые.
+    """
+    if not env_path.exists():
+        raise BenchmarkConfigurationError(
+            f"Cloud credentials file not found: {env_path}. "
+            f"Скопируй .env.bench.example → .env.bench и заполни."
+        )
+    creds: dict[str, str] = {}
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        creds[key.strip()] = val.strip().strip('"').strip("'")
+    cid = creds.get("SBER_CLIENT_ID", "")
+    secret = creds.get("SBER_CLIENT_SECRET", "")
+    if not cid or not secret:
+        raise BenchmarkConfigurationError(
+            f"{env_path} должен содержать непустые SBER_CLIENT_ID и SBER_CLIENT_SECRET."
+        )
+    return cid, secret
+
+
+# In-process token cache per run (safe: process-local, short-lived)
+_SBER_TOKEN_CACHE: dict[str, float | str | None] = {
+    "access_token": None,
+    "expires_at": 0.0,
+}
+
+
+def obtain_sber_token(
+    *,
+    token_url: str,
+    client_id: str,
+    secret: str,
+    ssl_ctx: ssl.SSLContext,
+    timeout: float = 30.0,
+) -> str:
+    """Получает Sber OAuth bearer token. Кэширует in-process с refresh margin 5 минут.
+
+    Принимает готовый ssl.SSLContext — explicit DI, не ищет cert_path сам.
+    """
+    now = time.time()
+    cached = _SBER_TOKEN_CACHE.get("access_token")
+    exp_raw = _SBER_TOKEN_CACHE.get("expires_at") or 0.0
+    try:
+        exp = float(exp_raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        exp = 0.0
+    if cached and exp > now + 300:  # 5 min refresh margin — match SberAuthService
+        return str(cached)
+
+    auth_header = base64.b64encode(f"{client_id}:{secret}".encode()).decode()
+    body = b"scope=GIGACHAT_API_PERS"
+    request = urllib.request.Request(
+        url=token_url,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Basic {auth_header}",
+            "RqUID": str(uuid.uuid4()),
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, context=ssl_ctx, timeout=timeout) as resp:
+            payload = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body_snippet = ""
+        try:
+            body_snippet = exc.read()[:512].decode(errors="replace")
+        except Exception:
+            pass
+        raise BenchmarkConfigurationError(
+            f"Sber OAuth failed: HTTP {exc.code}. Body: {body_snippet}"
+        ) from exc
+    except (urllib.error.URLError, ssl.SSLError) as exc:
+        raise BenchmarkConfigurationError(f"Sber OAuth transport error: {exc}") from exc
+
+    token = payload.get("access_token")
+    exp_ms = payload.get("expires_at")
+    if not token or not isinstance(exp_ms, (int, float)):
+        raise BenchmarkConfigurationError(
+            "Sber OAuth response invalid: missing access_token или expires_at"
+        )
+    _SBER_TOKEN_CACHE["access_token"] = token
+    _SBER_TOKEN_CACHE["expires_at"] = exp_ms / 1000.0
+    return token
+
+
+def build_cloud_ssl_ctx(cert_path: Path) -> ssl.SSLContext:
+    """Создаёт SSL context с Sber root CA для TLS pinning.
+
+    Explicit constructor — вызывается в main() перед первой cloud-request,
+    результат передаётся downstream через параметры (DI).
+    """
+    if not cert_path.exists():
+        raise BenchmarkConfigurationError(
+            f"SberRootCA.pem not found at {cert_path}. "
+            f"Benchmark требует Минцифры cert для TLS pinning."
+        )
+    return ssl.create_default_context(cafile=str(cert_path))
+
+
+def estimate_cloud_token_cost(samples_count: int) -> int:
+    """Грубая оценка токенов для benchmark: ~50 prompt + ~30 output per sample + buffer."""
+    return samples_count * 100
+
+
 def request_completion(
     *,
     base_url: str,
@@ -428,7 +584,79 @@ def request_completion(
     max_tokens: int,
     temperature: float,
     stop: list[str] | None = None,
-) -> tuple[str, float | None, float]:
+    # --- Phase 16: cloud params (optional, всё через explicit DI) ---
+    mode: str = "local",
+    cloud_token: str | None = None,
+    cloud_ssl_ctx: ssl.SSLContext | None = None,
+) -> tuple[str, float | None, float, dict | None]:
+    """Отправляет completion-запрос в local llama-server или cloud Sber GigaChat.
+
+    Returns (text, first_token_ms, total_ms, usage):
+      - usage — dict с prompt_tokens/completion_tokens/total_tokens (cloud only) или None (local).
+    """
+    if mode == "cloud":
+        # Non-streaming cloud path — Sber chat/completions с Bearer auth
+        if not cloud_token:
+            raise BenchmarkConfigurationError(
+                "Cloud mode requires cloud_token (obtained via obtain_sber_token)"
+            )
+        if cloud_ssl_ctx is None:
+            raise BenchmarkConfigurationError(
+                "Cloud mode requires cloud_ssl_ctx (built via build_cloud_ssl_ctx in main)"
+            )
+        cloud_payload: dict = {
+            "model": model,
+            "stream": False,  # Sber non-streaming для simplicity
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "messages": [],
+        }
+        if stop:
+            cloud_payload["stop"] = stop
+        if system_prompt:
+            cloud_payload["messages"].append({"role": "system", "content": system_prompt})
+        cloud_payload["messages"].append({"role": "user", "content": user_text})
+        cloud_request = urllib.request.Request(
+            url=f"{base_url.rstrip('/')}/chat/completions",
+            data=json.dumps(cloud_payload).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {cloud_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        cloud_start = time.perf_counter()
+        try:
+            with urllib.request.urlopen(
+                cloud_request, context=cloud_ssl_ctx, timeout=timeout
+            ) as cloud_resp:
+                response_body = json.loads(cloud_resp.read())
+        except urllib.error.HTTPError as exc:
+            body = ""
+            try:
+                body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                pass
+            raise LLMRequestError(f"HTTP {exc.code}: {body}") from exc
+        except urllib.error.URLError as exc:
+            raise LLMRequestError(f"Connection error: {exc}") from exc
+        except (ssl.SSLError, OSError) as exc:
+            raise LLMRequestError(f"Socket/TLS error: {exc}") from exc
+
+        cloud_total_ms = (time.perf_counter() - cloud_start) * 1000.0
+        choices = response_body.get("choices") or []
+        if not choices:
+            raise LLMRequestError(
+                f"Cloud response missing choices: {json.dumps(response_body, ensure_ascii=False)[:512]}"
+            )
+        cloud_text = (choices[0].get("message") or {}).get("content", "") or ""
+        # I8: forward usage для per-sample row + summary. Downstream без грепа логов.
+        raw_usage = response_body.get("usage")
+        usage = raw_usage if isinstance(raw_usage, dict) else None
+        return (cloud_text.strip(), None, cloud_total_ms, usage)
+
+    # --- existing local SSE streaming path (unchanged behavior, return signature расширена) ---
     payload = {
         "model": model,
         "stream": True,
@@ -498,7 +726,7 @@ def request_completion(
         raise LLMRequestError(f"Socket error during streaming: {exc}") from exc
 
     total_latency_ms = (time.perf_counter() - start) * 1000.0
-    return "".join(output_parts).strip(), first_token_latency_ms, total_latency_ms
+    return "".join(output_parts).strip(), first_token_latency_ms, total_latency_ms, None
 
 
 def read_rss_kb(pid: int | None) -> int | None:
@@ -709,6 +937,44 @@ def main() -> int:
         dataset = load_dataset(dataset_path)
         validate_expected_key(dataset, args.expected_key)
 
+        # --- Phase 16: cloud mode setup (explicit DI, no module-level state) ---
+        cloud_ssl_ctx: ssl.SSLContext | None = None
+        cloud_token: str | None = None
+        if args.mode == "cloud":
+            cert_path = Path(args.cloud_cert_path)
+            cloud_ssl_ctx = build_cloud_ssl_ctx(cert_path)
+            env_path = Path(args.cloud_credentials_env)
+            client_id, client_secret = load_cloud_credentials(env_path)
+
+            # Cost guard: > 50K tokens требует подтверждения или --force-cost
+            estimated = estimate_cloud_token_cost(len(dataset))
+            if estimated > 50_000 and not args.force_cost:
+                print(
+                    f"WARNING: estimated {estimated} tokens для {len(dataset)} samples. "
+                    f"Continue? [y/N] (или используй --force-cost для auto)",
+                    file=sys.stderr,
+                )
+                try:
+                    answer = input().strip().lower()
+                except EOFError:
+                    answer = ""
+                if answer != "y":
+                    print("Aborted by cost guard.", file=sys.stderr)
+                    return 1
+
+            # Obtain initial token (coalesced via _SBER_TOKEN_CACHE для всего batch'а)
+            cloud_token = obtain_sber_token(
+                token_url=args.cloud_token_url,
+                client_id=client_id,
+                secret=client_secret,
+                ssl_ctx=cloud_ssl_ctx,
+            )
+            effective_base_url = args.cloud_base_url
+            effective_model = args.cloud_model
+        else:
+            effective_base_url = args.base_url
+            effective_model = args.model
+
         if args.pipeline_mode == "full-pipeline":
             helper_binary = ensure_full_pipeline_helper(HELPER_BINARY)
             helper = FullPipelineHelper(helper_binary)
@@ -753,6 +1019,7 @@ def main() -> int:
                     **sample,
                     "expected": expected_value,
                     "expected_key": expected_key,
+                    "mode": args.mode,
                 }
 
                 if args.pipeline_mode == "full-pipeline":
@@ -785,15 +1052,18 @@ def main() -> int:
                         })
                     else:
                         try:
-                            llm_output, first_token_ms, llm_total_latency_ms = request_completion(
-                                base_url=args.base_url,
-                                model=args.model,
+                            llm_output, first_token_ms, llm_total_latency_ms, llm_usage = request_completion(
+                                base_url=effective_base_url,
+                                model=effective_model,
                                 user_text=deterministic_text,
                                 system_prompt=system_prompt,
                                 timeout=args.timeout,
                                 max_tokens=args.max_tokens,
                                 temperature=args.temperature,
                                 stop=stop_sequences,
+                                mode=args.mode,
+                                cloud_token=cloud_token,
+                                cloud_ssl_ctx=cloud_ssl_ctx,
                             )
                         except LLMRequestError as exc:
                             try:
@@ -857,17 +1127,22 @@ def main() -> int:
                             "rss_before_kb": rss_before_kb,
                             "rss_after_kb": read_rss_kb(args.server_pid),
                         })
+                        if llm_usage:
+                            result["usage"] = llm_usage
                 else:
                     try:
-                        output_text, first_token_ms, total_latency_ms = request_completion(
-                            base_url=args.base_url,
-                            model=args.model,
+                        output_text, first_token_ms, total_latency_ms, llm_usage = request_completion(
+                            base_url=effective_base_url,
+                            model=effective_model,
                             user_text=input_text,
                             system_prompt=system_prompt,
                             timeout=args.timeout,
                             max_tokens=args.max_tokens,
                             temperature=args.temperature,
                             stop=stop_sequences,
+                            mode=args.mode,
+                            cloud_token=cloud_token,
+                            cloud_ssl_ctx=cloud_ssl_ctx,
                         )
                     except LLMRequestError as exc:
                         result.update({
@@ -893,6 +1168,8 @@ def main() -> int:
                         "rss_before_kb": rss_before_kb,
                         "rss_after_kb": read_rss_kb(args.server_pid),
                     })
+                    if llm_usage:
+                        result["usage"] = llm_usage
 
                 output_file.write(json.dumps(result, ensure_ascii=False) + "\n")
 
@@ -925,8 +1202,21 @@ def main() -> int:
                     if args.pipeline_mode == "full-pipeline"
                     else "expected"
                 ),
+                "mode": args.mode,
             }
         )
+        if args.mode == "cloud":
+            summary["cloud_model"] = args.cloud_model
+            summary["cloud_base_url"] = args.cloud_base_url
+            # I8: aggregate usage из всех samples — downstream (Plan 4) читает напрямую
+            cloud_usage_total = 0
+            for row in recorded_rows:
+                row_usage = row.get("usage") or {}
+                if isinstance(row_usage, dict):
+                    tt = row_usage.get("total_tokens")
+                    if isinstance(tt, (int, float)):
+                        cloud_usage_total += int(tt)
+            summary["cloud_usage_total_tokens"] = cloud_usage_total
 
         summary_path.write_text(
             json.dumps(summary, ensure_ascii=False, indent=2) + "\n",

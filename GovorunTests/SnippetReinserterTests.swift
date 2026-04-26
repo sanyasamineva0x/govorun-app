@@ -154,4 +154,100 @@ final class SnippetReinserterTests: XCTestCase {
         )
         XCTAssertEqual(result, "Привет мой адрес: Аминева 9.")
     }
+
+    // MARK: - cleanSubstitute (cloud path helper, без 'trigger:' префикса)
+
+    func test_cleanSubstitute_returns_nil_when_trigger_not_found() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "привет как дела",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertNil(result)
+    }
+
+    func test_cleanSubstitute_replaces_embedded_trigger_without_prefix() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "лена вот мой адрес",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "лена вот Аминева 9")
+        XCTAssertFalse(
+            result?.contains("мой адрес:") ?? true,
+            "cleanSubstitute НЕ должен добавлять 'trigger:' префикс"
+        )
+    }
+
+    func test_cleanSubstitute_preserves_surrounding_whitespace() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "Скинь на мой имейл срочно",
+            trigger: "мой имейл",
+            content: "user@example.com"
+        )
+        XCTAssertEqual(result, "Скинь на user@example.com срочно")
+    }
+
+    func test_cleanSubstitute_handles_punctuation_after_trigger() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "Напиши на мой адрес, пожалуйста.",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "Напиши на Аминева 9, пожалуйста.")
+    }
+
+    func test_cleanSubstitute_case_insensitive_trigger_lookup() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "Скажи на Мой Адрес",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "Скажи на Аминева 9")
+    }
+
+    func test_cleanSubstitute_does_not_add_trigger_prefix() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "лена вот мой адрес",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertNotNil(result)
+        XCTAssertFalse(
+            result?.contains("мой адрес:") ?? true,
+            "output не должен содержать 'мой адрес:' префикс"
+        )
+    }
+
+    func test_cleanSubstitute_empty_text_returns_nil() {
+        let result = SnippetReinserter.cleanSubstitute(
+            text: "",
+            trigger: "x",
+            content: "y"
+        )
+        XCTAssertNil(result)
+    }
+
+    // MARK: - mechanicalFallback regression (cloud-fallback не должен задевать Standard)
+
+    func test_mechanicalFallback_still_uses_trigger_prefix_regression() {
+        let result = SnippetReinserter.mechanicalFallback(
+            rawTranscript: "лена вот мой адрес",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertTrue(
+            result.contains("мой адрес: Аминева 9"),
+            "mechanicalFallback должен сохранять 'trigger: content' формат"
+        )
+    }
+
+    func test_mechanicalFallback_unchanged_for_no_match_regression() {
+        let result = SnippetReinserter.mechanicalFallback(
+            rawTranscript: "привет",
+            trigger: "мой адрес",
+            content: "Аминева 9"
+        )
+        XCTAssertEqual(result, "Мой адрес: Аминева 9")
+    }
 }

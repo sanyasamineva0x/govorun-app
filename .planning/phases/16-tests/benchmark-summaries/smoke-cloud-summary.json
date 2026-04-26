@@ -1,0 +1,85 @@
+{
+  "total_samples": 3,
+  "latency_ms": {
+    "count": 3,
+    "mean_ms": 8983.72,
+    "p50_ms": 9533.23,
+    "p95_ms": 10603.07,
+    "max_ms": 10721.94
+  },
+  "first_token_latency_ms": {
+    "count": 0,
+    "mean_ms": null,
+    "p50_ms": null,
+    "p95_ms": null,
+    "max_ms": null
+  },
+  "buckets": {
+    "short": {
+      "samples": 3,
+      "latency_ms": {
+        "count": 3,
+        "mean_ms": 8983.72,
+        "p50_ms": 9533.23,
+        "p95_ms": 10603.07,
+        "max_ms": 10721.94
+      },
+      "first_token_latency_ms": {
+        "count": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "max_ms": null
+      },
+      "llm_latency_ms": {
+        "count": 3,
+        "mean_ms": 8974.74,
+        "p50_ms": 9527.03,
+        "p95_ms": 10596.88,
+        "max_ms": 10715.75
+      },
+      "period_tolerant_pct": 100.0,
+      "completed_pct": 100.0,
+      "error_pct": 0.0
+    }
+  },
+  "llm_latency_ms": {
+    "count": 3,
+    "mean_ms": 8974.74,
+    "p50_ms": 9527.03,
+    "p95_ms": 10596.88,
+    "max_ms": 10715.75
+  },
+  "quality": {
+    "total": 3,
+    "completed": 3,
+    "completed_pct": 100.0,
+    "errors": 0,
+    "error_pct": 0.0,
+    "exact_match": 3,
+    "exact_match_pct": 100.0,
+    "completed_exact_match_pct": 100.0,
+    "period_tolerant_match": 3,
+    "period_tolerant_pct": 100.0,
+    "completed_period_tolerant_pct": 100.0,
+    "failures": []
+  },
+  "normalization_paths": {
+    "llm": 3
+  },
+  "dataset": "build/smoke-seed.jsonl",
+  "model": "local-model",
+  "base_url": "http://127.0.0.1:8080/v1",
+  "warmup": 0,
+  "pipeline_mode": "full-pipeline",
+  "super_style": "normal",
+  "legacy_text_mode": null,
+  "prompt_source": "<generated-from-production>",
+  "prompt_sha256": "b23cc0df7cd0e94dfe51ef8b45e2c6bb7365dda2d50d31421217863361a8019a",
+  "prompt_override": false,
+  "expected_key": "expected_full_pipeline_or_expected",
+  "mode": "cloud",
+  "cloud_model": "GigaChat-2-Max",
+  "cloud_base_url": "https://gigachat.devices.sberbank.ru/api/v1",
+  "cloud_usage_total_tokens": 4548
+}

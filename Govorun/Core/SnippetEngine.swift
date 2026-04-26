@@ -21,6 +21,19 @@ final class SnippetEngine: SnippetMatching, @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Словарь trigger → content для всех enabled сниппетов.
+    /// Используется в cloud path для inline substitution в systemPrompt (D-01 Option G).
+    func allTriggerContents() -> [String: String] {
+        lock.lock()
+        let current = snippets
+        lock.unlock()
+        var result: [String: String] = [:]
+        for snippet in current where snippet.isEnabled {
+            result[snippet.trigger] = snippet.content
+        }
+        return result
+    }
+
     func match(_ text: String) -> SnippetMatch? {
         let normalized = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return nil }

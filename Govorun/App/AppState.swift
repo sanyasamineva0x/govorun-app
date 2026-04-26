@@ -30,6 +30,18 @@ final class AppState: ObservableObject {
     /// Менеджер готовности Super-ассетов (runtime binary + модель)
     private let superAssetsManager: SuperAssetsManaging
 
+    /// Cloud LLM клиент (создаётся при переключении в .cloud)
+    private var cloudLLMClient: CloudLLMClient?
+    /// Хранилище API credentials (Keychain)
+    private let credentialStore: CredentialStoring
+    /// Trust policy для Sber API (cert pinning)
+    private let trustPolicy: TrustPolicyProviding?
+    /// Доступен ли cloud режим (есть credentials)
+    @Published var cloudAvailable: Bool = false
+    /// Фабрика AuthService для probeCloudConnection — тесты подменяют на MockAuthService.
+    /// По умолчанию — свежий SberAuthService из credentialStore.
+    var authServiceFactory: () -> AuthService = { SberAuthService(credentialProvider: { nil }) }
+
     /// ModelContainer для reload сниппетов и usageCount
     private let modelContainer: ModelContainer?
 
@@ -157,14 +169,25 @@ final class AppState: ObservableObject {
         currentRecordingMode = settings.recordingMode
 
         audioCapture = audio
+
+        // bottomBar создаём ДО PipelineEngine, чтобы захватить его в onCloudOfflineFallback closure
+        let bottomBarController = BottomBarController()
+        bottomBar = bottomBarController
+
         pipelineEngine = PipelineEngine(
             audioCapture: audio,
             sttClient: stt,
             llmClient: llm,
-            snippetEngine: snippetEngine
+            snippetEngine: snippetEngine,
+            networkAvailability: networkMonitor,
+            onCloudOfflineFallback: { [weak bottomBarController] in
+                Task { @MainActor in
+                    bottomBarController?.showError("Нет сети — использую локальную обработку")
+                }
+            }
         )
         // productMode ставим .standard до проверки ассетов; start() обновит после check()
-        pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
+        pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode
         textInserter = TextInserterEngine(
             accessibility: accessibility,
             clipboard: clipboard
@@ -175,7 +198,6 @@ final class AppState: ObservableObject {
             recordingMode: settings.recordingMode,
             eventMonitor: eventMonitor
         )
-        bottomBar = BottomBarController()
         audioCaptureDelegate = AudioCaptureBridge()
         sessionManagerDelegate = SessionManagerBridge()
         appContextEngine = AppContextEngine(workspace: workspace)
@@ -190,7 +212,24 @@ final class AppState: ObservableObject {
             frontmostAppProvider: SystemFrontmostAppProvider()
         )
         updaterService = UpdaterService()
-        llmRuntimeState = settings.productMode.usesLLM ? .notStarted : .disabled
+        let credentialStore = CredentialStore()
+        self.credentialStore = credentialStore
+        let trustPolicy: TrustPolicyProviding?
+        do {
+            trustPolicy = try SberTrustPolicy()
+        } catch {
+            Self.logger.error("SberTrustPolicy init failed: \(String(describing: error), privacy: .public)")
+            trustPolicy = nil
+        }
+        self.trustPolicy = trustPolicy
+        let authHTTPClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+        authServiceFactory = { @Sendable [credentialStore, authHTTPClient] in
+            SberAuthService(
+                credentialProvider: { credentialStore.get() },
+                httpClient: authHTTPClient
+            )
+        }
+        llmRuntimeState = settings.productMode.usesLocalLLM ? .notStarted : .disabled
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -210,6 +249,13 @@ final class AppState: ObservableObject {
             }
         }
         superModelDownloadManager.restoreStateFromDisk(for: SuperModelCatalog.current)
+        cloudAvailable = credentialStore.get() != nil
+
+        // Если productMode был сохранён как .cloud, нужно прокинуть cloudLLMClient
+        // в pipelineEngine — иначе первая диктовка упадёт с "Cloud client не настроен".
+        if settings.productMode == .cloud, cloudAvailable {
+            applyProductMode(.cloud)
+        }
     }
 
     /// Тестовый init с инжектированными зависимостями
@@ -233,7 +279,9 @@ final class AppState: ObservableObject {
         initialLLMRuntimeState: LLMRuntimeState = .notStarted,
         settings: SettingsStore = SettingsStore(),
         eventMonitor: EventMonitoring? = nil,
-        updaterService: UpdaterService? = nil
+        updaterService: UpdaterService? = nil,
+        credentialStore: CredentialStoring? = nil,
+        trustPolicy: TrustPolicyProviding? = nil
     ) {
         self.workerManager = workerManager
         self.llmRuntimeManager = llmRuntimeManager
@@ -265,10 +313,22 @@ final class AppState: ObservableObject {
         currentRecordingMode = settings.recordingMode
         currentLLMConfiguration = Self.resolveLLMConfiguration(settings: settings)
         self.updaterService = updaterService
+        self.credentialStore = credentialStore ?? MockCredentialStore()
+        let resolvedCredentialStore = self.credentialStore
+        self.trustPolicy = trustPolicy
+        let authHTTPClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+        authServiceFactory = { @Sendable [resolvedCredentialStore, authHTTPClient] in
+            SberAuthService(
+                credentialProvider: { resolvedCredentialStore.get() },
+                httpClient: authHTTPClient
+            )
+        }
 
         workerState = initialWorkerState
-        llmRuntimeState = settings.productMode.usesLLM ? initialLLMRuntimeState : .disabled
-        self.pipelineEngine.productMode = settings.productMode.usesLLM ? .standard : settings.productMode
+        llmRuntimeState = settings.productMode.usesLocalLLM ? initialLLMRuntimeState : .disabled
+        self.pipelineEngine.productMode = settings.productMode.usesLocalLLM ? .standard : settings.productMode
+
+        cloudAvailable = self.credentialStore.get() != nil
 
         wireActivationKeyMonitor()
         wireSessionManager()
@@ -294,7 +354,7 @@ final class AppState: ObservableObject {
     }
 
     func updateLLMRuntimeState(_ state: LLMRuntimeState) {
-        llmRuntimeState = currentProductMode.usesLLM ? state : .disabled
+        llmRuntimeState = currentProductMode.usesLocalLLM ? state : .disabled
     }
 
     @MainActor
@@ -304,6 +364,39 @@ final class AppState: ObservableObject {
             baseURLString: settings.llmBaseURL,
             modelAlias: settings.llmModel
         )
+    }
+
+    // MARK: - Cloud Settings (Phase 15 shim)
+
+    /// Сохраняет GigaChat creds в Keychain и включает cloudAvailable.
+    /// Вызывается из CloudSettingsDisclosure.
+    func saveCloudCredentials(clientId: String, clientSecret: String) throws {
+        try credentialStore.save(clientId: clientId, clientSecret: clientSecret)
+        cloudAvailable = true
+    }
+
+    /// Удаляет GigaChat creds из Keychain и сбрасывает cloudAvailable.
+    /// Consent (cloudConsentAcceptedAt) НЕ трогаем — D-07.
+    func deleteCloudCredentials() throws {
+        try credentialStore.delete()
+        cloudAvailable = false
+    }
+
+    /// Пробует получить OAuth токен от Сбера — используется для «Сохранить» auto-probe
+    /// и для «Проверить» manual retest. Не делает /chat/completions (не тратит токены).
+    func probeCloudConnection() async -> Result<Void, AuthError> {
+        let authService = authServiceFactory()
+        do {
+            _ = try await authService.getAccessToken()
+            return .success(())
+        } catch let error as AuthError {
+            return .failure(error)
+        } catch {
+            return .failure(.networkError(
+                urlError: error as? URLError,
+                description: error.localizedDescription
+            ))
+        }
     }
 
     // MARK: - Super Model Download
@@ -353,7 +446,7 @@ final class AppState: ObservableObject {
     func handleSuperAssetsChanged() async {
         await refreshSuperAssetsReadiness()
 
-        guard effectiveProductMode.usesLLM else { return }
+        guard effectiveProductMode.usesLocalLLM else { return }
 
         guard let llmRuntimeManager else {
             pipelineEngine.productMode = currentProductMode
@@ -429,13 +522,21 @@ final class AppState: ObservableObject {
         }
 
         if llmRuntimeManager != nil {
-            if currentProductMode.usesLLM {
+            if currentProductMode.usesLocalLLM {
                 Task {
                     await handleSuperAssetsChanged()
                 }
             } else {
                 updateLLMRuntimeState(.disabled)
             }
+        }
+
+        // Cloud auto-downgrade: если режим cloud но нет credentials -- откат на standard
+        if currentProductMode.isCloud, credentialStore.get() == nil {
+            Self.logger.warning("Cloud credentials отсутствуют при запуске, откат на .standard")
+            currentProductMode = .standard
+            settings.productMode = .standard
+            pipelineEngine.productMode = .standard
         }
     }
 
@@ -639,12 +740,27 @@ final class AppState: ObservableObject {
         currentProductMode = productMode
         pendingProductMode = nil
 
-        guard let llmRuntimeManager else {
+        switch productMode {
+        case .standard:
             pipelineEngine.productMode = productMode
-            return
-        }
+            pipelineEngine.updateCloudClient(nil)
+            // Восстанавливаем local LLM client при выходе из cloud-режима, иначе
+            // shared pipelineEngine._llmClient остался бы CloudLLMClient'ом.
+            pipelineEngine.updateLLMClient(LocalLLMClient(configuration: currentLLMConfiguration))
+            cloudLLMClient = nil
+            llmRuntimeManager?.stop()
+            updateLLMRuntimeState(.disabled)
 
-        if productMode.usesLLM {
+        case .superMode:
+            pipelineEngine.updateCloudClient(nil)
+            // Восстанавливаем local LLM client при выходе из cloud-режима, иначе
+            // super-режим продолжит слать запросы в Сбер вместо local llama-server.
+            pipelineEngine.updateLLMClient(LocalLLMClient(configuration: currentLLMConfiguration))
+            cloudLLMClient = nil
+            guard let llmRuntimeManager else {
+                pipelineEngine.productMode = productMode
+                return
+            }
             if isReady {
                 Task {
                     await handleSuperAssetsChanged()
@@ -652,11 +768,30 @@ final class AppState: ObservableObject {
             } else {
                 updateLLMRuntimeState(.notStarted)
             }
-        } else {
-            pipelineEngine.productMode = productMode
-            llmRuntimeManager.stop()
+
+        case .cloud:
+            guard credentialStore.get() != nil else {
+                Self.logger.warning("Cloud credentials не найдены, остаёмся на текущем режиме")
+                return
+            }
+            let httpClient: HTTPClient = trustPolicy?.urlSession ?? URLSession.shared
+            let authService = SberAuthService(
+                credentialProvider: { [credentialStore] in credentialStore.get() },
+                httpClient: httpClient
+            )
+            let cloudClient = CloudLLMClient(
+                authService: authService,
+                httpClient: httpClient
+            )
+            cloudLLMClient = cloudClient
+            pipelineEngine.updateCloudClient(cloudClient)
+            pipelineEngine.updateLLMClient(cloudClient)
+            pipelineEngine.productMode = .cloud
+            llmRuntimeManager?.stop()
             updateLLMRuntimeState(.disabled)
         }
+
+        cloudAvailable = credentialStore.get() != nil
     }
 
     private func applyLLMConfiguration(_ configuration: LocalLLMConfiguration) {
@@ -664,7 +799,7 @@ final class AppState: ObservableObject {
         currentLLMConfiguration = configuration
         pendingLLMConfiguration = nil
 
-        if currentProductMode.usesLLM, llmRuntimeManager != nil {
+        if currentProductMode.usesLocalLLM, llmRuntimeManager != nil {
             Task {
                 await handleSuperAssetsChanged()
             }
@@ -836,11 +971,11 @@ final class AppState: ObservableObject {
         currentAppContext = context
         let dictionary = loadDictionaryHints()
 
-        let effectiveProductMode = (currentProductMode.usesLLM && superAssetsState != .installed)
+        let effectiveProductMode = (currentProductMode.usesLocalLLM && superAssetsState != .installed)
             ? .standard
             : currentProductMode
         pipelineEngine.productMode = effectiveProductMode
-        pipelineEngine.superStyle = effectiveProductMode == .superMode
+        pipelineEngine.superStyle = effectiveProductMode.usesLLM
             ? SuperStyleEngine.resolve(
                 bundleId: context.bundleId,
                 mode: settings.superStyleMode,

@@ -267,4 +267,30 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.llmRequestTimeout, LocalLLMConfiguration.defaultRequestTimeout)
         XCTAssertEqual(store.llmHealthcheckTimeout, LocalLLMConfiguration.defaultHealthcheckTimeout)
     }
+
+    // MARK: - Cloud consent (Phase 15)
+
+    func test_cloudConsentAcceptedAt_persists() {
+        let date = Date(timeIntervalSince1970: 1_735_000_000)
+        store.cloudConsentAcceptedAt = date
+        XCTAssertEqual(store.cloudConsentAcceptedAt, date)
+
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store2.cloudConsentAcceptedAt, date)
+    }
+
+    func test_clearCloudConsent_removesValue() {
+        store.cloudConsentAcceptedAt = Date(timeIntervalSince1970: 1_735_000_000)
+        store.clearCloudConsent()
+        XCTAssertNil(store.cloudConsentAcceptedAt)
+
+        let store2 = SettingsStore(defaults: defaults)
+        XCTAssertNil(store2.cloudConsentAcceptedAt)
+    }
+
+    func test_resetToDefaults_clearsCloudConsent() {
+        store.cloudConsentAcceptedAt = Date(timeIntervalSince1970: 1_735_000_000)
+        store.resetToDefaults()
+        XCTAssertNil(store.cloudConsentAcceptedAt)
+    }
 }

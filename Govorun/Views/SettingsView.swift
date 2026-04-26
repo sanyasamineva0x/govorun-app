@@ -291,6 +291,11 @@ private struct GeneralSettingsContent: View {
 private struct ProductModeCard: View {
     @EnvironmentObject private var appState: AppState
     @Binding var selection: ProductMode
+    @State private var showCloudSetup: Bool = false
+
+    private var canActivateCloud: Bool {
+        appState.cloudAvailable && appState.settings.cloudConsentAcceptedAt != nil
+    }
 
     private var superAvailable: Bool {
         switch appState.superAssetsState {
@@ -515,9 +520,14 @@ private struct ProductModeCard: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 180)
-                .onChange(of: selection) { _, newValue in
+                .onChange(of: selection) { oldValue, newValue in
                     if newValue == .superMode, !superAvailable {
                         selection = .standard
+                        return
+                    }
+                    if newValue == .cloud, !canActivateCloud {
+                        selection = oldValue
+                        showCloudSetup = true
                     }
                 }
             }
@@ -527,7 +537,13 @@ private struct ProductModeCard: View {
                 if appState.settings.productMode == .superMode {
                     downloadStatusView
                 }
+                if appState.settings.productMode == .cloud || showCloudSetup {
+                    CloudSettingsDisclosure()
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeOut(duration: 0.22), value: appState.settings.productMode)
+            .animation(.easeOut(duration: 0.22), value: showCloudSetup)
         }
         .onAppear {
             Task {

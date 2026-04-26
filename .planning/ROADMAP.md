@@ -1,8 +1,11 @@
-# Roadmap: Стили текста v2
+# Roadmap: Говорун
 
-## Overview
+<!-- [skip-review: ROADMAP.md progress flips are mechanical bookkeeping; Codex reviews spec + plan + end-of-phase diff per feedback_codex_reviews_artifacts.md] -->
 
-Замена TextMode на SuperTextStyle по всему pipeline Говоруна. Строим снизу вверх: foundation types (enum + engine) --> извлечение типов из TextMode.swift --> pipeline integration --> gate modernization --> postflight --> settings/data --> analytics --> UI --> удаление TextMode. Каждая фаза оставляет проект компилируемым. Тесты пишутся внутри каждой фазы (TDD), не в отдельной фазе.
+## Milestones
+
+- v1.0 Стили текста v2 (Phases 1-9) -- shipped 2026-04-02
+- v2.0 Говорун Cloud (Phases 10-17) -- in progress
 
 ## Phases
 
@@ -12,164 +15,165 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation Types** - SuperTextStyle enum, LLMOutputContract, SuperStyleEngine с тестами
-- [ ] **Phase 2: Type Extraction** - Вынос SnippetPlaceholder, SnippetContext, NormalizationHints из TextMode.swift
-- [ ] **Phase 3: Pipeline Integration** - LLMClient новая сигнатура, PipelineEngine на SuperTextStyle, миграция тестов
-- [ ] **Phase 4: Gate Modernization** - Двухосевой evaluate, style-aware protected tokens, edit distance
-- [ ] **Phase 5: Postflight** - Стиль владеет точкой, applyDeterministic caps
-- [ ] **Phase 6: Settings & Data** - SettingsStore, HistoryStore, PipelineResult, UserDefaults миграция
-- [ ] **Phase 7: Analytics** - effective_style, style_selection_mode, product_mode в событиях
-- [ ] **Phase 8: UI** - Вкладка "Стиль текста" в menubar (авто/ручной, карточки, без модели)
-- [ ] **Phase 9: TextMode Deletion** - Удаление TextMode.swift, AppModeSettingsView, протоколов, очистка AppContextEngine
+<details>
+<summary>v1.0 Стили текста v2 (Phases 1-9) -- SHIPPED 2026-04-02</summary>
+
+- [x] **Phase 1: Foundation Types** - SuperTextStyle enum, LLMOutputContract, SuperStyleEngine с тестами
+- [x] **Phase 2: Type Extraction** - Вынос SnippetPlaceholder, SnippetContext, NormalizationHints из TextMode.swift
+- [x] **Phase 3: Pipeline Integration** - LLMClient новая сигнатура, PipelineEngine на SuperTextStyle, миграция тестов
+- [x] **Phase 4: Gate Modernization** - Двухосевой evaluate, style-aware protected tokens, edit distance
+- [x] **Phase 5: Postflight** - Стиль владеет точкой, applyDeterministic caps
+- [x] **Phase 6: Settings & Data** - SettingsStore, HistoryStore, PipelineResult, UserDefaults миграция
+- [x] **Phase 7: Analytics** - effective_style, style_selection_mode, product_mode в событиях
+- [x] **Phase 8: UI** - Вкладка "Стиль текста" в menubar (авто/ручной, карточки, без модели)
+- [x] **Phase 9: TextMode Deletion** - Удаление TextMode.swift, AppModeSettingsView, протоколов, очистка AppContextEngine
+
+</details>
+
+### v2.0 Говорун Cloud
+
+- [x] **Phase 10: TLS & Credentials** - SberRootCA.pem, SberTrustPolicy, CredentialStore, HTTPClient protocol (completed 2026-04-12)
+- [x] **Phase 11: OAuth** - SberAuthService с actor-based token coalescing, AuthError mapping (completed 2026-04-12)
+- [x] **Phase 12: Cloud LLM Client** - CloudLLMClient conforming to LLMClient, audio-in pipeline, retry/timeout (completed 2026-04-12)
+- [x] **Phase 13: Mode & Routing** - ProductMode.cloud, usesLLM audit, AppState wiring, PipelineEngine routing (completed 2026-04-12)
+- [x] **Phase 14: Pipeline Hardening** - Snippet matching on LLM output, NormalizationGate passthrough, ListFormatter, offline fast-fail (completed 2026-04-19)
+- [ ] **Phase 15: Cloud Settings UI** - Credential input, connection status, ProductMode picker, privacy consent
+- [x] **Phase 16: Tests** - Unit tests for all cloud services, quality benchmark cloud vs local
+- [ ] **Phase 17: Polish & Rollout** - Error messages, analytics cloud events, credential-gated launch, edge cases
 
 ## Phase Details
 
-### Phase 1: Foundation Types
-**Goal**: Новые типы стилей существуют и полностью протестированы -- все downstream фазы могут на них опираться
-**Depends on**: Nothing (first phase)
-**Requirements**: STYLE-01, STYLE-02, STYLE-03, STYLE-04, STYLE-05, ENGINE-01, ENGINE-02, ENGINE-03, ENGINE-04, ENGINE-05, TEST-01, TEST-02
+### Phase 10: TLS & Credentials
+**Goal**: App can establish trusted HTTPS connections to Sber domains and securely store API credentials
+**Depends on**: Nothing (first phase of v2.0)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03
 **Success Criteria** (what must be TRUE):
-  1. SuperTextStyle enum (relaxed/normal/formal) компилируется и предоставляет styleBlock, systemPrompt, contract, applyDeterministic
-  2. LLMOutputContract enum (.normalization, .rewriting) существует; все три стиля возвращают .normalization
-  3. SuperStyleEngine в авто-режиме возвращает relaxed для мессенджеров, formal для почты, normal для неизвестных bundleId
-  4. SuperStyleEngine в ручном режиме возвращает выбранный стиль независимо от bundleId
-  5. Unit-тесты покрывают SuperTextStyle (enum, properties) и SuperStyleEngine (авто/ручной mapping)
-**Plans**: 2 plans
-
+  1. SberRootCA.pem is bundled in the app and loadable at runtime via Security.framework
+  2. A dedicated URLSession with SberTrustDelegate trusts `*.sberbank.ru` using the bundled CA while preserving system CA trust for all other domains
+  3. CredentialStore saves and retrieves clientId + clientSecret from Keychain (Security.framework, not KeychainAccess)
+  4. HTTPClient protocol exists with URLSession conformance, injectable for testing
+**Plans:** 2/2 plans complete
 Plans:
-- [x] 01-01-PLAN.md -- SuperTextStyle enum, SuperStyleMode, alias tables, computed properties, systemPrompt, тесты
-- [x] 01-02-PLAN.md -- SuperStyleEngine bundleId resolution, тесты, полная верификация suite
+- [x] 10-01-PLAN.md -- SberRootCA.pem bundling + SberTrustPolicy with failable init, PEM parsing, SberTrustDelegate
+- [x] 10-02-PLAN.md -- CredentialStore (Security.framework) + HTTPClient protocol with URLSession conformance
 
-### Phase 2: Type Extraction
-**Goal**: Типы, живущие сейчас в TextMode.swift, вынесены в отдельные файлы -- TextMode.swift можно безопасно удалить позже
-**Depends on**: Phase 1
-**Requirements**: EXTRACT-01, EXTRACT-02, EXTRACT-03
+### Phase 11: OAuth
+**Goal**: App can obtain and cache OAuth tokens from Sber API transparently
+**Depends on**: Phase 10
+**Requirements**: INFRA-04
 **Success Criteria** (what must be TRUE):
-  1. SnippetPlaceholder, SnippetContext, NormalizationHints существуют в отдельных файлах Models/
-  2. NormalizationHints не содержит поля textMode
-  3. Проект компилируется, все 986+ тестов проходят без изменений
-**Plans**: 1 plan
-
+  1. SberAuthService fetches OAuth token from `ngw.devices.sberbank.ru:9443/api/v2/oauth` with scope GIGACHAT_API_PERS
+  2. Token is cached in memory and auto-refreshed 5 minutes before expiry (expires_at parsed as milliseconds)
+  3. Concurrent token requests coalesce into a single HTTP call (actor-based, no thundering herd)
+  4. RqUID header (UUID) is included in every OAuth request
+  5. AuthError cases (credentialsNotFound, networkError, invalidResponse, tokenParsingFailed) map cleanly to LLMError at the client boundary
+**Plans:** 1/1 plans complete
 Plans:
-- [x] 02-01-PLAN.md -- Extract SnippetPlaceholder, SnippetContext, NormalizationHints; remove textMode from hints; update consumers
+- [x] 11-01-PLAN.md -- SberAuthService actor с OAuth, coalescing, AuthError (TDD)
 
-### Phase 3: Pipeline Integration
-**Goal**: Pipeline использует SuperTextStyle вместо TextMode для LLM запросов -- данные текут через новую сигнатуру
-**Depends on**: Phase 1, Phase 2
-**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04, TEST-06
+### Phase 12: Cloud LLM Client
+**Goal**: App can send audio to GigaChat API and receive normalized text back in a single round-trip
+**Depends on**: Phase 11
+**Requirements**: CLOUD-01, CLOUD-02, CLOUD-03, CLOUD-06
 **Success Criteria** (what must be TRUE):
-  1. LLMClient.normalize(_:superStyle:hints:) -- единственная сигнатура нормализации
-  2. LocalLLMClient формирует LLM запрос используя SuperTextStyle.systemPrompt()
-  3. PipelineEngine хранит и прокидывает SuperTextStyle вместо TextMode
-  4. PipelineResult.superStyle: SuperTextStyle? доступен вместо textMode
-  5. MockLLMClient, AppContextEngineTests, HistoryStoreTests, SnippetEngineTests обновлены и проходят
-**Plans**: 2 plans
-
+  1. CloudLLMClient conforms to LLMClient protocol without any protocol changes
+  2. Audio WAV is uploaded via `/api/v1/files`, then `/chat/completions` is called with the file attachment and SuperTextStyle.systemPrompt()
+  3. Response text is extracted from `choices[0].message.content`
+  4. Timeout is 30 seconds; transient errors (429, 5xx) trigger one retry with exponential backoff
+  5. CloudLLMConfiguration holds cloud-specific defaults (model: GigaChat-2-Max, temperature: 0.1, timeout: 30s)
+**Plans:** 1/1 plans complete
 Plans:
-- [x] 03-01-PLAN.md -- LLMClient + LocalLLMClient + PipelineEngine + NormalizationPipeline + AppState + HistoryStore production code migration
-- [ ] 03-02-PLAN.md -- MockLLMClient + test files migration, full suite verification
+- [x] 12-01-PLAN.md -- CloudLLMClient с audio upload, chat/completions, retry, AuthError mapping (TDD)
 
-### Phase 4: Gate Modernization
-**Goal**: NormalizationGate валидирует LLM-выход с учётом стиля -- false rejections для style transforms исключены
-**Depends on**: Phase 1, Phase 3
-**Requirements**: GATE-01, GATE-02, GATE-03, GATE-04, TEST-04
+### Phase 13: Mode & Routing
+**Goal**: User can select Cloud as a third product mode and the pipeline routes audio through the cloud path
+**Depends on**: Phase 12
+**Requirements**: MODE-01, MODE-02, MODE-03, MODE-04, CLOUD-04
 **Success Criteria** (what must be TRUE):
-  1. NormalizationGate.evaluate принимает contract и superStyle как отдельные оси
-  2. В relaxed обе формы brand/tech aliases (Slack/слак, PDF/пдф) считаются валидными protected tokens
-  3. В formal slang expansions (спс/спасибо) считаются валидными protected tokens
-  4. Edit distance нормализует style aliases перед подсчётом (style-neutral)
-  5. Unit-тесты покрывают style-aware protected tokens, slang, edit distance для всех трёх стилей
-**Plans**: 2 plans
-
+  1. ProductMode.cloud is a third enum case; `usesLLM` returns true for both super and cloud
+  2. All 5 `usesLLM` guard sites in AppState are audited: cloud does not trigger llama-server start, model download, or LLMRuntimeManager
+  3. AppState.applyProductMode(.cloud) wires CloudLLMClient into PipelineEngine via updateLLMClient()
+  4. Cloud mode bypasses local STT and local LLM entirely -- audio goes directly to the cloud
+  5. Standard and Super modes continue working identically to before (zero regression)
+**Plans:** 2/2 plans complete
 Plans:
-- [x] 04-01-PLAN.md -- Style-aware gate: slangExpansions table, TDD tests, alias-aware protected tokens, style-neutral edit distance, threshold relaxation
-- [x] 04-02-PLAN.md -- Wire superStyle through PipelineEngine and NormalizationPipeline call sites
+- [x] 13-01-PLAN.md -- ProductMode.cloud enum + PipelineEngine cloud fork (TDD)
+- [x] 13-02-PLAN.md -- AppState guard audit (usesLLM->usesLocalLLM) + cloud wiring + credential gate (TDD)
 
-### Phase 5: Postflight
-**Goal**: Финальная обработка текста (точка, капитализация) определяется стилем -- детерминированное поведение для каждого уровня формальности
-**Depends on**: Phase 1, Phase 3
-**Requirements**: POST-01, POST-02, TEST-05
+### Phase 14: Pipeline Hardening
+**Goal**: Cloud output flows through the full post-processing pipeline correctly, including snippets and offline degradation
+**Depends on**: Phase 13
+**Requirements**: CLOUD-05, MODE-05
 **Success Criteria** (what must be TRUE):
-  1. При superStyle != nil стиль определяет точку: relaxed/normal без точки, formal с точкой
-  2. При superStyle == nil (classic) точка определяется terminalPeriodEnabled из настроек
-  3. Unit-тесты постфлайта покрывают все комбинации стиль/classic x точка
-**Plans**: 1 plan
-
+  1. SnippetEngine.match runs on CloudLLMClient output text (not rawTranscript), detecting trigger words in LLM-normalized text
+  2. NormalizationGate evaluates cloud output with same contract/style logic as local LLM -- no special cloud thresholds needed initially (interpreted as: Gate код не модифицируется; cloud fork skips Gate per D-06/D-07)
+  3. ListFormatter processes cloud output without changes
+  4. When network is unavailable, cloud mode fast-fails (NetworkMonitor check) and degrades to deterministic text without 30s timeout wait
+**Plans:** 4/4 plans complete
 Plans:
-- [x] 05-01-PLAN.md -- terminalPeriod property, style-aware postflight period+caps, effectiveTerminalPeriod in PipelineEngine, TDD tests
+- [x] 14-01-PLAN.md -- SnippetReinserter.cleanSubstitute helper для cloud embedded fallback (TDD)
+- [x] 14-02-PLAN.md -- SuperTextStyle snippet-aware systemPrompt + NormalizationHints.snippetDictionary + CloudLLMClient wiring (TDD)
+- [x] 14-03-PLAN.md -- NetworkAvailabilityProviding протокол + PipelineEngine DI (TDD)
+- [x] 14-04-PLAN.md -- processCloudPath integration: offline fallback, dictionary, snippet, toast wiring
 
-### Phase 6: Settings & Data
-**Goal**: Настройки стилей и история сохраняются корректно -- пользователь может переключать авто/ручной и видеть стиль в истории
-**Depends on**: Phase 1, Phase 3
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, TEST-03
-**Success Criteria** (what must be TRUE):
-  1. SettingsStore предоставляет superStyleMode (.auto/.manual) с default .auto и manualSuperStyle с default .normal
-  2. HistoryStore.save() записывает result.superStyle?.rawValue, HistoryView показывает displayName с fallback для legacy
-  3. UserDefaults: defaultTextMode удалён, новые defaults зарегистрированы ДО первого чтения
-  4. Unit-тесты SettingsStore покрывают superStyleMode и manualSuperStyle
-**Plans**: 1 plan
-
-Plans:
-- [x] 06-01-PLAN.md -- superStyleMode/manualSuperStyle в SettingsStore, AppState wiring, HistoryView стиль, удаление defaultTextMode
-
-### Phase 7: Analytics
-**Goal**: События аналитики содержат информацию о стиле -- метрики стилей доступны ДО удаления TextMode
-**Depends on**: Phase 3, Phase 6
-**Requirements**: ANALYTICS-01, ANALYTICS-02, ANALYTICS-03
-**Success Criteria** (what must be TRUE):
-  1. Аналитические события содержат effective_style (relaxed/normal/formal/none)
-  2. События Super содержат style_selection_mode (auto/manual)
-  3. product_mode и detected_app_bundle присутствуют в событиях
-**Plans**: 1 plan
-
-Plans:
-- [x] 07-01 -- effective_style, style_selection_mode, detected_app_bundle в событиях
-
-### Phase 8: UI
-**Goal**: Пользователь может переключать стили в menubar -- авто/ручной режим с визуальным feedback
-**Depends on**: Phase 1, Phase 6
+### Phase 15: Cloud Settings UI
+**Goal**: User can enter credentials, see connection status, select Cloud mode, and give informed consent before data leaves the device
+**Depends on**: Phase 13
 **Requirements**: UI-01, UI-02, UI-03, UI-04
 **Success Criteria** (what must be TRUE):
-  1. Вкладка "Стиль текста" присутствует в menubar-меню на странице Говорун Супер
-  2. Сегмент Авто/Ручной работает; авто показывает текущий стиль серым ("Расслабленный . Telegram")
-  3. В ручном режиме три карточки стилей с описаниями, чекмарк на выбранном
-  4. Без модели: пункт активен но серый, при нажатии NSAlert с предложением скачать
-**Plans**: 2 plans
+  1. Settings panel has fields for clientId and clientSecret that save to Keychain on input
+  2. Connection status indicator shows one of: not configured / connected / error -- with actionable error text
+  3. ProductMode picker shows three options (Говорун / Super / Cloud); Cloud is disabled when credentials are missing
+  4. First time user enables Cloud mode, a privacy consent dialog explains that dictated audio/text will be sent to Sber GigaChat servers
+**Plans:** 6 plans
+Plans:
+- [x] 15-01-PLAN.md -- SettingsStore.cloudConsentAcceptedAt accessor + clearCloudConsent (TDD, UI-04)
+- [x] 15-02-PLAN.md -- AuthError.networkError preserves URLError + Equatable (TDD, Path B, UI-02)
+- [x] 15-03-PLAN.md -- cloudErrorMessage(for:) -> String в Views/CloudErrorCopy.swift (TDD, UI-02)
+- [x] 15-04-PLAN.md -- AppState shim: saveCloudCredentials / deleteCloudCredentials / probeCloudConnection (TDD, UI-01, UI-02)
+- [x] 15-05-PLAN.md -- StatusDot 3-state (idle/connected/error) additive (UI-02)
+- [ ] 15-06-PLAN.md -- CloudSettingsDisclosure.swift + ProductModeCard integration (UI-01, UI-02, UI-03, UI-04) (pending UAT — code shipped to main, awaiting human verification per 15-06-SUMMARY.md §UAT Checkpoint)
 **UI hint**: yes
 
-Plans:
-- [x] 08-01-PLAN.md -- Model extensions (cardDescription, displayName) + SettingsSection.textStyle + TDD tests
-- [x] 08-02-PLAN.md -- TextStyleSettingsView (picker, StyleCard, ModelMissingOverlay) + SettingsView wiring
-
-### Phase 9: TextMode Deletion
-**Goal**: TextMode и вся его инфраструктура удалены -- единственная система стилей в проекте это SuperTextStyle
-**Depends on**: Phase 3, Phase 4, Phase 5, Phase 6, Phase 7, Phase 8
-**Requirements**: DELETE-01, DELETE-02, DELETE-03, DELETE-04
+### Phase 16: Tests
+**Goal**: All cloud services have comprehensive unit test coverage and cloud quality is benchmarked against local
+**Depends on**: Phase 14, Phase 15
+**Requirements**: TEST-01, TEST-02
 **Success Criteria** (what must be TRUE):
-  1. TextMode.swift и AppModeSettingsView.swift удалены из проекта
-  2. AppModeOverriding протокол и UserDefaultsAppModeOverrides класс удалены
-  3. AppContextEngine: AppContext не содержит textMode, методы defaultAppModes и resolveTextMode() удалены
-  4. AppState: TextMode не упоминается в handleActivated
-  5. Проект компилируется, все тесты проходят без ссылок на TextMode
-**Plans**: 2 plans
-
+  1. SberAuthService, CloudLLMClient, CredentialStore each have mock-based unit tests covering happy path, error cases, and edge cases (token expiry, retry, keychain errors)
+  2. SberTrustPolicy tested with MockTrustPolicy (not real certificates) -- no network calls in unit tests
+  3. Quality benchmark compares cloud vs local normalization on existing eval seed, with results documented
+**Plans:** 4/4 plans complete
 Plans:
-- [x] 09-01-PLAN.md -- Delete TextMode files + surgical production edits
-- [x] 09-02-PLAN.md -- Test file cleanup and migration
+- [x] 16-01-PLAN.md -- CredentialStoreKeychainTests (real Keychain) + AppStateCloudShim error-paths (TEST-01)
+- [x] 16-02-PLAN.md -- benchmark-llm-normalization.py --mode cloud + .env.bench infrastructure (TEST-02)
+- [x] 16-03-PLAN.md -- Q1 checkpoint + smoke + local/cloud benchmark runs (TEST-02 Variant A only; Variant B → Phase 17)
+- [x] 16-04-PLAN.md -- 16-BENCHMARK-RESULTS.md + XCTest regression + roadmap close (TEST-01, TEST-02)
+
+### Phase 17: Polish & Rollout
+**Goal**: Cloud mode is production-ready with clear error messages, analytics tracking, and safe launch behavior
+**Depends on**: Phase 16
+**Requirements**: CLOUD-06, MODE-04
+**Success Criteria** (what must be TRUE):
+  1. All cloud error states (auth failed, timeout, rate limit, server error) display actionable Russian-language messages in the bottom bar
+  2. Analytics events include productMode: cloud, cloud_latency_ms, and normalization_source for cloud path
+  3. On app launch with saved ProductMode.cloud but missing credentials, mode auto-downgrades to .standard (no crash, no dead state)
+  4. Cloud dictation end-to-end works: hold key, speak, release, normalized text appears in active field via GigaChat-2-Max
+
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 --> 2 --> 3 --> 4 --> 5 --> 6 --> 7 --> 8 --> 9
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation Types | 2/2 | Complete | 2026-03-29 |
-| 2. Type Extraction | 1/1 | Complete | 2026-03-30 |
-| 3. Pipeline Integration | 2/2 | Complete | 2026-03-30 |
-| 4. Gate Modernization | 2/2 | Complete | 2026-03-31 |
-| 5. Postflight | 1/1 | Complete | 2026-04-01 |
-| 6. Settings & Data | 1/1 | Complete | 2026-04-01 |
-| 7. Analytics | 1/1 | Complete | 2026-04-01 |
-| 8. UI | 2/2 | Complete | 2026-04-01 |
-| 9. TextMode Deletion | 2/2 | Complete | 2026-04-02 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 10. TLS & Credentials | v2.0 | 2/2 | Complete    | 2026-04-12 |
+| 11. OAuth | v2.0 | 1/1 | Complete    | 2026-04-12 |
+| 12. Cloud LLM Client | v2.0 | 1/1 | Complete   | 2026-04-12 |
+| 13. Mode & Routing | v2.0 | 2/2 | Complete   | 2026-04-12 |
+| 14. Pipeline Hardening | v2.0 | 3/4 | In progress | - |
+| 15. Cloud Settings UI | v2.0 | 5/6 | Pending UAT on 15-06 | - |
+| 16. Tests | v2.0 | 4/4 | Complete | 2026-04-25 |
+| 17. Polish & Rollout | v2.0 | 0/? | Not started | - |
