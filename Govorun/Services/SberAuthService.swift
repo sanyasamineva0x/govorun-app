@@ -32,7 +32,7 @@ enum AuthError: Error, Equatable {
 
 // MARK: - Модель токена
 
-struct OAuthToken: Sendable {
+struct OAuthToken {
     let accessToken: String
     let expiresAt: Date
 }
@@ -150,7 +150,7 @@ actor SberAuthService: AuthService {
             throw AuthError.tokenParsingFailed
         }
 
-        let expiryDate = Date(timeIntervalSince1970: expiresAt / 1000.0)
+        let expiryDate = Date(timeIntervalSince1970: expiresAt/1_000.0)
         return OAuthToken(accessToken: accessToken, expiresAt: expiryDate)
     }
 

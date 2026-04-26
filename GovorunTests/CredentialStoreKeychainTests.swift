@@ -86,7 +86,7 @@ final class CredentialStoreKeychainTests: XCTestCase {
 
     // MARK: - Concurrency + isolation
 
-    func test_concurrent_saves_areSerialized() throws {
+    func test_concurrent_saves_areSerialized() {
         // 10 параллельных save через NSLock не должны падать; финальный get() возвращает один из вариантов.
         let count = 10
         DispatchQueue.concurrentPerform(iterations: count) { i in

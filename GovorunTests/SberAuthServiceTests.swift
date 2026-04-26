@@ -1,13 +1,13 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 // MARK: - Хелпер
 
 private func makeValidTokenResponse(
     token: String = "test-token",
-    expiresInSeconds: TimeInterval = 1800
+    expiresInSeconds: TimeInterval = 1_800
 ) -> (Data, URLResponse) {
-    let expiresAtMs = (Date().timeIntervalSince1970 + expiresInSeconds) * 1000.0
+    let expiresAtMs = (Date().timeIntervalSince1970 + expiresInSeconds) * 1_000.0
     let json = """
     {"access_token": "\(token)", "expires_at": \(Int64(expiresAtMs))}
     """
@@ -88,7 +88,7 @@ final class SberAuthServiceTests: XCTestCase {
         do {
             _ = try await sut.getAccessToken()
             XCTFail("Ожидалась ошибка")
-        } catch let AuthError.networkError(urlErr, _) {
+        } catch AuthError.networkError(let urlErr, _) {
             XCTAssertEqual(urlErr?.code, .notConnectedToInternet)
         } catch {
             XCTFail("Ожидался AuthError.networkError, получен \(error)")
@@ -100,20 +100,20 @@ final class SberAuthServiceTests: XCTestCase {
         do {
             _ = try await sut.getAccessToken()
             XCTFail("Ожидалась ошибка")
-        } catch let AuthError.networkError(urlErr, _) {
+        } catch AuthError.networkError(let urlErr, _) {
             XCTAssertEqual(urlErr?.code, .timedOut)
         } catch {
             XCTFail("Ожидался AuthError.networkError, получен \(error)")
         }
     }
 
-    func test_getAccessToken_invalidResponse_401() async {
-        let response = HTTPURLResponse(
-            url: URL(string: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth")!,
+    func test_getAccessToken_invalidResponse_401() async throws {
+        let response = try XCTUnwrap(try HTTPURLResponse(
+            url: XCTUnwrap(URL(string: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth")),
             statusCode: 401,
             httpVersion: nil,
             headerFields: nil
-        )!
+        ))
         mockHTTP.result = (Data(), response as URLResponse)
         do {
             _ = try await sut.getAccessToken()
@@ -123,14 +123,14 @@ final class SberAuthServiceTests: XCTestCase {
         }
     }
 
-    func test_getAccessToken_tokenParsingFailed() async {
+    func test_getAccessToken_tokenParsingFailed() async throws {
         let badJSON = Data("not json".utf8)
-        let response = HTTPURLResponse(
-            url: URL(string: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth")!,
+        let response = try XCTUnwrap(try HTTPURLResponse(
+            url: XCTUnwrap(URL(string: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth")),
             statusCode: 200,
             httpVersion: nil,
             headerFields: nil
-        )!
+        ))
         mockHTTP.result = (badJSON, response as URLResponse)
         do {
             _ = try await sut.getAccessToken()
@@ -154,7 +154,7 @@ final class SberAuthServiceTests: XCTestCase {
         mockHTTP.result = makeValidTokenResponse(token: "old", expiresInSeconds: -10)
         _ = try await sut.getAccessToken()
 
-        mockHTTP.result = makeValidTokenResponse(token: "new", expiresInSeconds: 1800)
+        mockHTTP.result = makeValidTokenResponse(token: "new", expiresInSeconds: 1_800)
         let second = try await sut.getAccessToken()
         XCTAssertEqual(second, "new")
         XCTAssertEqual(mockHTTP.requests.count, 2)
@@ -172,8 +172,8 @@ final class SberAuthServiceTests: XCTestCase {
             pattern: "^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$",
             options: .caseInsensitive
         )
-        let range = NSRange(rquid!.startIndex ..< rquid!.endIndex, in: rquid!)
-        XCTAssertNotNil(uuidRegex.firstMatch(in: rquid!, range: range))
+        let range = try NSRange(XCTUnwrap(rquid?.startIndex)..<rquid!.endIndex, in: XCTUnwrap(rquid))
+        XCTAssertNotNil(try uuidRegex.firstMatch(in: XCTUnwrap(rquid), range: range))
     }
 
     func test_request_containsBasicAuth() async throws {
@@ -181,7 +181,7 @@ final class SberAuthServiceTests: XCTestCase {
         _ = try await sut.getAccessToken()
         let auth = mockHTTP.requests[0].value(forHTTPHeaderField: "Authorization")
         XCTAssertNotNil(auth)
-        XCTAssertTrue(auth!.hasPrefix("Basic "))
+        XCTAssertTrue(try XCTUnwrap(auth?.hasPrefix("Basic ")))
     }
 
     func test_request_containsCorrectBody() async throws {
@@ -254,7 +254,7 @@ final class SberAuthServiceTests: XCTestCase {
     // MARK: - Кастомные параметры
 
     func test_customTokenURL() async throws {
-        let customURL = URL(string: "https://custom.api.example.com/oauth")!
+        let customURL = try XCTUnwrap(URL(string: "https://custom.api.example.com/oauth"))
         let service = SberAuthService(
             credentialProvider: { [testCredentials] in testCredentials },
             httpClient: mockHTTP,

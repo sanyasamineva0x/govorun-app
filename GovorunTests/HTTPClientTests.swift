@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class HTTPClientTests: XCTestCase {
     // MARK: - URLSession conformance
@@ -14,25 +14,25 @@ final class HTTPClientTests: XCTestCase {
     func test_mock_returnsConfiguredResult() async throws {
         let mock = MockHTTPClient()
         let expectedData = Data("test".utf8)
-        let expectedResponse = HTTPURLResponse(
-            url: URL(string: "https://example.com")!,
+        let expectedResponse = try XCTUnwrap(try HTTPURLResponse(
+            url: XCTUnwrap(URL(string: "https://example.com")),
             statusCode: 200,
             httpVersion: nil,
             headerFields: nil
-        )!
+        ))
         mock.result = (expectedData, expectedResponse)
 
-        let request = URLRequest(url: URL(string: "https://example.com")!)
+        let request = try URLRequest(url: XCTUnwrap(URL(string: "https://example.com")))
         let (data, response) = try await mock.data(for: request)
         XCTAssertEqual(data, expectedData)
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
     }
 
-    func test_mock_throwsConfiguredError() async {
+    func test_mock_throwsConfiguredError() async throws {
         let mock = MockHTTPClient()
         mock.error = URLError(.notConnectedToInternet)
 
-        let request = URLRequest(url: URL(string: "https://example.com")!)
+        let request = try URLRequest(url: XCTUnwrap(URL(string: "https://example.com")))
         do {
             _ = try await mock.data(for: request)
             XCTFail("Expected error")
@@ -43,8 +43,8 @@ final class HTTPClientTests: XCTestCase {
 
     func test_mock_tracksRequests() async throws {
         let mock = MockHTTPClient()
-        let request1 = URLRequest(url: URL(string: "https://a.com")!)
-        let request2 = URLRequest(url: URL(string: "https://b.com")!)
+        let request1 = try URLRequest(url: XCTUnwrap(URL(string: "https://a.com")))
+        let request2 = try URLRequest(url: XCTUnwrap(URL(string: "https://b.com")))
 
         _ = try await mock.data(for: request1)
         _ = try await mock.data(for: request2)
@@ -56,7 +56,7 @@ final class HTTPClientTests: XCTestCase {
 
     func test_mock_defaultResult_returnsEmptyDataWith200() async throws {
         let mock = MockHTTPClient()
-        let request = URLRequest(url: URL(string: "https://example.com")!)
+        let request = try URLRequest(url: XCTUnwrap(URL(string: "https://example.com")))
         let (data, response) = try await mock.data(for: request)
         XCTAssertTrue(data.isEmpty)
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
