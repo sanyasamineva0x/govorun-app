@@ -70,6 +70,9 @@ private struct CloudCredentialsBlock: View {
     }
 
     @FocusState private var focus: Field?
+    @State private var saveIsHovered: Bool = false
+    @State private var probeIsHovered: Bool = false
+    @State private var deleteIsHovered: Bool = false
 
     private var canSave: Bool {
         !clientIdDraft.trimmingCharacters(in: .whitespaces).isEmpty
@@ -119,7 +122,7 @@ private struct CloudCredentialsBlock: View {
                         .foregroundStyle(canSave ? Color.white : Color.ink.opacity(0.25))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 7)
-                        .background(canSave ? Color.ink : Color.clear)
+                        .background(canSave ? Color.ink.opacity(saveIsHovered ? 0.85 : 1.0) : Color.clear)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
@@ -129,14 +132,22 @@ private struct CloudCredentialsBlock: View {
                 .buttonStyle(.plain)
                 .disabled(!canSave)
                 .keyboardShortcut(.defaultAction)
+                .onHover { hovering in
+                    saveIsHovered = canSave && hovering
+                }
+                .animation(.easeOut(duration: 0.15), value: saveIsHovered)
                 .accessibilityHint("Сохраняет ключи и проверяет подключение к Сберу")
 
                 Button(action: probeOnly) {
                     Text("Проверить")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.ink.opacity(0.5))
+                        .foregroundStyle(probeIsHovered ? Color.ink : Color.ink.opacity(0.5))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(probeIsHovered ? Color.mist.opacity(0.4) : Color.clear)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.mist, lineWidth: 1)
@@ -144,6 +155,10 @@ private struct CloudCredentialsBlock: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!appState.cloudAvailable)
+                .onHover { hovering in
+                    probeIsHovered = appState.cloudAvailable && hovering
+                }
+                .animation(.easeOut(duration: 0.15), value: probeIsHovered)
                 .accessibilityHint("Повторно проверяет подключение к Сберу")
 
                 Spacer()
@@ -151,16 +166,24 @@ private struct CloudCredentialsBlock: View {
                 Button(action: { showClearKeysAlert = true }) {
                     Text("Удалить ключи")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.ink.opacity(0.5))
+                        .foregroundStyle(deleteIsHovered ? Color.ember : Color.ink.opacity(0.5))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(deleteIsHovered ? Color.ember.opacity(0.1) : Color.clear)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.mist, lineWidth: 1)
+                                .stroke(deleteIsHovered ? Color.ember : Color.mist, lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
                 .disabled(!canClear)
+                .onHover { hovering in
+                    deleteIsHovered = canClear && hovering
+                }
+                .animation(.easeOut(duration: 0.15), value: deleteIsHovered)
                 .accessibilityHint("Удаляет ключи API")
                 .alert(
                     "Удалить ключи API?",
