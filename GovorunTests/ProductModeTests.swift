@@ -57,7 +57,7 @@ final class ProductModeTests: XCTestCase {
     }
 
     func test_cloud_subtitle() {
-        XCTAssertEqual(ProductMode.cloud.subtitle, "Голосовой ввод через GigaChat Max")
+        XCTAssertEqual(ProductMode.cloud.subtitle, "Диктовка, генерация и редактирование текста с Гигачатом")
     }
 
     // MARK: - Codable

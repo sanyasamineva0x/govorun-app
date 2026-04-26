@@ -515,18 +515,7 @@ private struct ProductModeCard: View {
 
                 Picker("", selection: $selection) {
                     ForEach(ProductMode.allCases, id: \.self) { mode in
-                        if mode == .cloud, !appState.cloudAvailable {
-                            HStack(spacing: 4) {
-                                Text(mode.title)
-                                Image(systemName: "lock.fill").font(.caption)
-                            }
-                            .foregroundStyle(Color.ink.opacity(0.25))
-                            .tag(mode)
-                            .accessibilityLabel("Cloud — требуется настройка")
-                            .accessibilityHint("Нажмите, чтобы открыть настройки облачного режима")
-                        } else {
-                            Text(mode.title).tag(mode)
-                        }
+                        Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(.menu)

@@ -83,14 +83,13 @@ private struct CloudCredentialsBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("УЧЁТНЫЕ ДАННЫЕ")
-                .font(.caption.weight(.medium))
-                .tracking(1.5)
-                .foregroundStyle(Color.ink.opacity(0.28))
+            Text("Ваши ключи от Гигачата")
+                .font(.caption)
+                .foregroundStyle(Color.ink.opacity(0.5))
 
-            SecureField("Введите Client ID", text: $clientIdDraft)
+            SecureField("Client ID", text: $clientIdDraft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                .font(.body)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
@@ -99,11 +98,11 @@ private struct CloudCredentialsBlock: View {
                 )
                 .focused($focus, equals: .clientId)
                 .accessibilityLabel("Идентификатор клиента Client ID для GigaChat")
-                .accessibilityHint("Введите Client ID из личного кабинета Сбер")
+                .accessibilityHint("Client ID из личного кабинета Сбер")
 
-            SecureField("Введите Client Secret", text: $clientSecretDraft)
+            SecureField("Client Secret", text: $clientSecretDraft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                .font(.body)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
@@ -112,7 +111,7 @@ private struct CloudCredentialsBlock: View {
                 )
                 .focused($focus, equals: .clientSecret)
                 .accessibilityLabel("Секретный ключ Client Secret для GigaChat")
-                .accessibilityHint("Введите Client Secret из личного кабинета Сбер")
+                .accessibilityHint("Client Secret из личного кабинета Сбер")
 
             HStack(spacing: 8) {
                 Button(action: saveAndProbe) {
@@ -151,7 +150,7 @@ private struct CloudCredentialsBlock: View {
                 Spacer()
 
                 Button(action: { showClearKeysAlert = true }) {
-                    Text("Очистить")
+                    Text("Удалить ключи")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.ink.opacity(0.5))
                         .padding(.horizontal, 16)
@@ -289,11 +288,6 @@ private struct CloudConsentBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("КОНФИДЕНЦИАЛЬНОСТЬ")
-                .font(.caption.weight(.medium))
-                .tracking(1.5)
-                .foregroundStyle(Color.ink.opacity(0.28))
-
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "lock.shield")
                     .font(.system(size: 16))

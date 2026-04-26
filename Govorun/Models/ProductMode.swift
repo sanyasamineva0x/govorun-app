@@ -37,7 +37,7 @@ enum ProductMode: String, CaseIterable, Codable {
         case .superMode:
             "Голосовой ввод с ИИ-усилением"
         case .cloud:
-            "Голосовой ввод через GigaChat Max"
+            "Диктовка, генерация и редактирование текста с Гигачатом"
         }
     }
 }
