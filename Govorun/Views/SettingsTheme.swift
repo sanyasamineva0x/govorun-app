@@ -132,7 +132,7 @@ struct StatusDot: View {
     /// Совместимость: сохраняем `isActive: Bool` API для существующих и будущих вызовов.
     init(title: String, isActive: Bool) {
         self.title = title
-        self.state = isActive ? .connected : .idle
+        state = isActive ? .connected : .idle
     }
 
     init(title: String, state: State) {

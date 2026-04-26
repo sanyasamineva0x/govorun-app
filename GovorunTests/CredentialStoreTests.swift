@@ -1,5 +1,5 @@
-import XCTest
 @testable import Govorun
+import XCTest
 
 final class CredentialStoreTests: XCTestCase {
     private var store: MockCredentialStore!
@@ -45,16 +45,16 @@ final class CredentialStoreTests: XCTestCase {
     // MARK: - Error injection
 
     func test_save_withError_throws() {
-        store.saveError = CredentialStoreError.saveFailed(-25299)
+        store.saveError = CredentialStoreError.saveFailed(-25_299)
         XCTAssertThrowsError(try store.save(clientId: "id", clientSecret: "secret")) { error in
-            XCTAssertEqual(error as? CredentialStoreError, .saveFailed(-25299))
+            XCTAssertEqual(error as? CredentialStoreError, .saveFailed(-25_299))
         }
     }
 
     func test_delete_withError_throws() {
-        store.deleteError = CredentialStoreError.deleteFailed(-25300)
+        store.deleteError = CredentialStoreError.deleteFailed(-25_300)
         XCTAssertThrowsError(try store.delete()) { error in
-            XCTAssertEqual(error as? CredentialStoreError, .deleteFailed(-25300))
+            XCTAssertEqual(error as? CredentialStoreError, .deleteFailed(-25_300))
         }
     }
 
@@ -71,8 +71,8 @@ final class CredentialStoreTests: XCTestCase {
     // MARK: - Error Equatable
 
     func test_credentialStoreError_equatable() {
-        XCTAssertEqual(CredentialStoreError.saveFailed(-25299), CredentialStoreError.saveFailed(-25299))
-        XCTAssertNotEqual(CredentialStoreError.saveFailed(-25299), CredentialStoreError.saveFailed(-1))
+        XCTAssertEqual(CredentialStoreError.saveFailed(-25_299), CredentialStoreError.saveFailed(-25_299))
+        XCTAssertNotEqual(CredentialStoreError.saveFailed(-25_299), CredentialStoreError.saveFailed(-1))
         XCTAssertNotEqual(CredentialStoreError.saveFailed(-1), CredentialStoreError.deleteFailed(-1))
     }
 }

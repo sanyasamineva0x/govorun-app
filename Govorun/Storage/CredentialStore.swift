@@ -29,7 +29,7 @@ final class CredentialStore: CredentialStoring, @unchecked Sendable {
     }
 
     init(serviceOverride: String? = nil) {
-        self.service = serviceOverride ?? Keys.defaultService
+        service = serviceOverride ?? Keys.defaultService
     }
 
     func save(clientId: String, clientSecret: String) throws {

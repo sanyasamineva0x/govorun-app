@@ -112,12 +112,12 @@ final class AppStateCloudShimTests: XCTestCase {
 
     func test_saveCloudCredentials_propagatesStoreError_keepsCloudAvailableFalse() {
         let store = MockCredentialStore()
-        store.saveError = CredentialStoreError.saveFailed(-25299)
+        store.saveError = CredentialStoreError.saveFailed(-25_299)
         let (appState, _) = makeAppState(credentialStore: store)
         XCTAssertFalse(appState.cloudAvailable, "пустой store + saveError — cloudAvailable=false")
 
         XCTAssertThrowsError(try appState.saveCloudCredentials(clientId: "a", clientSecret: "b")) { error in
-            XCTAssertEqual(error as? CredentialStoreError, .saveFailed(-25299))
+            XCTAssertEqual(error as? CredentialStoreError, .saveFailed(-25_299))
         }
 
         XCTAssertFalse(appState.cloudAvailable, "при ошибке save cloudAvailable не должен флипаться на true")
@@ -126,11 +126,11 @@ final class AppStateCloudShimTests: XCTestCase {
     func test_deleteCloudCredentials_propagatesStoreError() throws {
         let store = MockCredentialStore()
         try store.save(clientId: "abc", clientSecret: "xyz")
-        store.deleteError = CredentialStoreError.deleteFailed(-25300)
+        store.deleteError = CredentialStoreError.deleteFailed(-25_300)
         let (appState, _) = makeAppState(credentialStore: store)
 
         XCTAssertThrowsError(try appState.deleteCloudCredentials()) { error in
-            XCTAssertEqual(error as? CredentialStoreError, .deleteFailed(-25300))
+            XCTAssertEqual(error as? CredentialStoreError, .deleteFailed(-25_300))
         }
     }
 

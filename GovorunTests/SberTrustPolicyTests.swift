@@ -105,7 +105,7 @@ final class SberTrustPolicyTests: XCTestCase {
         let pemFile = tmpDir.appendingPathComponent("SberRootCA.pem")
         try "NOT A CERTIFICATE".write(to: pemFile, atomically: true, encoding: .utf8)
 
-        let bundle = Bundle(path: tmpDir.path)!
+        let bundle = try XCTUnwrap(Bundle(path: tmpDir.path))
         XCTAssertThrowsError(try SberTrustPolicy(bundle: bundle)) { error in
             XCTAssertEqual(error as? TrustPolicyError, .certificateParsingFailed)
         }
